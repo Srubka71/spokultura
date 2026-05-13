@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Looper by Spokultura</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@400;500;600;700&family=Teko:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="introScreen" class="intro-screen">
+    <button id="skipIntroBtn" class="skip-intro-btn">×</button>
+    <div class="intro-bg"></div>
+  </div>
+
+  <div id="welcomeModal" class="welcome-modal hidden">
+    <div class="welcome-box">
+      <h2>Witaj w Looperze!</h2>
+
+      <p>
+        To narzędzie służy do odsłuchu, ćwiczeń i pracy kreatywnej z beatami.
+        Materiały są chronione prawami autorskimi.
+      </p>
+
+      <label class="dont-show-row">
+        <input id="dontShowWelcome" type="checkbox">
+        Nie zawracaj więcej dupy
+      </label>
+
+      <button id="closeWelcomeBtn">CZAJE BAZE</button>
+    </div>
+  </div>
+
+  <main class="page">
+
+    <section class="top-section">
+
+      <div class="cover-panel">
+        <img id="beatImage" src="assets/images/beat1.jpg" alt="Beat cover">
+      </div>
+
+      <div class="control-panel">
+
+        <div class="info-bar">
+          <div id="infoText"></div>
+
+          <div class="top-buttons">
+            <a href="../info/" id="moreInfoBtn" class="more-info-mini">WIĘCEJ INFO</a>
+            <button id="submitBeatBtn" class="submit-beat-mini">WYŚLIJ BEAT!</button>
+            <button id="bugBtn">!</button>
+            <button id="helpBtn">?</button>
+          </div>
+        </div>
+
+        <div class="meta-panel">
+          <div class="meta-copy">
+            <h2 id="title">Wrzuć coś na głośnik</h2>
+            <p id="producer">Po prostu wybierz beat</p>
+            <p id="bpm">BPM: Jeszcze nie wiadomo...</p>
+          </div>
+
+          <div class="vote-panel" aria-label="Ocena beatu">
+            <div class="vote-label">RAZEM</div>
+            <div id="voteTotal" class="vote-total">0</div>
+
+            <div class="vote-buttons">
+              <button id="voteDownBtn" class="vote-btn vote-down" type="button" aria-label="Łapka w dół">👎</button>
+              <button id="voteUpBtn" class="vote-btn vote-up" type="button" aria-label="Łapka w górę">👍</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="transport-panel">
+          <button id="stopBtn">START</button>
+          <button id="restartBtn">RESTART</button>
+
+          <div class="loop-panel">
+            <span>LOOP:</span>
+            <button class="loop-btn active-loop" data-loop="off">OFF</button>
+            <button class="loop-btn" data-loop="1">1</button>
+            <button class="loop-btn" data-loop="2">2</button>
+            <button class="loop-btn" data-loop="4">4</button>
+            <button class="loop-btn" data-loop="6">6</button>
+            <button class="loop-btn" data-loop="8">8</button>
+          </div>
+        </div>
+
+        <div class="pitch-panel">
+
+          <div class="pitch-buttons">
+            <button id="pitchMinus025">-0.25</button>
+            <button id="pitchMinus1">-1</button>
+            <button id="pitchReset">0%</button>
+            <button id="pitchPlus1">+1</button>
+            <button id="pitchPlus025">+0.25</button>
+          </div>
+
+          <input id="pitch" type="range" min="0.80" max="1.20" step="0.001" value="1">
+          <label id="pitchLabel">Pitch: 0.00%</label>
+
+        </div>
+
+      </div>
+
+      <div class="logo-panel">
+        <img src="assets/images/logo.png" alt="Logo">
+      </div>
+
+    </section>
+
+    <section id="beatGrid" class="beat-grid"></section>
+
+    <section class="news-ticker" aria-label="Looper news">
+      <div class="news-track">
+        <span>
+          COMMUNITY BETA — TESTUJ, GŁOSUJ, ZGŁASZAJ BUGI — LOOPER MONTHLY PACK — NABÓR BEATÓW OTWARTY — WYŚLIJ SWÓJ BEAT — WIĘCEJ INFO W SEKCJI INFO — GŁOSY ONLINE DZIAŁAJĄ TESTOWO — ĆWICZ, TNIJ, SCRATCHUJ — LOOPERY OD SPOŁECZNOŚCI DLA SPOŁECZNOŚCI — LOOPER BY SPOKULTURA —
+        </span>
+      </div>
+    </section>
+
+    <footer class="copyright-footer">
+      © Looper by Spokultura. Zakaz kopiowania, udostępniania i wykorzystywania materiałów bez zgody właścicieli praw. Kontakt: vertuigames@gmail.com
+    </footer>
+
+  </main>
+
+  <div id="helpModal" class="help-modal hidden">
+    <div class="help-content">
+      <div class="help-overlay help-overlay-scroll">
+
+        <h2>LOOPER HELP</h2>
+
+        <div class="help-sections">
+
+          <div class="help-card">
+            <h3>BETA</h3>
+            <p>Looper działa obecnie jako community beta.</p>
+            <p>Możesz testować beaty, głosować online, wysyłać własne beaty i zgłaszać błędy.</p>
+            <p>Jeśli coś nie działa, użyj przycisku ! i opisz problem.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>ODTWARZANIE</h3>
+            <p>Kliknij pomarańczowy kafelek, aby uruchomić beat.</p>
+            <p>Czerwone kafelki oznaczają beaty Coming Soon.</p>
+            <p>START / STOP zatrzymuje albo wznawia aktualny beat.</p>
+            <p>RESTART zaczyna aktualny beat od początku.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>LOOP</h3>
+            <p>OFF = aktualny beat gra w nieskończonej pętli.</p>
+            <p>1 / 2 / 4 / 6 / 8 = liczba powtórzeń przed automatycznym przejściem do kolejnego dostępnego beatu.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>PITCH / BPM</h3>
+            <p>Pitch zmienia tempo oraz BPM aktualnego utworu.</p>
+            <p>Przyciski -0.25 / +0.25 służą do precyzyjnej zmiany tempa.</p>
+            <p>Przyciski -1 / +1 służą do większej zmiany tempa.</p>
+            <p>0% resetuje pitch do wartości domyślnej.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>BPM W FORMULARZU</h3>
+            <p>Pole BPM w formularzu WYŚLIJ BEAT przyjmuje tylko cyfry.</p>
+            <p>Można wpisać maksymalnie 3 cyfry.</p>
+            <p>Jedna cyfra jest traktowana jako błędna wartość.</p>
+            <p>Wartości powyżej 240 są odrzucane.</p>
+            <p>Przy błędzie pojawia się komunikat: Wpisz prawidłowe BPM.</p>
+            <p>Jeśli nie znasz BPM, możesz zostawić pole puste.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>SKRÓTY</h3>
+            <p>
+              SPACE = START / STOP<br>
+              R = RESTART<br>
+              ~ = LOOP OFF
+            </p>
+
+            <p>
+              1 = LOOP 1<br>
+              2 = LOOP 2<br>
+              3 = LOOP 4<br>
+              4 = LOOP 6<br>
+              5 = LOOP 8
+            </p>
+
+            <p>
+              ← = pitch -0.25<br>
+              → = pitch +0.25
+            </p>
+          </div>
+
+          <div class="help-card">
+            <h3>GŁOSOWANIE</h3>
+            <p>Łapka w górę dodaje głos +1 dla aktualnego beatu.</p>
+            <p>Łapka w dół dodaje głos -1 dla aktualnego beatu.</p>
+            <p>Ponowne kliknięcie tej samej łapki cofa głos.</p>
+            <p>Kliknięcie drugiej łapki zmienia głos.</p>
+            <p>Głosy są zapisywane online i powinny być widoczne dla innych użytkowników.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>FORMULARZE</h3>
+            <p>! otwiera formularz zgłoszenia błędu.</p>
+            <p>WYŚLIJ BEAT! otwiera formularz zgłoszenia własnego beatu.</p>
+            <p>Zgłoszenia są wysyłane bezpośrednio przez stronę przez Formspree.</p>
+            <p>Po wysłaniu lub błędzie pojawia się komunikat na stronie z przyciskiem OK.</p>
+            <p>ESC zamyka otwarty modal.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>INFO BAR</h3>
+            <p>Pasek informacyjny jest domyślnie pusty.</p>
+            <p>Pokazuje informacje po najechaniu na kafelek albo po użyciu przycisków i skrótów.</p>
+            <p>Komunikaty po akcjach znikają automatycznie po kilku sekundach.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>NEWS TICKER</h3>
+            <p>Dolny pasek pokazuje aktualne informacje o Looperze.</p>
+            <p>Po najechaniu myszką tekst zatrzymuje się, żeby można było go spokojnie przeczytać.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>WIĘCEJ INFO</h3>
+            <p>Przycisk WIĘCEJ INFO prowadzi do strony informacyjnej projektu.</p>
+            <p>W nowej strukturze adres tej sekcji to /info/.</p>
+            <p>Znajdziesz tam opis projektu, plan rozwoju, zasady wysyłania beatów i informacje o Looper Monthly Pack.</p>
+          </div>
+
+        </div>
+
+        <p class="help-credits">Looper by Spokultura</p>
+
+        <button id="closeHelpBtn">ZROZUMIAŁEM GOŚCIU</button>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="bugModal" class="community-modal hidden">
+    <div class="community-box">
+      <h2>ZGŁOŚ BUG</h2>
+
+      <p class="community-info">
+        Opisz problem jak najprościej: co kliknąłeś, na jakim urządzeniu testujesz i co poszło nie tak.
+      </p>
+
+      <input id="bugName" type="text" placeholder="Twoje imię / ksywa">
+      <input id="bugEmail" type="email" placeholder="Twój email">
+      <textarea id="bugMessage" placeholder="Opis błędu"></textarea>
+
+      <div class="modal-actions">
+        <button id="sendBugBtn">WYŚLIJ BUGA</button>
+        <button id="closeBugBtn">ZAMKNIJ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="submitBeatModal" class="community-modal hidden">
+    <div class="community-box">
+      <h2>WYŚLIJ BEAT</h2>
+
+      <p class="community-info">
+        Wyślij beat do selekcji Looper Monthly Pack. Najlepiej podaj link do MP3/WAV, BPM, okładkę i swoje social media.
+      </p>
+
+      <input id="beatNick" type="text" placeholder="Ksywa producenta">
+      <input id="beatEmail" type="email" placeholder="Email kontaktowy">
+      <input id="beatTitle" type="text" placeholder="Tytuł beatu">
+      <input id="beatBpm" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="BPM">
+      <input id="beatLink" type="text" placeholder="Link do beatu / dysku / WeTransfer">
+      <textarea id="beatNotes" placeholder="Dodatkowe info, socials, klimat beatu, zgody itd."></textarea>
+
+      <label class="rights-row">
+        <input id="beatRights" type="checkbox">
+        Potwierdzam, że beat oraz użyte sample należą do mnie lub mam prawo je udostępnić.
+      </label>
+
+      <div class="modal-actions">
+        <button id="sendBeatBtn">WYŚLIJ ZGŁOSZENIE</button>
+        <button id="closeSubmitBeatBtn">ZAMKNIJ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="feedbackModal" class="community-modal hidden">
+    <div class="community-box">
+      <h2 id="feedbackTitle">KOMUNIKAT</h2>
+
+      <p id="feedbackMessage" class="community-info">
+        Treść komunikatu.
+      </p>
+
+      <div class="modal-actions">
+        <button id="closeFeedbackBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

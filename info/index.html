@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Spokultura / Info</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@400;500;600;700;800&family=Teko:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../looper/style.css">
+</head>
+
+<body class="roadmap-body">
+
+  <main class="roadmap-page">
+
+    <header class="roadmap-hero">
+      <p class="roadmap-kicker">COMMUNITY BETA / SPOKULTURA TOOL</p>
+
+      <h1>LOOPER COMMUNITY</h1>
+
+      <p class="roadmap-lead">
+        Looper to działająca wersja beta narzędzia do odsłuchu, ćwiczeń, scratchu i pracy kreatywnej z beatami.
+        Projekt rozwija się jako otwarta baza loopów i beatów dla osób, które chcą ćwiczyć,
+        testować pomysły i wspierać scenę turntablistyczną.
+      </p>
+
+      <div class="roadmap-actions">
+        <a class="roadmap-main-btn" href="../looper/">WRÓĆ DO LOOPERA</a>
+        <button id="roadmapSubmitBeatBtn" class="roadmap-secondary-btn roadmap-submit-btn" type="button">
+          WYŚLIJ BEAT
+        </button>
+      </div>
+    </header>
+
+    <section class="roadmap-grid">
+
+      <article class="roadmap-card roadmap-card-highlight">
+        <h2>Community beta</h2>
+
+        <p>
+          To jest publiczna wersja testowa Loopera. Możesz już korzystać z playera,
+          głosować online, wysyłać beaty i zgłaszać błędy.
+        </p>
+
+        <p>
+          Projekt nadal jest rozwijany, więc pojedyncze rzeczy mogą się zmieniać,
+          ale obecna wersja jest gotowa do testów ze znajomymi i społecznością.
+        </p>
+      </article>
+
+      <article class="roadmap-card">
+        <h2>Czym jest Looper?</h2>
+
+        <p>
+          Looper by Spokultura to webowy odtwarzacz beatów stworzony z myślą o scratchu,
+          freestyle’u, ćwiczeniu techniki i szybkim testowaniu loopów.
+        </p>
+
+        <p>
+          Możesz wybierać beaty, zmieniać pitch, korzystać z loopów, skrótów klawiaturowych,
+          wysyłać własne beaty, zgłaszać błędy i głosować online na aktualnie odtwarzane numery.
+        </p>
+      </article>
+
+      <article class="roadmap-card">
+        <h2>Jak wysłać beat?</h2>
+
+        <p>
+          Kliknij przycisk <strong>WYŚLIJ BEAT</strong> na tej stronie albo
+          <strong>WYŚLIJ BEAT!</strong> w Looperze i wypełnij formularz.
+        </p>
+
+        <p>
+          Najlepiej przygotuj link do pliku MP3/WAV, tytuł, BPM, ksywę producenta,
+          mail kontaktowy oraz dodatkowe informacje o bicie.
+        </p>
+
+        <p>
+          Wysyłając beat potwierdzasz, że masz prawa do beatu i użytych sampli
+          albo masz zgodę na ich udostępnienie.
+        </p>
+      </article>
+
+      <article class="roadmap-card">
+        <h2>Co to jest Looper Monthly Pack?</h2>
+
+        <p>
+          Looper Monthly Pack to pomysł na cykliczną rotację beatów w Looperze.
+        </p>
+
+        <p>
+          Część beatów może co jakiś czas wypadać z aktywnej listy, a w ich miejsce
+          mogą wchodzić nowe numery od społeczności.
+        </p>
+
+        <p>
+          Dzięki temu narzędzie nie stoi w miejscu i regularnie dostaje świeży materiał
+          do ćwiczeń oraz zabawy.
+        </p>
+      </article>
+
+      <article class="roadmap-card roadmap-card-highlight">
+        <h2>Jak działa głosowanie?</h2>
+
+        <p>
+          Głosowanie działa online przez Supabase. Oznacza to, że głosy oddane przez różnych
+          użytkowników mogą być zliczane we wspólnej sumie.
+        </p>
+
+        <p>
+          Możesz kliknąć łapkę w górę albo łapkę w dół przy aktualnym bicie.
+          Ponowne kliknięcie tej samej łapki cofa głos, a kliknięcie drugiej zmienia głos.
+        </p>
+
+        <p>
+          Strona zapamiętuje identyfikator przeglądarki, żeby jedna przeglądarka mogła mieć
+          tylko jeden aktywny głos na dany beat.
+        </p>
+
+        <p>
+          To jest wersja community test. System nie wymaga logowania, więc nie jest pancerny
+          antyspamowo, ale wystarcza do realnego testowania głosów ze znajomymi.
+        </p>
+      </article>
+
+      <article class="roadmap-card">
+        <h2>Co będzie dodane później?</h2>
+
+        <ul>
+          <li>ranking najlepiej ocenianych beatów,</li>
+          <li>statystyki popularności beatów,</li>
+          <li>lepsza selekcja Looper Monthly Pack,</li>
+          <li>publiczne informacje o aktualizacjach,</li>
+          <li>możliwość lepszego zabezpieczenia głosów przed spamem,</li>
+          <li>dalsze poprawki mobile / Android / Mac.</li>
+        </ul>
+      </article>
+
+      <article class="roadmap-card">
+        <h2>Jak zgłaszać błędy?</h2>
+
+        <p>
+          W Looperze kliknij przycisk <strong>!</strong>.
+        </p>
+
+        <p>
+          Opisz problem jak najprościej: co kliknąłeś, na jakim urządzeniu testujesz,
+          jaka przeglądarka była używana i co dokładnie poszło nie tak.
+        </p>
+
+        <p>
+          Zgłoszenie trafia bezpośrednio przez formularz, więc nie musisz otwierać programu pocztowego.
+        </p>
+      </article>
+
+      <article class="roadmap-card">
+        <h2>Kontakt / Spokultura</h2>
+
+        <p>
+          Projekt jest rozwijany jako narzędzie społecznościowe pod beaty, scratch,
+          turntablism i działania kreatywne.
+        </p>
+
+        <p>
+          Kontakt:
+          <a href="mailto:vertuigames@gmail.com">vertuigames@gmail.com</a>
+        </p>
+
+        <p>
+          Jeśli chcesz dołożyć beat, zgłosić błąd albo zaproponować funkcję,
+          użyj formularzy w Looperze albo przycisku WYŚLIJ BEAT na tej stronie.
+        </p>
+      </article>
+
+      <article class="roadmap-card roadmap-card-highlight">
+        <h2>Status projektu</h2>
+
+        <p>
+          Aktualnie działa publiczna beta: odtwarzacz, pitch, loop, skróty,
+          formularze zgłoszeń, news ticker, strona informacyjna community oraz głosowanie online przez Supabase.
+        </p>
+
+        <p>
+          Możesz już wysłać link znajomym, żeby testowali beaty, oddawali głosy,
+          zgłaszali bugi i wysyłali własne propozycje beatów.
+        </p>
+
+        <p>
+          Następny większy etap to ranking / statystyki beatów oraz dalsze dopracowanie
+          systemu community.
+        </p>
+      </article>
+
+    </section>
+
+    <footer class="roadmap-footer">
+      <a href="../looper/">← WRÓĆ DO LOOPERA</a>
+      <span>Looper by Spokultura</span>
+    </footer>
+
+  </main>
+
+  <div id="roadmapSubmitBeatModal" class="community-modal hidden">
+    <div class="community-box">
+      <h2>WYŚLIJ BEAT</h2>
+
+      <p class="community-info">
+        Wyślij beat do selekcji Looper Monthly Pack. Najlepiej podaj link do MP3/WAV, BPM, okładkę i swoje social media.
+      </p>
+
+      <input id="roadmapBeatNick" type="text" placeholder="Ksywa producenta">
+      <input id="roadmapBeatEmail" type="email" placeholder="Email kontaktowy">
+      <input id="roadmapBeatTitle" type="text" placeholder="Tytuł beatu">
+      <input id="roadmapBeatBpm" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="BPM">
+      <input id="roadmapBeatLink" type="text" placeholder="Link do beatu / dysku / WeTransfer">
+      <textarea id="roadmapBeatNotes" placeholder="Dodatkowe info, socials, klimat beatu, zgody itd."></textarea>
+
+      <label class="rights-row">
+        <input id="roadmapBeatRights" type="checkbox">
+        Potwierdzam, że beat oraz użyte sample należą do mnie lub mam prawo je udostępnić.
+      </label>
+
+      <div class="modal-actions">
+        <button id="roadmapSendBeatBtn">WYŚLIJ ZGŁOSZENIE</button>
+        <button id="roadmapCloseSubmitBeatBtn">ZAMKNIJ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="roadmapFeedbackModal" class="community-modal hidden">
+    <div class="community-box">
+      <h2 id="roadmapFeedbackTitle">KOMUNIKAT</h2>
+
+      <p id="roadmapFeedbackMessage" class="community-info">
+        Treść komunikatu.
+      </p>
+
+      <div class="modal-actions">
+        <button id="roadmapCloseFeedbackBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BEAT_FORM_ENDPOINT = "https://formspree.io/f/mjglzzlg";
+
+    const roadmapSubmitBeatBtn = document.getElementById("roadmapSubmitBeatBtn");
+    const roadmapSubmitBeatModal = document.getElementById("roadmapSubmitBeatModal");
+    const roadmapCloseSubmitBeatBtn = document.getElementById("roadmapCloseSubmitBeatBtn");
+    const roadmapSendBeatBtn = document.getElementById("roadmapSendBeatBtn");
+
+    const roadmapFeedbackModal = document.getElementById("roadmapFeedbackModal");
+    const roadmapFeedbackTitle = document.getElementById("roadmapFeedbackTitle");
+    const roadmapFeedbackMessage = document.getElementById("roadmapFeedbackMessage");
+    const roadmapCloseFeedbackBtn = document.getElementById("roadmapCloseFeedbackBtn");
+
+    const roadmapBeatBpmInput = document.getElementById("roadmapBeatBpm");
+
+    function isValidEmail(email) {
+      if (!email) return false;
+
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function sanitizeBpmInput(value) {
+      return value.replace(/\D/g, "").slice(0, 3);
+    }
+
+    function isValidBpm(value) {
+      if (!value) return true;
+
+      if (!/^\d{2,3}$/.test(value)) {
+        return false;
+      }
+
+      const bpmNumber = parseInt(value, 10);
+
+      return bpmNumber >= 20 && bpmNumber <= 240;
+    }
+
+    function showRoadmapFeedbackModal(titleText, messageText) {
+      if (!roadmapFeedbackModal || !roadmapFeedbackTitle || !roadmapFeedbackMessage) return;
+
+      roadmapFeedbackTitle.innerText = titleText;
+      roadmapFeedbackMessage.innerText = messageText;
+
+      roadmapFeedbackModal.classList.remove("hidden");
+    }
+
+    function closeRoadmapFeedbackModal() {
+      if (roadmapFeedbackModal) {
+        roadmapFeedbackModal.classList.add("hidden");
+      }
+    }
+
+    function clearRoadmapBeatForm() {
+      const fields = [
+        "roadmapBeatNick",
+        "roadmapBeatEmail",
+        "roadmapBeatTitle",
+        "roadmapBeatBpm",
+        "roadmapBeatLink",
+        "roadmapBeatNotes"
+      ];
+
+      fields.forEach((id) => {
+        const field = document.getElementById(id);
+
+        if (field) {
+          field.value = "";
+        }
+      });
+
+      const rights = document.getElementById("roadmapBeatRights");
+
+      if (rights) {
+        rights.checked = false;
+      }
+    }
+
+    async function sendFormspreeForm(endpoint, payload) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error("Formspree request failed");
+      }
+
+      return response.json();
+    }
+
+    if (roadmapSubmitBeatBtn && roadmapSubmitBeatModal) {
+      roadmapSubmitBeatBtn.addEventListener("click", () => {
+        roadmapSubmitBeatModal.classList.remove("hidden");
+      });
+    }
+
+    if (roadmapCloseSubmitBeatBtn && roadmapSubmitBeatModal) {
+      roadmapCloseSubmitBeatBtn.addEventListener("click", () => {
+        roadmapSubmitBeatModal.classList.add("hidden");
+      });
+    }
+
+    if (roadmapSubmitBeatModal) {
+      roadmapSubmitBeatModal.addEventListener("click", (event) => {
+        if (event.target === roadmapSubmitBeatModal) {
+          roadmapSubmitBeatModal.classList.add("hidden");
+        }
+      });
+    }
+
+    if (roadmapCloseFeedbackBtn) {
+      roadmapCloseFeedbackBtn.addEventListener("click", () => {
+        closeRoadmapFeedbackModal();
+      });
+    }
+
+    if (roadmapFeedbackModal) {
+      roadmapFeedbackModal.addEventListener("click", (event) => {
+        if (event.target === roadmapFeedbackModal) {
+          closeRoadmapFeedbackModal();
+        }
+      });
+    }
+
+    if (roadmapBeatBpmInput) {
+      roadmapBeatBpmInput.addEventListener("input", () => {
+        roadmapBeatBpmInput.value = sanitizeBpmInput(roadmapBeatBpmInput.value);
+      });
+
+      roadmapBeatBpmInput.addEventListener("blur", () => {
+        const bpmValue = roadmapBeatBpmInput.value.trim();
+
+        if (bpmValue && !isValidBpm(bpmValue)) {
+          showRoadmapFeedbackModal("BŁĄD", "Wpisz prawidłowe BPM.");
+        }
+      });
+    }
+
+    if (roadmapSendBeatBtn) {
+      roadmapSendBeatBtn.addEventListener("click", async () => {
+        const nick = document.getElementById("roadmapBeatNick").value.trim();
+        const email = document.getElementById("roadmapBeatEmail").value.trim();
+        const beatTitle = document.getElementById("roadmapBeatTitle").value.trim();
+        const bpmValue = document.getElementById("roadmapBeatBpm").value.trim();
+        const link = document.getElementById("roadmapBeatLink").value.trim();
+        const notes = document.getElementById("roadmapBeatNotes").value.trim();
+        const rights = document.getElementById("roadmapBeatRights").checked;
+
+        if (!nick) {
+          showRoadmapFeedbackModal("BŁĄD", "Podaj ksywę producenta.");
+          return;
+        }
+
+        if (!email || !isValidEmail(email)) {
+          showRoadmapFeedbackModal("BŁĄD", "Podaj prawidłowy adres e-mail.");
+          return;
+        }
+
+        if (!beatTitle) {
+          showRoadmapFeedbackModal("BŁĄD", "Podaj tytuł beatu.");
+          return;
+        }
+
+        if (!link) {
+          showRoadmapFeedbackModal("BŁĄD", "Podaj link do beatu.");
+          return;
+        }
+
+        if (!isValidBpm(bpmValue)) {
+          showRoadmapFeedbackModal("BŁĄD", "Wpisz prawidłowe BPM.");
+          return;
+        }
+
+        if (!rights) {
+          showRoadmapFeedbackModal("BŁĄD", "Musisz potwierdzić, że masz prawa do beatu i sampli.");
+          return;
+        }
+
+        const originalText = roadmapSendBeatBtn.innerText;
+
+        try {
+          roadmapSendBeatBtn.disabled = true;
+          roadmapSendBeatBtn.innerText = "WYSYŁAM...";
+
+          await sendFormspreeForm(BEAT_FORM_ENDPOINT, {
+            type: "BEAT SUBMISSION FROM INFO PAGE",
+            producerNick: nick,
+            email: email,
+            beatTitle: beatTitle,
+            bpm: bpmValue,
+            beatLink: link,
+            notes: notes,
+            rightsConfirmed: rights,
+            page: window.location.href,
+            userAgent: navigator.userAgent,
+            submittedAt: new Date().toISOString()
+          });
+
+          clearRoadmapBeatForm();
+
+          if (roadmapSubmitBeatModal) {
+            roadmapSubmitBeatModal.classList.add("hidden");
+          }
+
+          showRoadmapFeedbackModal("WYSŁANO", "Wysłano beat — odezwę się na maila podanego w zgłoszeniu.");
+        } catch (error) {
+          console.error(error);
+          showRoadmapFeedbackModal("BŁĄD", "Błąd wysyłki — spróbuj ponownie.");
+        } finally {
+          roadmapSendBeatBtn.disabled = false;
+          roadmapSendBeatBtn.innerText = originalText;
+        }
+      });
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (roadmapFeedbackModal && !roadmapFeedbackModal.classList.contains("hidden")) {
+          roadmapFeedbackModal.classList.add("hidden");
+          return;
+        }
+
+        if (roadmapSubmitBeatModal && !roadmapSubmitBeatModal.classList.contains("hidden")) {
+          roadmapSubmitBeatModal.classList.add("hidden");
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>

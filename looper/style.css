@@ -1,0 +1,3812 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+
+  background:
+    linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.7)),
+    url("assets/images/background.png");
+
+  background-size: cover;
+  background-position: center;
+
+  color: white;
+
+  font-family: Arial, sans-serif;
+}
+
+/* =========================
+   LIVING BACKGROUND
+========================= */
+
+body::before {
+  content: "";
+
+  position: fixed;
+  inset: -40px;
+
+  pointer-events: none;
+
+  z-index: -1;
+
+  background:
+    radial-gradient(circle at 20% 20%, rgba(234,162,33,0.18), transparent 28%),
+    radial-gradient(circle at 80% 40%, rgba(221,65,36,0.14), transparent 30%),
+    radial-gradient(circle at 50% 90%, rgba(255,120,0,0.10), transparent 32%);
+
+  filter: blur(28px);
+
+  opacity: 0.8;
+
+  animation:
+    backgroundBreath 12s ease-in-out infinite;
+}
+
+@keyframes backgroundBreath {
+
+  0% {
+    transform: scale(1) translate(0,0);
+    opacity: 0.65;
+  }
+
+  50% {
+    transform: scale(1.05) translate(-12px,8px);
+    opacity: 0.95;
+  }
+
+  100% {
+    transform: scale(1) translate(0,0);
+    opacity: 0.65;
+  }
+}
+
+body::after {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+
+  z-index: 0;
+
+  background:
+    radial-gradient(circle, transparent 42%, rgba(0,0,0,0.78) 100%),
+    linear-gradient(
+      90deg,
+      rgba(0,0,0,0.5),
+      transparent 28%,
+      transparent 72%,
+      rgba(0,0,0,0.5)
+    );
+
+  mix-blend-mode: multiply;
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+}
+
+.intro-screen {
+  z-index: 20000;
+}
+
+.help-modal,
+.welcome-modal {
+  position: fixed;
+  z-index: 9999;
+}
+
+/* =========================
+   NOISE
+========================= */
+
+.page::before {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+
+  z-index: 1;
+
+  opacity: 0.045;
+
+  background-image:
+    repeating-radial-gradient(
+      circle at 0 0,
+      rgba(255,255,255,0.9) 0,
+      rgba(255,255,255,0.9) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+
+  mix-blend-mode: overlay;
+}
+
+/* =========================
+   INTRO
+========================= */
+
+.intro-screen {
+  position: fixed;
+  inset: 0;
+
+  background: black;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.intro-screen.hidden {
+  display: none;
+}
+
+.intro-bg {
+
+  width: 100%;
+  height: 100%;
+
+  background-image: url("assets/images/start-bg.png");
+
+  background-size: cover;
+  background-position: center;
+
+  opacity: 0;
+
+  animation:
+    introFade 6s ease forwards;
+}
+
+@keyframes introFade {
+
+  0% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.skip-intro-btn {
+
+  position: fixed;
+
+  top: 12px;
+  right: 18px;
+
+  z-index: 20001;
+
+  background: transparent;
+
+  border: none;
+
+  color: rgba(255,255,255,0.6);
+
+  font-size: 42px;
+
+  cursor: pointer;
+}
+
+/* =========================
+   PAGE
+========================= */
+
+.page {
+
+  width: min(96vw, 1700px);
+
+  height: 100vh;
+
+  margin: 0 auto;
+
+  padding:
+    clamp(12px, 2vh, 34px)
+    clamp(12px, 3vw, 70px)
+    10px;
+
+  display: grid;
+
+  grid-template-rows:
+    minmax(260px, 38vh)
+    1fr
+    24px;
+
+  gap: clamp(8px, 1.4vh, 18px);
+}
+
+/* =========================
+   TOP SECTION
+========================= */
+
+.top-section {
+
+  min-height: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(240px, 30%)
+    1fr;
+
+  grid-template-areas:
+    "cover controls";
+
+  gap: clamp(18px, 3vw, 54px);
+
+  align-items: stretch;
+}
+
+/* =========================
+   FLOATING COVER SYSTEM
+========================= */
+
+.cover-panel {
+
+  position: relative;
+
+  overflow: visible;
+
+  border: none;
+
+  background: transparent;
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.28);
+
+  animation:
+    coverPanelFloat 5.5s ease-in-out infinite;
+
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.cover-panel:hover {
+
+  transform:
+    translateY(-2px)
+    scale(1.003);
+
+  box-shadow:
+    0 10px 28px rgba(0,0,0,0.34);
+}
+
+@keyframes coverPanelFloat {
+
+  0% {
+
+    transform:
+      translateY(0px)
+      scale(1);
+  }
+
+  50% {
+
+    transform:
+      translateY(-4px)
+      scale(1.005);
+  }
+
+  100% {
+
+    transform:
+      translateY(0px)
+      scale(1);
+  }
+}
+
+#beatImage {
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  border-radius: 12px;
+
+  filter:
+    contrast(1.03)
+    saturate(1.04);
+
+transition:
+  opacity 0.45s ease,
+  transform 0.18s ease-out,
+  filter 0.45s ease,
+  box-shadow 0.45s ease;
+
+  animation: none;
+}
+
+#beatImage.changing {
+
+  opacity: 0;
+
+  transform:
+    scale(1.04)
+    translateY(8px);
+
+  filter:
+    blur(8px)
+    brightness(0.8);
+}
+
+/* =========================
+   CONTROL PANEL
+========================= */
+
+.control-panel {
+
+  min-width: 0;
+
+  height: 100%;
+
+  display: grid;
+
+  grid-template-rows:
+    46px
+    1fr
+    auto
+    auto;
+
+  gap: clamp(8px, 1vh, 12px);
+
+  animation:
+    panelBreath 7s ease-in-out infinite;
+}
+
+@keyframes panelBreath {
+
+  0% {
+
+    box-shadow:
+      0 0 24px rgba(0,0,0,0.55),
+      0 0 16px rgba(234,162,33,0.10);
+  }
+
+  50% {
+
+    box-shadow:
+      0 0 34px rgba(0,0,0,0.65),
+      0 0 28px rgba(234,162,33,0.20);
+  }
+
+  100% {
+
+    box-shadow:
+      0 0 24px rgba(0,0,0,0.55),
+      0 0 16px rgba(234,162,33,0.10);
+  }
+}
+
+/* =========================
+   PANELS
+========================= */
+
+.info-bar,
+.meta-panel,
+.transport-panel,
+.pitch-panel,
+.beat-tile {
+
+  box-shadow:
+    0 0 24px rgba(0,0,0,0.55),
+    inset 0 0 18px rgba(255,255,255,0.025);
+}
+
+.info-bar,
+.meta-panel,
+.transport-panel,
+.pitch-panel {
+
+  border-color:
+    rgba(234,162,33,0.24);
+}
+
+/* =========================
+   INFO BAR
+========================= */
+
+.info-bar {
+
+  min-width: 0;
+
+  border:
+    1px solid rgba(255,255,255,0.18);
+
+  border-radius: 8px;
+
+  background:
+    rgba(0,0,0,0.52);
+
+  backdrop-filter: blur(14px);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding:
+    0 clamp(12px, 1.5vw, 22px);
+}
+
+.info-bar.active-info {
+
+  animation:
+    infoPulse 0.8s ease;
+}
+
+@keyframes infoPulse {
+
+  0% {
+
+    box-shadow:
+      0 0 10px rgba(234,162,33,0.10);
+  }
+
+  50% {
+
+    box-shadow:
+      0 0 32px rgba(234,162,33,0.38);
+  }
+
+  100% {
+
+    box-shadow:
+      0 0 10px rgba(234,162,33,0.10);
+  }
+}
+
+#infoText {
+
+  color: #ff9f1a;
+
+  font-size:
+    clamp(13px, 1vw, 18px);
+
+  letter-spacing: 0.5px;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  text-shadow:
+    0 0 10px rgba(234,162,33,0.35),
+    0 0 22px rgba(234,162,33,0.18);
+}
+
+.top-buttons {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+#helpBtn,
+#bugBtn,
+.transport-panel button,
+.pitch-buttons button,
+.loop-btn {
+
+  background:
+    rgba(0,0,0,0.5);
+
+  color: white;
+
+  border:
+    1px solid rgba(255,255,255,0.2);
+
+  border-radius: 6px;
+
+  cursor: pointer;
+
+  transition: 0.15s ease;
+
+  text-shadow:
+    0 0 8px rgba(255,255,255,0.15);
+}
+
+#helpBtn,
+#bugBtn {
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 50%;
+
+  font-size: 18px;
+}
+
+.transport-panel button:hover,
+.pitch-buttons button:hover,
+.loop-btn:hover,
+#helpBtn:hover,
+#bugBtn:hover {
+
+  background:
+    rgba(234,162,33,0.95);
+
+  color: black;
+}
+
+/* =========================
+   META PANEL
+========================= */
+
+.meta-panel {
+
+  min-height: 0;
+
+  padding:
+    clamp(14px, 2vh, 30px)
+    clamp(14px, 2vw, 26px);
+
+  border:
+    1px solid rgba(255,255,255,0.14);
+
+  border-radius: 8px;
+
+  background:
+    rgba(0,0,0,0.50);
+
+  backdrop-filter: blur(14px);
+}
+
+.meta-panel h2 {
+
+  margin: 0 0 12px;
+
+  font-size:
+    clamp(30px, 3.4vw, 54px);
+
+  line-height: 1;
+
+  font-weight: 900;
+
+  letter-spacing: 2px;
+
+  text-transform: uppercase;
+
+  color: #f3e5d0;
+
+  text-shadow:
+    0 0 14px rgba(0,0,0,0.9),
+    0 0 24px rgba(234,162,33,0.18);
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.meta-panel p {
+
+  margin: 8px 0;
+
+  font-size:
+    clamp(16px, 1.5vw, 24px);
+
+  color: #ff9f1a;
+
+  text-shadow:
+    0 0 10px rgba(234,162,33,0.35),
+    0 0 22px rgba(234,162,33,0.18);
+
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+/* =========================
+   TRANSPORT
+========================= */
+
+.transport-panel {
+
+  min-width: 0;
+
+  padding:
+    clamp(10px, 1.4vh, 18px)
+    clamp(14px, 2vw, 26px);
+
+  border:
+    1px solid rgba(255,255,255,0.14);
+
+  border-radius: 8px;
+
+  background:
+    rgba(0,0,0,0.50);
+
+  backdrop-filter: blur(14px);
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  flex-wrap: wrap;
+}
+
+.transport-panel button,
+.pitch-buttons button,
+.loop-btn {
+
+  padding:
+    clamp(8px, 1vh, 12px)
+    clamp(12px, 1.4vw, 20px);
+
+  font-size:
+    clamp(12px, 0.9vw, 16px);
+}
+
+#stopBtn {
+
+  min-width: 110px;
+
+  background:
+    linear-gradient(135deg, #c96300, #ff9f1a);
+
+  color: white;
+
+  position: relative;
+
+  overflow: hidden;
+}
+
+#stopBtn::after {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent,
+      rgba(255,255,255,0.28),
+      transparent
+    );
+
+  transform: translateX(-120%);
+
+  animation:
+    buttonSweep 3.5s ease-in-out infinite;
+}
+
+@keyframes buttonSweep {
+
+  0% {
+    transform: translateX(-120%);
+  }
+
+  45% {
+    transform: translateX(120%);
+  }
+
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.loop-panel {
+
+  margin-left: auto;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
+}
+
+.loop-btn.active-loop {
+
+  background:
+    rgba(234,162,33,0.9);
+
+  color: black;
+}
+
+/* =========================
+   PITCH
+========================= */
+
+.pitch-panel {
+
+  min-width: 0;
+
+  padding:
+    clamp(10px, 1.4vh, 18px)
+    clamp(14px, 2vw, 26px);
+
+  border:
+    1px solid rgba(255,255,255,0.14);
+
+  border-radius: 8px;
+
+  background:
+    rgba(0,0,0,0.50);
+
+  backdrop-filter: blur(14px);
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+}
+
+.pitch-buttons {
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
+
+  margin-bottom: 18px;
+}
+
+#pitch {
+
+  width: 100%;
+
+  accent-color: #EAA221;
+}
+
+#pitchLabel {
+
+  display: block;
+
+  text-align: center;
+
+  color: #ff9f1a;
+
+  font-size:
+    clamp(13px, 1vw, 18px);
+
+  margin-top: 10px;
+
+  text-shadow:
+    0 0 10px rgba(234,162,33,0.35),
+    0 0 22px rgba(234,162,33,0.18);
+}
+
+/* =========================
+   GRID
+========================= */
+
+.beat-grid {
+
+  min-height: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(9, 1fr);
+
+  grid-template-rows:
+    repeat(4, minmax(0, 1fr));
+
+  gap:
+    clamp(6px, 1vw, 14px);
+}
+
+.beat-tile {
+
+  position: relative;
+
+  border:
+    1px solid rgba(255,255,255,0.22);
+
+  border-radius: 6px;
+
+  background-size: cover;
+
+  background-position: center;
+
+  overflow: hidden;
+
+  cursor: pointer;
+
+  color: white;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.beat-tile::before {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  background:
+    linear-gradient(
+      rgba(0,0,0,0.08),
+      rgba(0,0,0,0.56)
+    );
+}
+
+.beat-tile span {
+
+  position: absolute;
+
+  top: 7px;
+  left: 9px;
+
+  z-index: 2;
+
+  font-size:
+    clamp(15px, 1.4vw, 24px);
+
+  font-weight: 900;
+}
+
+.beat-tile.available {
+
+  border-color:
+    rgba(234,162,33,0.45);
+}
+
+.beat-tile.unavailable {
+
+  border-color:
+    rgba(221,65,36,0.5);
+
+  opacity: 0.82;
+}
+
+.beat-tile:hover {
+
+  transform:
+    translateY(-5px)
+    scale(1.025)
+    rotate(-0.35deg);
+
+  box-shadow:
+    0 0 28px var(--glow-color, #EAA221),
+    0 0 55px rgba(234,162,33,0.18);
+}
+
+.beat-tile.active {
+
+  border-color: #EAA221;
+
+  animation:
+    pulseTile 1.6s ease infinite,
+    activeTileFloat 4s ease-in-out infinite,
+    activeTileGlow 2.2s ease infinite;
+}
+
+@keyframes pulseTile {
+
+  0% {
+    box-shadow: 0 0 18px rgba(234,162,33,0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 38px rgba(234,162,33,0.95);
+  }
+
+  100% {
+    box-shadow: 0 0 18px rgba(234,162,33,0.45);
+  }
+}
+
+@keyframes activeTileFloat {
+
+  0% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-3px) scale(1.018);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes activeTileGlow {
+
+  0% {
+
+    filter:
+      brightness(1)
+      saturate(1);
+  }
+
+  50% {
+
+    filter:
+      brightness(1.08)
+      saturate(1.18);
+  }
+
+  100% {
+
+    filter:
+      brightness(1)
+      saturate(1);
+  }
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.copyright-footer {
+
+  font-size:
+    clamp(9px, 0.7vw, 12px);
+
+  color:
+    rgba(255,255,255,0.65);
+
+  text-align: center;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  text-shadow:
+    0 0 12px rgba(0,0,0,0.9);
+}
+
+/* =========================
+   MODALS
+========================= */
+
+.help-modal,
+.welcome-modal {
+
+  inset: 0;
+
+  background:
+    rgba(0,0,0,0.82);
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+}
+
+.help-modal.hidden,
+.welcome-modal.hidden {
+
+  display: none;
+}
+
+.help-content,
+.welcome-box {
+
+  width: 90%;
+
+  max-width: 700px;
+
+  background:
+    rgba(0,0,0,0.55);
+
+  backdrop-filter: blur(20px);
+
+  border:
+    1px solid rgba(255,255,255,0.18);
+
+  box-shadow:
+    0 0 40px rgba(234,162,33,0.35);
+}
+
+.help-content {
+
+  min-height: 500px;
+
+  background-image:
+    url("assets/images/help.jpg");
+
+  background-size: cover;
+
+  background-position: center;
+}
+
+.help-overlay {
+
+  width: 100%;
+
+  min-height: 500px;
+
+  background:
+    rgba(0,0,0,0.72);
+
+  padding: 40px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  justify-content: center;
+
+  align-items: center;
+
+  color: white;
+
+  text-align: center;
+}
+
+.welcome-box {
+
+  width: min(92vw, 720px);
+
+  padding:
+    56px 48px 42px;
+
+  text-align: center;
+
+  background:
+    rgba(0, 0, 0, 0.88);
+
+  border:
+    1px solid rgba(255, 255, 255, 0.22);
+
+  box-shadow:
+    0 0 45px rgba(234, 162, 33, 0.35);
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+}
+
+.welcome-box h2,
+.help-overlay h2 {
+
+  color: #EAA221;
+
+  font-size:
+    clamp(34px, 3vw, 48px);
+
+  margin: 0 0 28px;
+}
+
+.welcome-box p,
+.help-overlay p {
+
+  max-width: 560px;
+
+  line-height: 1.55;
+
+  color:
+    rgba(255,255,255,0.92);
+}
+
+.dont-show-row {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 10px;
+
+  margin:
+    4px 0 26px;
+}
+
+#welcomeModal #closeWelcomeBtn,
+#closeHelpBtn {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-width: 190px;
+
+  min-height: 56px;
+
+  padding:
+    16px 30px;
+
+  border-radius: 8px;
+
+  font-size: 18px;
+
+  font-weight: 800;
+
+  line-height: 1;
+
+  background: #EAA221;
+
+  color: black;
+
+  border: none;
+
+  cursor: pointer;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+
+  body {
+    overflow: auto;
+  }
+
+  .page {
+
+    height: auto;
+
+    min-height: 100vh;
+
+    grid-template-rows:
+      auto
+      auto
+      auto;
+  }
+
+  .top-section {
+
+    grid-template-columns: 1fr;
+
+    grid-template-areas:
+      "cover"
+      "controls";
+  }
+
+  .beat-grid {
+
+    grid-template-columns:
+      repeat(4, 1fr);
+
+    grid-template-rows: auto;
+  }
+
+  .beat-tile {
+
+    aspect-ratio: 16 / 10;
+  }
+}
+/* =========================
+   ETAP 6.3 — TYPOGRAPHY
+========================= */
+
+/* global */
+
+body {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  letter-spacing: 0.3px;
+}
+
+/* MAIN TITLE */
+
+.meta-panel h2 {
+
+  font-family:
+    "Anton",
+    sans-serif;
+
+  letter-spacing: 2px;
+
+  font-weight: 400;
+
+  text-transform: uppercase;
+
+  line-height: 0.95;
+
+  color: #f5e6d0;
+
+  text-shadow:
+    0 0 12px rgba(0,0,0,0.9),
+    0 0 18px rgba(234,162,33,0.18);
+}
+
+/* producer + bpm */
+
+.meta-panel p {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-weight: 600;
+
+  letter-spacing: 1px;
+}
+
+/* info bar */
+
+#infoText {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-weight: 600;
+
+  letter-spacing: 1px;
+}
+
+/* tile numbers */
+
+.beat-tile span {
+
+  font-family:
+    "Teko",
+    sans-serif;
+
+  font-weight: 600;
+
+  letter-spacing: 1px;
+
+  font-size:
+    clamp(22px, 2vw, 34px);
+
+  text-shadow:
+    0 0 10px rgba(0,0,0,0.9);
+}
+
+/* buttons */
+
+.transport-panel button,
+.pitch-buttons button,
+.loop-btn,
+#helpBtn,
+#bugBtn {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  text-transform: uppercase;
+}
+
+/* pitch label */
+
+#pitchLabel {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+}
+
+/* footer */
+
+.copyright-footer {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  letter-spacing: 0.8px;
+}
+
+/* welcome + help */
+
+.welcome-box h2,
+.help-overlay h2 {
+
+  font-family:
+    "Anton",
+    sans-serif;
+
+  letter-spacing: 2px;
+
+  font-weight: 400;
+}
+
+.welcome-box p,
+.help-overlay p {
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 18px;
+
+  line-height: 1.6;
+}
+/* =========================
+   ETAP 6.4 — BEAT REACTIVE VISUALS
+========================= */
+
+body.is-playing .cover-panel {
+  animation:
+    coverPanelFloat 5.5s ease-in-out infinite,
+    playingCoverPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes playingCoverPulse {
+  0% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.08);
+  }
+
+  100% {
+    filter: brightness(1);
+  }
+}
+
+body.is-playing #beatImage {
+  animation:
+    coverImageBreath 2.4s ease-in-out infinite;
+}
+
+@keyframes coverImageBreath {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.012);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+body.is-playing .info-bar {
+  animation:
+    infoPlayingGlow 2s ease-in-out infinite;
+}
+
+@keyframes infoPlayingGlow {
+  0% {
+    box-shadow:
+      0 0 16px rgba(0,0,0,0.55),
+      inset 0 0 18px rgba(255,255,255,0.025);
+  }
+
+  50% {
+    box-shadow:
+      0 0 28px rgba(234,162,33,0.32),
+      inset 0 0 18px rgba(255,255,255,0.035);
+  }
+
+  100% {
+    box-shadow:
+      0 0 16px rgba(0,0,0,0.55),
+      inset 0 0 18px rgba(255,255,255,0.025);
+  }
+}
+
+body.is-playing .beat-tile.active span {
+  animation:
+    activeNumberPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes activeNumberPulse {
+  0% {
+    transform: scale(1);
+    color: white;
+  }
+
+  50% {
+    transform: scale(1.18);
+    color: #EAA221;
+  }
+
+  100% {
+    transform: scale(1);
+    color: white;
+  }
+}
+
+body.is-playing #stopBtn {
+  animation:
+    playingButtonGlow 1.6s ease-in-out infinite;
+}
+
+@keyframes playingButtonGlow {
+  0% {
+    box-shadow: 0 0 18px rgba(234,162,33,0.35);
+  }
+
+  50% {
+    box-shadow: 0 0 34px rgba(234,162,33,0.8);
+  }
+
+  100% {
+    box-shadow: 0 0 18px rgba(234,162,33,0.35);
+  }
+}
+/* =========================
+   ETAP 6.5 — PARALLAX / DEPTH
+========================= */
+
+.cover-panel {
+  will-change: transform;
+}
+
+body::before {
+  animation:
+    backgroundBreath 12s ease-in-out infinite,
+    ambientDrift 18s ease-in-out infinite;
+}
+
+@keyframes ambientDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(
+      calc(var(--mouse-x, 0) * -10px),
+      calc(var(--mouse-y, 0) * -8px)
+    ) scale(1.04);
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.beat-tile:hover {
+  transform:
+    translateY(-6px)
+    scale(1.03)
+    rotate(-0.45deg);
+}
+
+@media (max-width: 1100px) {
+  .page,
+  .cover-panel,
+  .control-panel,
+  .info-bar,
+  .meta-panel,
+  .transport-panel,
+  .pitch-panel,
+  .beat-grid {
+    transform: none !important;
+  }
+}
+/* =========================
+   ETAP 6.6 — FINAL VISUAL IMMERSION TEST
+========================= */
+
+/* miękka poświata jak światło z ulicy/neonu */
+body::after {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(234,162,33,0.16), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(255,70,20,0.10), transparent 28%),
+    radial-gradient(circle, transparent 42%, rgba(0,0,0,0.82) 100%),
+    linear-gradient(
+      90deg,
+      rgba(0,0,0,0.55),
+      transparent 28%,
+      transparent 72%,
+      rgba(0,0,0,0.55)
+    );
+}
+
+/* lekki filmowy glow na całym UI */
+.page {
+  filter:
+    contrast(1.03)
+    saturate(1.04);
+}
+
+.info-bar,
+.meta-panel,
+.transport-panel,
+.pitch-panel {
+  position: relative;
+  overflow: visible;
+}
+
+@keyframes panelLightSweep {
+  0% {
+    transform: translateX(-130%);
+  }
+
+  45% {
+    transform: translateX(130%);
+  }
+
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+/* ambient smoke / mgiełka */
+.page::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  z-index: 1;
+
+  background:
+    radial-gradient(circle at 25% 40%, rgba(255,255,255,0.045), transparent 22%),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.035), transparent 26%),
+    radial-gradient(circle at 50% 80%, rgba(234,162,33,0.035), transparent 28%);
+
+  filter: blur(42px);
+  opacity: 0.55;
+
+  animation: smokeDrift 20s ease-in-out infinite;
+}
+
+@keyframes smokeDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-18px, 12px, 0) scale(1.05);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* aktywny beat ma trochę więcej energii */
+body.is-playing .beat-tile.active {
+  box-shadow:
+    0 0 26px rgba(234,162,33,0.7),
+    0 0 70px rgba(234,162,33,0.18);
+}
+
+/* przyciski bardziej “hardware-lit” */
+body.is-playing #stopBtn {
+  border-color: rgba(255,255,255,0.45);
+}
+
+/* mikro efekt VHS / analog depth na okładce */
+body.is-playing #beatImage {
+  filter:
+    contrast(1.08)
+    saturate(1.12)
+    brightness(1.02);
+}
+
+/* =========================
+   MOBILE PERFORMANCE MODE
+========================= */
+
+@media (max-width: 768px) {
+
+  body {
+    overflow: auto;
+    background-attachment: scroll;
+  }
+
+  body::before,
+  body::after,
+  .page::before,
+  .page::after {
+    display: none !important;
+    animation: none !important;
+  }
+
+  .page {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+
+    padding: 14px;
+    gap: 14px;
+
+    display: flex;
+    flex-direction: column;
+
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .top-section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .cover-panel {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+
+    animation: none !important;
+    transform: none !important;
+
+    box-shadow: none;
+  }
+
+  #beatImage {
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .control-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .info-bar,
+  .meta-panel,
+  .transport-panel,
+  .pitch-panel {
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  .meta-panel h2 {
+    font-size: 34px;
+  }
+
+  .meta-panel p {
+    font-size: 18px;
+  }
+
+  .transport-panel {
+    justify-content: center;
+  }
+
+  .loop-panel {
+    margin-left: 0;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .pitch-buttons {
+    justify-content: center;
+  }
+
+  .beat-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .beat-tile {
+    aspect-ratio: 1 / 1;
+    animation: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .beat-tile:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .beat-tile span {
+    font-size: 20px;
+  }
+
+  .copyright-footer {
+    font-size: 9px;
+    line-height: 1.3;
+    padding-bottom: 24px;
+  }
+}
+
+/* =========================
+   MOBILE INTRO FIX
+========================= */
+
+@media (max-width: 768px) {
+
+  .intro-bg {
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: black;
+  }
+
+  .welcome-box {
+    width: 92vw;
+    padding: 34px 22px 28px;
+  }
+
+  .welcome-box h2 {
+    font-size: 32px;
+  }
+
+  .welcome-box p {
+    font-size: 16px;
+  }
+} 
+
+/* =========================
+   MOBILE LAYOUT FIX — v2
+========================= */
+
+@media (max-width: 768px) {
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-y: auto;
+    background:
+      linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.82)),
+      url("assets/images/background.png");
+    background-size: cover;
+    background-position: center top;
+    background-attachment: scroll;
+  }
+
+  body::before,
+  body::after,
+  .page::before,
+  .page::after {
+    display: none !important;
+  }
+
+  .page {
+    width: 100%;
+    min-height: 100vh;
+    height: auto;
+
+    padding: 12px 12px 28px;
+    gap: 12px;
+
+    display: flex;
+    flex-direction: column;
+
+    transform: none !important;
+    filter: none !important;
+  }
+
+  .top-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cover-panel {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+
+    max-height: none;
+
+    border-radius: 12px;
+
+    background: rgba(0,0,0,0.35);
+
+    animation: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  #beatImage {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .control-panel {
+    width: 100%;
+    height: auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .info-bar,
+  .meta-panel,
+  .transport-panel,
+  .pitch-panel {
+    width: 100%;
+
+    background: rgba(0,0,0,0.68);
+
+    border: 1px solid rgba(234,162,33,0.24);
+    border-radius: 10px;
+
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  .info-bar {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  #infoText {
+    font-size: 14px;
+  }
+
+  #helpBtn,
+  #bugBtn {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .meta-panel {
+    padding: 18px 16px;
+  }
+
+  .meta-panel h2 {
+    font-size: 38px;
+    line-height: 0.95;
+    margin-bottom: 14px;
+  }
+
+  .meta-panel p {
+    font-size: 19px;
+    margin: 6px 0;
+  }
+
+  .transport-panel {
+    padding: 14px 12px;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  #stopBtn,
+  #restartBtn {
+    width: 100%;
+    min-width: 0;
+
+    min-height: 52px;
+
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .loop-panel {
+    grid-column: 1 / -1;
+
+    width: 100%;
+
+    margin-left: 0;
+
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    align-items: center;
+  }
+
+  .loop-panel span {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 14px;
+    opacity: 0.85;
+  }
+
+  .loop-btn {
+    min-height: 44px;
+    padding: 0;
+    font-size: 15px;
+  }
+
+  .pitch-panel {
+    padding: 14px 12px;
+  }
+
+  .pitch-buttons {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+
+    margin-bottom: 18px;
+  }
+
+  .pitch-buttons button {
+    min-height: 44px;
+    padding: 0;
+
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  #pitch {
+    width: 100%;
+    height: 36px;
+  }
+
+  #pitchLabel {
+    font-size: 16px;
+    margin-top: 8px;
+  }
+
+  .beat-grid {
+    width: 100%;
+
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .beat-tile {
+    aspect-ratio: 1 / 1;
+
+    border-radius: 8px;
+
+    animation: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .beat-tile:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .beat-tile span {
+    font-size: 22px;
+  }
+
+  .copyright-footer {
+    width: 100%;
+
+    padding: 10px 6px 30px;
+
+    font-size: 10px;
+    line-height: 1.35;
+
+    white-space: normal;
+    text-align: center;
+  }
+
+  .welcome-box {
+    width: 90vw;
+    padding: 34px 22px 28px;
+  }
+
+  .welcome-box h2 {
+    font-size: 32px;
+  }
+
+  .welcome-box p {
+    font-size: 16px;
+  }
+
+  #welcomeModal #closeWelcomeBtn,
+  #closeHelpBtn {
+    width: 100%;
+    max-width: 260px;
+    min-height: 56px;
+  }
+}
+
+/* =========================
+   SAFARI / MAC FIX
+========================= */
+
+.pitch-panel {
+  min-height: 150px;
+  overflow: visible;
+  position: relative;
+  z-index: 5;
+}
+
+.beat-grid {
+  position: relative;
+  z-index: 1;
+  margin-top: 12px;
+}
+
+#pitch {
+  margin-bottom: 14px;
+}
+
+/* =========================
+   CINEMATIC BACKGROUND SWEEP — DESKTOP ONLY
+========================= */
+
+.page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+  z-index: -1;
+
+  background:
+    linear-gradient(
+      110deg,
+      transparent 0%,
+      transparent 38%,
+      rgba(234, 162, 33, 0.10) 48%,
+      rgba(255, 255, 255, 0.055) 50%,
+      rgba(234, 162, 33, 0.08) 52%,
+      transparent 62%,
+      transparent 100%
+    );
+
+  transform: translateX(-130%);
+
+  animation: backgroundCinematicSweep 22s ease-in-out infinite;
+}
+
+@keyframes backgroundCinematicSweep {
+  0% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 0.75;
+  }
+
+  32% {
+    transform: translateX(130%);
+    opacity: 0.45;
+  }
+
+  100% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
+}
+
+/* Safari / Mac / iOS — wyłączamy sweep */
+html.is-safari .page::after {
+  display: none !important;
+  animation: none !important;
+}
+
+/* Mobile — też wyłączamy */
+@media (max-width: 768px) {
+  .page::after {
+    display: none !important;
+    animation: none !important;
+  }
+}
+
+
+/* =========================
+   ETAP 2 — INFO BAR CLEAN + META PANEL GLOW
+========================= */
+
+/* info bar nie świeci podczas grania */
+.info-bar.active-info,
+body.is-playing .info-bar {
+  animation: none !important;
+}
+
+/* przeniesiony dawny efekt z info bara na meta-panel */
+body.is-playing .meta-panel {
+  animation: infoPlayingGlow 2s ease-in-out infinite !important;
+}
+
+/* na mobile zostawiamy performance mode bez animacji */
+@media (max-width: 768px) {
+  body.is-playing .meta-panel {
+    animation: none !important;
+  }
+}
+
+/* =========================
+   ETAP 4 — SUBMIT BEAT BUTTON
+========================= */
+
+#submitBeatBtn.submit-beat-mini {
+  width: auto;
+  min-width: 116px;
+  height: 32px;
+
+  padding: 0 14px;
+
+  border-radius: 999px;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+
+  background:
+    rgba(234,162,33,0.12);
+
+  color: #EAA221;
+
+  border:
+    1px solid rgba(234,162,33,0.38);
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+#submitBeatBtn.submit-beat-mini:hover {
+  background: #EAA221;
+
+  color: black;
+
+  transform:
+    translateY(-1px);
+
+  box-shadow:
+    0 0 18px rgba(234,162,33,0.35);
+}
+
+@media (max-width: 768px) {
+  #submitBeatBtn.submit-beat-mini {
+    min-width: 92px;
+    height: 34px;
+
+    padding: 0 8px;
+
+    font-size: 10px;
+  }
+
+  .top-buttons {
+    gap: 6px;
+  }
+}
+
+/* =========================
+   ETAP 5 — SUBMIT BEAT OCCASIONAL PULSE
+========================= */
+
+#submitBeatBtn.submit-beat-mini {
+  animation:
+    submitBeatSoftPulse 5s ease-in-out infinite;
+}
+
+@keyframes submitBeatSoftPulse {
+  0%,
+  82%,
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+
+  88% {
+    transform: scale(1.02);
+    box-shadow:
+      0 0 12px rgba(234,162,33,0.24),
+      0 0 26px rgba(234,162,33,0.12);
+  }
+
+  92% {
+    transform: scale(1.035);
+    box-shadow:
+      0 0 22px rgba(234,162,33,0.42),
+      0 0 44px rgba(234,162,33,0.18);
+  }
+
+  96% {
+    transform: scale(1.02);
+    box-shadow:
+      0 0 12px rgba(234,162,33,0.24),
+      0 0 26px rgba(234,162,33,0.12);
+  }
+}
+
+/* Na telefonie wyłączamy puls, żeby nie obciążać UI */
+@media (max-width: 768px) {
+  #submitBeatBtn.submit-beat-mini {
+    animation: none;
+  }
+}
+
+/* =========================
+   ETAP 6 — COMMUNITY MODAL BASE
+========================= */
+
+.community-modal {
+  position: fixed;
+  inset: 0;
+
+  z-index: 10050;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background:
+    rgba(0,0,0,0.84);
+}
+
+.community-modal.hidden {
+  display: none;
+}
+
+.community-box {
+  width:
+    min(92vw, 620px);
+
+  max-height: 90vh;
+
+  overflow-y: auto;
+
+  padding: 34px;
+
+  border-radius: 14px;
+
+  background:
+    rgba(0,0,0,0.92);
+
+  border:
+    1px solid rgba(234,162,33,0.38);
+
+  box-shadow:
+    0 0 45px rgba(234,162,33,0.22),
+    0 0 120px rgba(0,0,0,0.7);
+
+  color: white;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.community-box h2 {
+  margin:
+    0 0 10px;
+
+  color: #EAA221;
+
+  font-family:
+    "Anton",
+    sans-serif;
+
+  font-size: 36px;
+  font-weight: 400;
+  letter-spacing: 2px;
+
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.community-info {
+  margin:
+    0 0 10px;
+
+  color:
+    rgba(255,255,255,0.78);
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 16px;
+  line-height: 1.45;
+
+  text-align: center;
+}
+
+.community-box input,
+.community-box textarea {
+  width: 100%;
+
+  padding:
+    13px 14px;
+
+  border-radius: 8px;
+
+  background:
+    rgba(255,255,255,0.08);
+
+  border:
+    1px solid rgba(255,255,255,0.18);
+
+  color: white;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 16px;
+
+  outline: none;
+}
+
+.community-box input:focus,
+.community-box textarea:focus {
+  border-color:
+    rgba(234,162,33,0.7);
+
+  box-shadow:
+    0 0 16px rgba(234,162,33,0.18);
+}
+
+.community-box textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.community-box input::placeholder,
+.community-box textarea::placeholder {
+  color:
+    rgba(255,255,255,0.52);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+
+  gap: 10px;
+
+  margin-top: 8px;
+}
+
+.modal-actions button {
+  min-height: 46px;
+
+  padding:
+    0 20px;
+
+  border: none;
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1px;
+
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+#sendBugBtn {
+  background: #EAA221;
+  color: black;
+}
+
+#closeBugBtn {
+  background:
+    rgba(255,255,255,0.13);
+
+  color: white;
+
+  border:
+    1px solid rgba(255,255,255,0.16);
+}
+
+.modal-actions button:hover {
+  transform:
+    translateY(-1px);
+
+  box-shadow:
+    0 0 18px rgba(234,162,33,0.25);
+}
+
+@media (max-width: 768px) {
+  .community-modal {
+    padding: 14px;
+    align-items: center;
+  }
+
+  .community-box {
+    width: 94vw;
+    max-height: 88vh;
+
+    padding:
+      24px 18px;
+  }
+
+  .community-box h2 {
+    font-size: 30px;
+  }
+
+  .community-info {
+    font-size: 14px;
+  }
+
+  .community-box input,
+  .community-box textarea {
+    font-size: 15px;
+    padding: 12px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
+}
+
+/* =========================
+   ETAP 7 — SUBMIT BEAT MODAL EXTENSION
+========================= */
+
+.rights-row {
+  display: flex;
+  align-items: flex-start;
+
+  gap: 10px;
+
+  margin-top: 2px;
+
+  color:
+    rgba(255,255,255,0.82);
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.rights-row input {
+  width: auto;
+  margin-top: 4px;
+}
+
+#sendBeatBtn {
+  background: #EAA221;
+  color: black;
+}
+
+#closeSubmitBeatBtn {
+  background:
+    rgba(255,255,255,0.13);
+
+  color: white;
+
+  border:
+    1px solid rgba(255,255,255,0.16);
+}
+
+/* =========================
+   ETAP 8 — HELP MODAL FIT / SCROLL
+========================= */
+
+.help-modal {
+  padding: 14px;
+}
+
+.help-content {
+  width: min(94vw, 860px);
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.help-overlay.help-overlay-scroll {
+  min-height: auto;
+  max-height: 92vh;
+
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  justify-content: flex-start;
+
+  padding:
+    clamp(22px, 3vh, 38px)
+    clamp(18px, 3vw, 42px);
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234,162,33,0.65) rgba(255,255,255,0.08);
+}
+
+.help-overlay.help-overlay-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.help-overlay.help-overlay-scroll::-webkit-scrollbar-track {
+  background:
+    rgba(255,255,255,0.08);
+}
+
+.help-overlay.help-overlay-scroll::-webkit-scrollbar-thumb {
+  background:
+    rgba(234,162,33,0.65);
+
+  border-radius: 999px;
+}
+
+.help-sections {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 12px;
+
+  margin-bottom: 18px;
+}
+
+.help-card {
+  padding:
+    14px 16px;
+
+  border:
+    1px solid rgba(234,162,33,0.22);
+
+  border-radius: 10px;
+
+  background:
+    rgba(0,0,0,0.42);
+
+  box-shadow:
+    inset 0 0 18px rgba(255,255,255,0.025);
+}
+
+.help-card h3 {
+  margin:
+    0 0 8px;
+
+  color: #EAA221;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+
+  text-transform: uppercase;
+}
+
+.help-card p {
+  margin:
+    6px 0;
+
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.help-overlay .help-credits {
+  margin:
+    6px 0 18px;
+
+  opacity: 0.72;
+}
+
+.help-overlay #closeHelpBtn {
+  flex-shrink: 0;
+}
+
+/* mniejsze ekrany — jedna kolumna */
+@media (max-width: 768px) {
+  .help-modal {
+    padding: 10px;
+  }
+
+  .help-content {
+    width: 94vw;
+    max-height: 90vh;
+  }
+
+  .help-overlay.help-overlay-scroll {
+    max-height: 90vh;
+
+    padding:
+      22px 16px;
+  }
+
+  .help-sections {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .help-card {
+    padding:
+      12px 13px;
+  }
+
+  .help-card h3 {
+    font-size: 15px;
+  }
+
+  .help-card p {
+    font-size: 14px;
+    line-height: 1.32;
+  }
+}
+
+/* =========================
+   ETAP 9 — BOTTOM NEWS TICKER
+========================= */
+
+.news-ticker {
+  width: 100%;
+  height: 22px;
+  min-height: 22px;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+
+  position: relative;
+  z-index: 2;
+
+  border: none;
+  border-radius: 0;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(0,0,0,0.22) 12%,
+      rgba(0,0,0,0.22) 88%,
+      transparent
+    );
+
+  color: rgba(234,162,33,0.82);
+
+  text-shadow:
+    0 0 8px rgba(234,162,33,0.34),
+    0 0 18px rgba(0,0,0,0.85);
+
+  box-shadow:
+    0 -10px 24px rgba(0,0,0,0.20);
+
+  mask-image:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      black 10%,
+      black 90%,
+      transparent 100%
+    );
+}
+
+.news-track {
+  white-space: nowrap;
+
+  display: inline-flex;
+  align-items: center;
+
+  padding-left: 100%;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 12px;
+  line-height: 22px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+
+  animation:
+    looperNewsScroll 58s linear infinite;
+}
+
+.news-track span {
+  display: inline-block;
+}
+
+@keyframes looperNewsScroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* dodajemy osobny rząd na ticker, żeby nie miażdżył kafelków */
+.page {
+  grid-template-rows:
+    minmax(260px, 38vh)
+    1fr
+    22px
+    24px;
+}
+
+/* mobile — ticker prostszy i wolniejszy */
+@media (max-width: 768px) {
+  .news-ticker {
+    height: 20px;
+    min-height: 20px;
+
+    background:
+      rgba(0,0,0,0.18);
+
+    box-shadow: none;
+  }
+
+  .news-track {
+    font-size: 10px;
+    line-height: 20px;
+    letter-spacing: 0.8px;
+
+    animation-duration: 70s;
+  }
+}
+
+/* =========================
+   ETAP 10A — VISUAL VOTE PANEL
+========================= */
+
+.meta-panel {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: clamp(14px, 2vw, 28px);
+}
+
+.meta-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.vote-panel {
+  min-width: 118px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  padding:
+    8px 10px;
+
+  border-radius: 10px;
+
+  background:
+    rgba(0,0,0,0.18);
+
+  border:
+    1px solid rgba(255,255,255,0.08);
+
+  box-shadow:
+    inset 0 0 14px rgba(255,255,255,0.018);
+
+  pointer-events: auto;
+}
+
+.vote-label {
+  color:
+    rgba(255,255,255,0.88);
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size:
+    clamp(12px, 0.95vw, 16px);
+
+  font-weight: 800;
+  letter-spacing: 1px;
+
+  text-transform: uppercase;
+
+  text-align: center;
+
+  text-shadow:
+    0 0 10px rgba(0,0,0,0.9);
+}
+
+.vote-total {
+  color: #EAA221;
+
+  font-family:
+    "Anton",
+    sans-serif;
+
+  font-size:
+    clamp(24px, 2.2vw, 38px);
+
+  line-height: 1;
+
+  letter-spacing: 1px;
+
+  text-shadow:
+    0 0 14px rgba(234,162,33,0.32),
+    0 0 20px rgba(0,0,0,0.9);
+}
+
+.vote-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+}
+
+.vote-btn {
+  width: 34px;
+  height: 34px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border-radius: 8px;
+
+  background:
+    rgba(0,0,0,0.48);
+
+  border:
+    1px solid rgba(255,255,255,0.18);
+
+  color: white;
+
+  font-size: 18px;
+  line-height: 1;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.vote-btn:hover {
+  transform:
+    translateY(-1px)
+    scale(1.04);
+}
+
+.vote-down {
+  border-color:
+    rgba(221,65,36,0.55);
+}
+
+.vote-down:hover {
+  background:
+    rgba(221,65,36,0.22);
+
+  box-shadow:
+    0 0 14px rgba(221,65,36,0.26);
+}
+
+.vote-up {
+  border-color:
+    rgba(92,255,120,0.48);
+}
+
+.vote-up:hover {
+  background:
+    rgba(92,255,120,0.16);
+
+  box-shadow:
+    0 0 14px rgba(92,255,120,0.22);
+}
+
+/* mobile — głosy pod tekstem, żeby nie ściskały tytułu */
+@media (max-width: 768px) {
+  .meta-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .vote-panel {
+    width: 100%;
+
+    flex-direction: row;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding:
+      10px 12px;
+
+    background:
+      rgba(0,0,0,0.22);
+  }
+
+  .vote-label {
+    text-align: left;
+    font-size: 13px;
+  }
+
+  .vote-total {
+    font-size: 26px;
+  }
+
+  .vote-buttons {
+    gap: 8px;
+  }
+
+  .vote-btn {
+    width: 38px;
+    height: 38px;
+
+    font-size: 19px;
+  }
+}
+
+/* =========================
+   ETAP 10B — LOCAL VOTE ACTIVE STATE
+========================= */
+
+.vote-btn.active-vote {
+  transform:
+    translateY(-1px)
+    scale(1.06);
+}
+
+.vote-down.active-vote {
+  background:
+    rgba(221,65,36,0.28);
+
+  border-color:
+    rgba(221,65,36,0.95);
+
+  box-shadow:
+    0 0 16px rgba(221,65,36,0.36),
+    0 0 32px rgba(221,65,36,0.16);
+}
+
+.vote-up.active-vote {
+  background:
+    rgba(92,255,120,0.22);
+
+  border-color:
+    rgba(92,255,120,0.90);
+
+  box-shadow:
+    0 0 16px rgba(92,255,120,0.30),
+    0 0 32px rgba(92,255,120,0.13);
+}
+
+/* =========================
+   ETAP 12 — NEWS TICKER PAUSE ON HOVER
+========================= */
+
+.news-ticker:hover .news-track {
+  animation-play-state: paused;
+}
+
+.news-ticker:hover {
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(0,0,0,0.34) 12%,
+      rgba(0,0,0,0.34) 88%,
+      transparent
+    );
+
+  color:
+    rgba(234,162,33,0.96);
+
+  box-shadow:
+    0 -10px 26px rgba(0,0,0,0.28),
+    0 0 18px rgba(234,162,33,0.10);
+}
+
+.news-ticker:hover .news-track {
+  text-shadow:
+    0 0 10px rgba(234,162,33,0.55),
+    0 0 22px rgba(0,0,0,0.95);
+}
+
+/* =========================
+   ETAP 13 — MOBILE LOGO FIX
+========================= */
+
+@media (max-width: 768px) {
+  .logo-panel {
+    display: none !important;
+  }
+}
+
+/* =========================
+   ETAP 15A — MORE INFO BUTTON
+========================= */
+
+.more-info-mini {
+  width: auto;
+  min-width: 104px;
+  height: 32px;
+
+  padding: 0 13px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+
+  text-decoration: none;
+
+  background:
+    rgba(255,255,255,0.055);
+
+  color:
+    rgba(255,255,255,0.84);
+
+  border:
+    1px solid rgba(255,255,255,0.22);
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.more-info-mini:hover {
+  background:
+    rgba(234,162,33,0.18);
+
+  color: #EAA221;
+
+  border-color:
+    rgba(234,162,33,0.48);
+
+  transform:
+    translateY(-1px);
+
+  box-shadow:
+    0 0 18px rgba(234,162,33,0.22);
+}
+
+@media (max-width: 768px) {
+  .more-info-mini {
+    min-width: 86px;
+    height: 34px;
+
+    padding: 0 8px;
+
+    font-size: 10px;
+  }
+}
+
+/* =========================
+   ETAP 15B — ROADMAP / COMMUNITY PAGE
+========================= */
+
+.roadmap-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  min-height: 100vh;
+
+  background:
+    linear-gradient(rgba(0,0,0,0.42), rgba(0,0,0,0.84)),
+    url("assets/images/background.png");
+
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+
+  color: white;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+}
+
+.roadmap-page {
+  width:
+    min(94vw, 1180px);
+
+  min-height: 100vh;
+
+  margin:
+    0 auto;
+
+  padding:
+    clamp(26px, 5vh, 70px)
+    clamp(14px, 3vw, 44px)
+    38px;
+
+  position: relative;
+  z-index: 2;
+}
+
+.roadmap-hero {
+  padding:
+    clamp(26px, 5vh, 58px)
+    clamp(18px, 4vw, 58px);
+
+  margin-bottom:
+    clamp(18px, 3vh, 34px);
+
+  border:
+    1px solid rgba(234,162,33,0.28);
+
+  border-radius: 18px;
+
+  background:
+    rgba(0,0,0,0.62);
+
+  box-shadow:
+    0 0 42px rgba(0,0,0,0.48),
+    0 0 44px rgba(234,162,33,0.13);
+
+  backdrop-filter:
+    blur(16px);
+
+  text-align: center;
+}
+
+.roadmap-kicker {
+  margin:
+    0 0 10px;
+
+  color:
+    rgba(234,162,33,0.92);
+
+  font-size:
+    clamp(13px, 1vw, 16px);
+
+  font-weight: 900;
+  letter-spacing: 2px;
+
+  text-transform: uppercase;
+}
+
+.roadmap-hero h1 {
+  margin:
+    0 0 20px;
+
+  font-family:
+    "Anton",
+    sans-serif;
+
+  font-size:
+    clamp(42px, 7vw, 96px);
+
+  font-weight: 400;
+  line-height: 0.94;
+
+  letter-spacing: 2px;
+
+  color:
+    #f5e6d0;
+
+  text-shadow:
+    0 0 16px rgba(0,0,0,0.95),
+    0 0 30px rgba(234,162,33,0.22);
+}
+
+.roadmap-lead {
+  max-width:
+    820px;
+
+  margin:
+    0 auto 28px;
+
+  color:
+    rgba(255,255,255,0.88);
+
+  font-size:
+    clamp(17px, 1.45vw, 22px);
+
+  line-height: 1.5;
+}
+
+.roadmap-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  flex-wrap: wrap;
+}
+
+.roadmap-main-btn,
+.roadmap-secondary-btn {
+  min-height: 48px;
+
+  padding:
+    0 24px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1px;
+
+  text-decoration: none;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.roadmap-main-btn {
+  background:
+    #EAA221;
+
+  color:
+    black;
+
+  border:
+    1px solid rgba(234,162,33,0.7);
+
+  box-shadow:
+    0 0 20px rgba(234,162,33,0.22);
+}
+
+.roadmap-secondary-btn {
+  background:
+    rgba(0,0,0,0.38);
+
+  color:
+    #EAA221;
+
+  border:
+    1px solid rgba(234,162,33,0.38);
+}
+
+.roadmap-main-btn:hover,
+.roadmap-secondary-btn:hover {
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    0 0 24px rgba(234,162,33,0.28);
+}
+
+.roadmap-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap:
+    clamp(12px, 2vw, 20px);
+}
+
+.roadmap-card {
+  padding:
+    clamp(18px, 2.4vw, 28px);
+
+  border-radius:
+    16px;
+
+  border:
+    1px solid rgba(255,255,255,0.13);
+
+  background:
+    rgba(0,0,0,0.58);
+
+  box-shadow:
+    0 0 26px rgba(0,0,0,0.38),
+    inset 0 0 18px rgba(255,255,255,0.022);
+
+  backdrop-filter:
+    blur(12px);
+}
+
+.roadmap-card-highlight {
+  border-color:
+    rgba(234,162,33,0.36);
+
+  box-shadow:
+    0 0 32px rgba(234,162,33,0.12),
+    0 0 26px rgba(0,0,0,0.42);
+}
+
+.roadmap-card h2 {
+  margin:
+    0 0 14px;
+
+  color:
+    #EAA221;
+
+  font-family:
+    "Anton",
+    sans-serif;
+
+  font-size:
+    clamp(24px, 2.8vw, 38px);
+
+  font-weight: 400;
+  letter-spacing: 1.4px;
+
+  text-transform: uppercase;
+}
+
+.roadmap-card p,
+.roadmap-card li {
+  color:
+    rgba(255,255,255,0.86);
+
+  font-size:
+    clamp(15px, 1.25vw, 18px);
+
+  line-height:
+    1.5;
+}
+
+.roadmap-card p {
+  margin:
+    0 0 12px;
+}
+
+.roadmap-card p:last-child {
+  margin-bottom: 0;
+}
+
+.roadmap-card ul {
+  margin:
+    0;
+
+  padding-left:
+    22px;
+}
+
+.roadmap-card a {
+  color:
+    #EAA221;
+
+  text-decoration:
+    none;
+
+  font-weight:
+    800;
+}
+
+.roadmap-card a:hover {
+  text-decoration:
+    underline;
+}
+
+.roadmap-footer {
+  margin-top:
+    clamp(22px, 4vh, 46px);
+
+  padding:
+    18px 0 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  color:
+    rgba(255,255,255,0.64);
+
+  font-size:
+    14px;
+
+  letter-spacing:
+    0.8px;
+}
+
+.roadmap-footer a {
+  color:
+    #EAA221;
+
+  text-decoration:
+    none;
+
+  font-weight:
+    900;
+}
+
+.roadmap-footer a:hover {
+  text-decoration:
+    underline;
+}
+
+@media (max-width: 768px) {
+  .roadmap-body {
+    background-attachment:
+      scroll;
+  }
+
+  .roadmap-page {
+    width: 100%;
+
+    padding:
+      18px 12px 32px;
+  }
+
+  .roadmap-hero {
+    padding:
+      28px 18px;
+
+    border-radius:
+      14px;
+  }
+
+  .roadmap-actions {
+    flex-direction:
+      column;
+  }
+
+  .roadmap-main-btn,
+  .roadmap-secondary-btn {
+    width: 100%;
+  }
+
+  .roadmap-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .roadmap-card {
+    padding:
+      18px 16px;
+
+    border-radius:
+      14px;
+  }
+
+  .roadmap-footer {
+    flex-direction:
+      column;
+
+    text-align:
+      center;
+  }
+}
+
+/* =========================
+   ETAP 15C — ROADMAP SUBMIT BEAT MODAL
+========================= */
+
+.roadmap-submit-btn {
+  border: none;
+  cursor: pointer;
+
+  animation:
+    roadmapSubmitPulse 18s ease-in-out infinite;
+}
+
+@keyframes roadmapSubmitPulse {
+  0%,
+  82%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 20px rgba(234,162,33,0.10);
+  }
+
+  88% {
+    transform: scale(1.02);
+    box-shadow:
+      0 0 18px rgba(234,162,33,0.28),
+      0 0 36px rgba(234,162,33,0.12);
+  }
+
+  92% {
+    transform: scale(1.035);
+    box-shadow:
+      0 0 26px rgba(234,162,33,0.46),
+      0 0 52px rgba(234,162,33,0.18);
+  }
+
+  96% {
+    transform: scale(1.02);
+    box-shadow:
+      0 0 18px rgba(234,162,33,0.28),
+      0 0 36px rgba(234,162,33,0.12);
+  }
+}
+
+#roadmapSendBeatBtn {
+  background: #EAA221;
+  color: black;
+}
+
+#roadmapCloseSubmitBeatBtn,
+#roadmapCloseFeedbackBtn {
+  background:
+    rgba(255,255,255,0.13);
+
+  color: white;
+
+  border:
+    1px solid rgba(255,255,255,0.16);
+}
+
+@media (max-width: 768px) {
+  .roadmap-submit-btn {
+    animation: none;
+  }
+}
+
+/* =========================
+   ETAP 15D — ROADMAP BUTTON PRIORITY SWAP
+========================= */
+
+/* WRÓĆ DO LOOPERA — mniej wyróżniony */
+.roadmap-main-btn {
+  background:
+    rgba(0,0,0,0.38) !important;
+
+  color:
+    #EAA221 !important;
+
+  border:
+    1px solid rgba(234,162,33,0.38) !important;
+
+  box-shadow:
+    0 0 14px rgba(0,0,0,0.28) !important;
+}
+
+/* WYŚLIJ BEAT — główny przycisk */
+.roadmap-submit-btn,
+.roadmap-secondary-btn.roadmap-submit-btn {
+  background:
+    #EAA221 !important;
+
+  color:
+    black !important;
+
+  border:
+    1px solid rgba(234,162,33,0.7) !important;
+
+  box-shadow:
+    0 0 22px rgba(234,162,33,0.24) !important;
+}
+
+.roadmap-main-btn:hover {
+  background:
+    rgba(234,162,33,0.14) !important;
+
+  color:
+    #EAA221 !important;
+
+  border-color:
+    rgba(234,162,33,0.55) !important;
+}
+
+.roadmap-submit-btn:hover,
+.roadmap-secondary-btn.roadmap-submit-btn:hover {
+  background:
+    #ffad24 !important;
+
+  color:
+    black !important;
+
+  box-shadow:
+    0 0 28px rgba(234,162,33,0.38) !important;
+}
+
+/* =========================
+   ETAP 15E — ROADMAP SUBMIT BEAT STRONG GLOW
+========================= */
+
+.roadmap-submit-btn,
+.roadmap-secondary-btn.roadmap-submit-btn {
+  position: relative;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(135deg, #c96300, #ff9f1a) !important;
+
+  color:
+    black !important;
+
+  border:
+    1px solid rgba(255,255,255,0.34) !important;
+
+  box-shadow:
+    0 0 18px rgba(234,162,33,0.34),
+    0 0 34px rgba(234,162,33,0.18) !important;
+
+  animation:
+    roadmapSubmitPulseGlow 5s ease-in-out infinite !important;
+}
+
+.roadmap-submit-btn::after {
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent,
+      rgba(255,255,255,0.34),
+      transparent
+    );
+
+  transform:
+    translateX(-130%);
+
+  animation:
+    roadmapSubmitSweep 3.8s ease-in-out infinite;
+
+  pointer-events:
+    none;
+}
+
+@keyframes roadmapSubmitSweep {
+  0% {
+    transform:
+      translateX(-130%);
+  }
+
+  42% {
+    transform:
+      translateX(130%);
+  }
+
+  100% {
+    transform:
+      translateX(130%);
+  }
+}
+
+@keyframes roadmapSubmitPulseGlow {
+  0%,
+  78%,
+  100% {
+    transform:
+      scale(1);
+
+    box-shadow:
+      0 0 18px rgba(234,162,33,0.34),
+      0 0 34px rgba(234,162,33,0.18);
+  }
+
+  86% {
+    transform:
+      scale(1.025);
+
+    box-shadow:
+      0 0 26px rgba(234,162,33,0.55),
+      0 0 54px rgba(234,162,33,0.26);
+  }
+
+  92% {
+    transform:
+      scale(1.04);
+
+    box-shadow:
+      0 0 34px rgba(234,162,33,0.78),
+      0 0 76px rgba(234,162,33,0.34);
+  }
+
+  96% {
+    transform:
+      scale(1.025);
+
+    box-shadow:
+      0 0 26px rgba(234,162,33,0.55),
+      0 0 54px rgba(234,162,33,0.26);
+  }
+}
+
+.roadmap-submit-btn:hover,
+.roadmap-secondary-btn.roadmap-submit-btn:hover {
+  background:
+    linear-gradient(135deg, #d87200, #ffb13b) !important;
+
+  box-shadow:
+    0 0 32px rgba(234,162,33,0.66),
+    0 0 72px rgba(234,162,33,0.28) !important;
+}
+
+@media (max-width: 768px) {
+  .roadmap-submit-btn,
+  .roadmap-secondary-btn.roadmap-submit-btn {
+    animation:
+      none !important;
+  }
+
+  .roadmap-submit-btn::after {
+    display:
+      none;
+  }
+}
