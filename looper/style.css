@@ -3964,6 +3964,7 @@ body.is-playing .meta-panel {
 
 /* =========================
    ETAP 26A — AUTO 0% PITCH RESET BUTTON
+   Clean active state, no sweep
 ========================= */
 
 .auto-pitch-btn {
@@ -3971,87 +3972,79 @@ body.is-playing .meta-panel {
 
   position: relative;
 
-  overflow: hidden;
+  overflow: visible;
 
   white-space: nowrap;
 }
 
+/* OFF — wygląda jak zwykły przycisk loop */
+.auto-pitch-btn:not(.active-auto-pitch) {
+  background:
+    rgba(0,0,0,0.5);
+
+  color:
+    white;
+
+  border:
+    1px solid rgba(255,255,255,0.2);
+
+  box-shadow:
+    none;
+}
+
+/* ON — zapala się jak aktywny LOOP / INFINITY LOOP */
 .auto-pitch-btn.active-auto-pitch {
   background:
-    linear-gradient(135deg, #c96300, #ff9f1a) !important;
+    rgba(234,162,33,0.9) !important;
 
   color:
     black !important;
 
-  border-color:
-    rgba(255,255,255,0.36) !important;
+  border:
+    1px solid rgba(234,162,33,0.9) !important;
 
   box-shadow:
-    0 0 18px rgba(234,162,33,0.34),
-    0 0 34px rgba(234,162,33,0.18) !important;
+    0 0 16px rgba(234,162,33,0.24),
+    inset 0 0 12px rgba(255,255,255,0.08) !important;
 
   animation:
-    autoPitchBreath 2.2s ease-in-out infinite;
+    autoPitchBorderBreath 2.2s ease-in-out infinite;
 }
 
+/* usuwamy cinematic sweep */
 .auto-pitch-btn.active-auto-pitch::after {
-  content: "";
-
-  position: absolute;
-
-  inset: 0;
-
-  pointer-events: none;
-
-  background:
-    linear-gradient(
-      120deg,
-      transparent,
-      rgba(255,255,255,0.28),
-      transparent
-    );
-
-  transform:
-    translateX(-130%);
-
-  animation:
-    autoPitchSweep 3.8s ease-in-out infinite;
+  display:
+    none !important;
 }
 
-@keyframes autoPitchBreath {
+/* oddycha tylko ramka / glow, nie środek przycisku */
+@keyframes autoPitchBorderBreath {
   0% {
+    border-color:
+      rgba(234,162,33,0.62);
+
     box-shadow:
-      0 0 14px rgba(234,162,33,0.28),
-      0 0 28px rgba(234,162,33,0.12);
+      0 0 10px rgba(234,162,33,0.18),
+      inset 0 0 10px rgba(255,255,255,0.055);
   }
 
   50% {
+    border-color:
+      rgba(255,190,70,1);
+
     box-shadow:
-      0 0 26px rgba(234,162,33,0.56),
-      0 0 54px rgba(234,162,33,0.22);
+      0 0 24px rgba(234,162,33,0.42),
+      0 0 42px rgba(234,162,33,0.16),
+      inset 0 0 14px rgba(255,255,255,0.09);
   }
 
   100% {
+    border-color:
+      rgba(234,162,33,0.62);
+
     box-shadow:
-      0 0 14px rgba(234,162,33,0.28),
-      0 0 28px rgba(234,162,33,0.12);
-  }
-}
-
-@keyframes autoPitchSweep {
-  0% {
-    transform:
-      translateX(-130%);
-  }
-
-  42% {
-    transform:
-      translateX(130%);
-  }
-
-  100% {
-    transform:
-      translateX(130%);
+      0 0 10px rgba(234,162,33,0.18),
+      inset 0 0 10px rgba(255,255,255,0.055);
   }
 }
 
@@ -4071,10 +4064,5 @@ body.is-playing .meta-panel {
   .auto-pitch-btn.active-auto-pitch {
     animation:
       none !important;
-  }
-
-  .auto-pitch-btn.active-auto-pitch::after {
-    display:
-      none;
   }
 }
