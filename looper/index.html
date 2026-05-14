@@ -53,6 +53,7 @@
           <div id="infoText"></div>
 
           <div class="top-buttons">
+            <button id="rankingBtn" class="more-info-mini ranking-mini" type="button">RANKING</button>
             <a href="../info/" id="moreInfoBtn" class="more-info-mini">WIĘCEJ INFO</a>
             <button id="submitBeatBtn" class="submit-beat-mini">WYŚLIJ BEAT!</button>
             <button id="bugBtn">!</button>
@@ -213,6 +214,13 @@
           </div>
 
           <div class="help-card">
+            <h3>RANKING</h3>
+            <p>Przycisk RANKING pokazuje aktualną tabelę beatów posortowaną według oceny.</p>
+            <p>Ocena jest sumą łapek w górę i łapek w dół zapisanych online.</p>
+            <p>Ranking pokazuje numer kafelka, producenta, tytuł i ocenę beatu.</p>
+          </div>
+
+          <div class="help-card">
             <h3>FORMULARZE</h3>
             <p>! otwiera formularz zgłoszenia błędu.</p>
             <p>WYŚLIJ BEAT! otwiera formularz zgłoszenia własnego beatu.</p>
@@ -247,6 +255,43 @@
 
         <button id="closeHelpBtn">ZROZUMIAŁEM GOŚCIU</button>
 
+      </div>
+    </div>
+  </div>
+
+  <div id="rankingModal" class="community-modal hidden">
+    <div class="community-box ranking-box">
+      <h2>RANKING BEATÓW</h2>
+
+      <p class="community-info">
+        Ranking jest sortowany od najwyższej oceny. Ocena to suma głosów online dla danego beatu.
+      </p>
+
+      <div id="rankingStatus" class="ranking-status">
+        Ładowanie rankingu...
+      </div>
+
+      <div class="ranking-table-wrap">
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>Nr</th>
+              <th>Prod.</th>
+              <th>Tytuł</th>
+              <th>Ocena</th>
+            </tr>
+          </thead>
+
+          <tbody id="rankingTableBody">
+            <tr>
+              <td colspan="4">Ranking zostanie załadowany po kliknięciu przycisku.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button id="closeRankingBtn">ZAMKNIJ</button>
       </div>
     </div>
   </div>
