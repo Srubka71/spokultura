@@ -3964,7 +3964,6 @@ body.is-playing .meta-panel {
 
 /* =========================
    ETAP 26A — AUTO 0% PITCH RESET BUTTON
-   Clean active state, no sweep
 ========================= */
 
 .auto-pitch-btn {
@@ -3972,79 +3971,87 @@ body.is-playing .meta-panel {
 
   position: relative;
 
-  overflow: visible;
+  overflow: hidden;
 
   white-space: nowrap;
 }
 
-/* OFF — wygląda jak zwykły przycisk loop */
-.auto-pitch-btn:not(.active-auto-pitch) {
-  background:
-    rgba(0,0,0,0.5);
-
-  color:
-    white;
-
-  border:
-    1px solid rgba(255,255,255,0.2);
-
-  box-shadow:
-    none;
-}
-
-/* ON — zapala się jak aktywny LOOP / INFINITY LOOP */
 .auto-pitch-btn.active-auto-pitch {
   background:
-    rgba(234,162,33,0.9) !important;
+    linear-gradient(135deg, #c96300, #ff9f1a) !important;
 
   color:
     black !important;
 
-  border:
-    1px solid rgba(234,162,33,0.9) !important;
+  border-color:
+    rgba(255,255,255,0.36) !important;
 
   box-shadow:
-    0 0 16px rgba(234,162,33,0.24),
-    inset 0 0 12px rgba(255,255,255,0.08) !important;
+    0 0 18px rgba(234,162,33,0.34),
+    0 0 34px rgba(234,162,33,0.18) !important;
 
   animation:
-    autoPitchBorderBreath 2.2s ease-in-out infinite;
+    autoPitchBreath 2.2s ease-in-out infinite;
 }
 
-/* usuwamy cinematic sweep */
 .auto-pitch-btn.active-auto-pitch::after {
-  display:
-    none !important;
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent,
+      rgba(255,255,255,0.28),
+      transparent
+    );
+
+  transform:
+    translateX(-130%);
+
+  animation:
+    autoPitchSweep 3.8s ease-in-out infinite;
 }
 
-/* oddycha tylko ramka / glow, nie środek przycisku */
-@keyframes autoPitchBorderBreath {
+@keyframes autoPitchBreath {
   0% {
-    border-color:
-      rgba(234,162,33,0.62);
-
     box-shadow:
-      0 0 10px rgba(234,162,33,0.18),
-      inset 0 0 10px rgba(255,255,255,0.055);
+      0 0 14px rgba(234,162,33,0.28),
+      0 0 28px rgba(234,162,33,0.12);
   }
 
   50% {
-    border-color:
-      rgba(255,190,70,1);
-
     box-shadow:
-      0 0 24px rgba(234,162,33,0.42),
-      0 0 42px rgba(234,162,33,0.16),
-      inset 0 0 14px rgba(255,255,255,0.09);
+      0 0 26px rgba(234,162,33,0.56),
+      0 0 54px rgba(234,162,33,0.22);
   }
 
   100% {
-    border-color:
-      rgba(234,162,33,0.62);
-
     box-shadow:
-      0 0 10px rgba(234,162,33,0.18),
-      inset 0 0 10px rgba(255,255,255,0.055);
+      0 0 14px rgba(234,162,33,0.28),
+      0 0 28px rgba(234,162,33,0.12);
+  }
+}
+
+@keyframes autoPitchSweep {
+  0% {
+    transform:
+      translateX(-130%);
+  }
+
+  42% {
+    transform:
+      translateX(130%);
+  }
+
+  100% {
+    transform:
+      translateX(130%);
   }
 }
 
@@ -4064,5 +4071,201 @@ body.is-playing .meta-panel {
   .auto-pitch-btn.active-auto-pitch {
     animation:
       none !important;
+  }
+
+  .auto-pitch-btn.active-auto-pitch::after {
+    display:
+      none;
+  }
+}
+
+
+/* =========================
+   ETAP 28A — RANKING MODAL
+========================= */
+
+.ranking-mini {
+  min-width: 86px;
+}
+
+.ranking-box {
+  width:
+    min(94vw, 760px);
+}
+
+.ranking-status {
+  min-height: 22px;
+
+  color:
+    rgba(234,162,33,0.9);
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size:
+    15px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    0.8px;
+
+  text-align:
+    center;
+}
+
+.ranking-table-wrap {
+  width:
+    100%;
+
+  overflow-x:
+    auto;
+
+  border-radius:
+    10px;
+
+  border:
+    1px solid rgba(234,162,33,0.22);
+
+  background:
+    rgba(255,255,255,0.04);
+}
+
+.ranking-table {
+  width:
+    100%;
+
+  border-collapse:
+    collapse;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+}
+
+.ranking-table th,
+.ranking-table td {
+  padding:
+    12px 14px;
+
+  border-bottom:
+    1px solid rgba(255,255,255,0.08);
+
+  color:
+    rgba(255,255,255,0.88);
+
+  font-size:
+    16px;
+
+  line-height:
+    1.25;
+
+  text-align:
+    left;
+}
+
+.ranking-table th {
+  color:
+    #EAA221;
+
+  font-size:
+    14px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    1.2px;
+
+  text-transform:
+    uppercase;
+
+  background:
+    rgba(0,0,0,0.28);
+}
+
+.ranking-table td:last-child,
+.ranking-table th:last-child {
+  width:
+    90px;
+
+  text-align:
+    right;
+
+  font-weight:
+    900;
+}
+
+.ranking-table tbody tr:last-child td {
+  border-bottom:
+    none;
+}
+
+.ranking-table tbody tr:hover {
+  background:
+    rgba(234,162,33,0.08);
+}
+
+.ranking-score-positive {
+  color:
+    #EAA221 !important;
+}
+
+.ranking-score-negative {
+  color:
+    rgba(221,65,36,0.92) !important;
+}
+
+.ranking-score-zero {
+  color:
+    rgba(255,255,255,0.68) !important;
+}
+
+#closeRankingBtn {
+  background:
+    rgba(255,255,255,0.13);
+
+  color:
+    white;
+
+  border:
+    1px solid rgba(255,255,255,0.16);
+}
+
+@media (max-width: 768px) {
+  .ranking-mini {
+    min-width:
+      76px;
+
+    height:
+      34px;
+
+    padding:
+      0 8px;
+
+    font-size:
+      10px;
+  }
+
+  .ranking-table th,
+  .ranking-table td {
+    padding:
+      10px 9px;
+
+    font-size:
+      14px;
+  }
+
+  .ranking-table th {
+    font-size:
+      12px;
+  }
+
+  .ranking-table td:last-child,
+  .ranking-table th:last-child {
+    width:
+      66px;
   }
 }
