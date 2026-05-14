@@ -30,7 +30,12 @@
       </p>
 
       <div class="roadmap-actions">
+        <button id="homeRankingBtn" class="roadmap-secondary-btn" type="button">
+          RANKING
+        </button>
+
         <a class="roadmap-main-btn roadmap-submit-btn" href="looper/">LOOPER</a>
+
         <a class="roadmap-secondary-btn" href="info/">WIĘCEJ INFO</a>
       </div>
     </header>
@@ -71,6 +76,297 @@
     </footer>
 
   </main>
+
+  <div id="homeRankingModal" class="community-modal hidden">
+    <div class="community-box ranking-box">
+      <h2>RANKING BEATÓW</h2>
+
+      <p class="community-info">
+        Ranking jest sortowany od najwyższej oceny. Ocena to suma głosów online dla danego beatu.
+      </p>
+
+      <div id="homeRankingStatus" class="ranking-status">
+        Ładowanie rankingu...
+      </div>
+
+      <div class="ranking-table-wrap">
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>Nr</th>
+              <th>Prod.</th>
+              <th>Tytuł</th>
+              <th>Ocena</th>
+            </tr>
+          </thead>
+
+          <tbody id="homeRankingTableBody">
+            <tr>
+              <td colspan="4">Ranking zostanie załadowany po kliknięciu przycisku.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button id="homeCloseRankingBtn">ZAMKNIJ</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="looper/config.js"></script>
+
+  <script>
+    const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
+
+    let supabaseClient = null;
+
+    if (window.supabase) {
+      supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY
+      );
+    }
+
+    const homeRankingBtn = document.getElementById("homeRankingBtn");
+    const homeRankingModal = document.getElementById("homeRankingModal");
+    const homeCloseRankingBtn = document.getElementById("homeCloseRankingBtn");
+    const homeRankingStatus = document.getElementById("homeRankingStatus");
+    const homeRankingTableBody = document.getElementById("homeRankingTableBody");
+
+    const totalSlots =
+      typeof TOTAL_SLOTS !== "undefined"
+        ? TOTAL_SLOTS
+        : 36;
+
+    const homeAllBeats = Array.from({ length: totalSlots }, (_, i) => {
+      const id = i + 1;
+
+      const existingBeat = beats.find(beat => beat.id === id);
+
+      if (existingBeat) {
+        return existingBeat;
+      }
+
+      return {
+        id: id,
+        title: `Beat ${id}`,
+        producer: "Coming Soon",
+        bpm: null,
+        file: "",
+        image: `looper/assets/images/beat${id}.jpg`,
+        available: false
+      };
+    });
+
+    function getAvailableHomeBeats() {
+      return homeAllBeats.filter(beat => beat.available && beat.file);
+    }
+
+    function setHomeRankingStatus(message) {
+      if (homeRankingStatus) {
+        homeRankingStatus.innerText = message;
+      }
+    }
+
+    function clearHomeRankingTable() {
+      if (!homeRankingTableBody) return;
+
+      homeRankingTableBody.innerHTML = "";
+    }
+
+    function appendHomeRankingMessage(message) {
+      if (!homeRankingTableBody) return;
+
+      clearHomeRankingTable();
+
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+
+      cell.colSpan = 4;
+      cell.innerText = message;
+
+      row.appendChild(cell);
+      homeRankingTableBody.appendChild(row);
+    }
+
+    function getHomeScoreClass(score) {
+      if (score > 0) {
+        return "ranking-score-positive";
+      }
+
+      if (score < 0) {
+        return "ranking-score-negative";
+      }
+
+      return "ranking-score-zero";
+    }
+
+    function formatHomeScore(score) {
+      if (score > 0) {
+        return `+${score}`;
+      }
+
+      return String(score);
+    }
+
+    function renderHomeRankingRows(rows) {
+      if (!homeRankingTableBody) return;
+
+      clearHomeRankingTable();
+
+      if (!rows.length) {
+        appendHomeRankingMessage("Brak beatów do wyświetlenia.");
+        return;
+      }
+
+      rows.forEach((item) => {
+        const row = document.createElement("tr");
+
+        const numberCell = document.createElement("td");
+        const producerCell = document.createElement("td");
+        const titleCell = document.createElement("td");
+        const scoreCell = document.createElement("td");
+
+        numberCell.innerText = String(item.id);
+        producerCell.innerText = item.producer || "Unknown";
+        titleCell.innerText = item.title || `Beat ${item.id}`;
+
+        scoreCell.innerText = formatHomeScore(item.score);
+        scoreCell.classList.add(getHomeScoreClass(item.score));
+
+        row.appendChild(numberCell);
+        row.appendChild(producerCell);
+        row.appendChild(titleCell);
+        row.appendChild(scoreCell);
+
+        homeRankingTableBody.appendChild(row);
+      });
+    }
+
+    async function buildHomeRankingRows() {
+      const availableBeats = getAvailableHomeBeats();
+
+      const scoreMap = new Map();
+
+      availableBeats.forEach((beat) => {
+        scoreMap.set(String(beat.id), 0);
+      });
+
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient
+          .from("looper_votes")
+          .select("beat_id, vote_value");
+
+        if (error) {
+          throw error;
+        }
+
+        if (Array.isArray(data)) {
+          data.forEach((row) => {
+            const beatId = String(row.beat_id);
+            const value = parseInt(row.vote_value, 10);
+
+            if (!scoreMap.has(beatId)) {
+              return;
+            }
+
+            if (value === 1 || value === -1) {
+              scoreMap.set(
+                beatId,
+                scoreMap.get(beatId) + value
+              );
+            }
+          });
+        }
+      }
+
+      return availableBeats
+        .map((beat) => {
+          return {
+            id: beat.id,
+            producer: beat.producer,
+            title: beat.title,
+            score: scoreMap.get(String(beat.id)) || 0
+          };
+        })
+        .sort((a, b) => {
+          if (b.score !== a.score) {
+            return b.score - a.score;
+          }
+
+          return a.id - b.id;
+        });
+    }
+
+    async function loadHomeRanking() {
+      if (!homeRankingTableBody) return;
+
+      setHomeRankingStatus("Ładowanie rankingu...");
+      appendHomeRankingMessage("Ładowanie rankingu...");
+
+      try {
+        const rows = await buildHomeRankingRows();
+
+        renderHomeRankingRows(rows);
+
+        if (!supabaseClient) {
+          setHomeRankingStatus("Supabase niedostępny — pokazuję ranking lokalny bez głosów online.");
+          return;
+        }
+
+        setHomeRankingStatus(`Załadowano ${rows.length} beatów.`);
+      } catch (error) {
+        console.error(error);
+
+        setHomeRankingStatus("Nie udało się pobrać rankingu.");
+        appendHomeRankingMessage("Błąd pobierania rankingu. Spróbuj ponownie później.");
+      }
+    }
+
+    function openHomeRankingModal() {
+      if (!homeRankingModal) return;
+
+      homeRankingModal.classList.remove("hidden");
+      loadHomeRanking();
+    }
+
+    function closeHomeRankingModal() {
+      if (homeRankingModal) {
+        homeRankingModal.classList.add("hidden");
+      }
+    }
+
+    if (homeRankingBtn) {
+      homeRankingBtn.addEventListener("click", () => {
+        openHomeRankingModal();
+      });
+    }
+
+    if (homeCloseRankingBtn) {
+      homeCloseRankingBtn.addEventListener("click", () => {
+        closeHomeRankingModal();
+      });
+    }
+
+    if (homeRankingModal) {
+      homeRankingModal.addEventListener("click", (event) => {
+        if (event.target === homeRankingModal) {
+          closeHomeRankingModal();
+        }
+      });
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        if (homeRankingModal && !homeRankingModal.classList.contains("hidden")) {
+          closeHomeRankingModal();
+        }
+      }
+    });
+  </script>
 
 </body>
 </html>
