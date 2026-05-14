@@ -4192,3 +4192,102 @@ body.is-playing .meta-panel {
       18px;
   }
 }
+
+
+/* =========================
+   ETAP 22B — SAFE LAPTOP SCROLL FIX
+   Prevent pitch panel from overlapping beat grid
+========================= */
+
+@media (min-width: 1000px) and (max-height: 900px) {
+
+  html,
+  body {
+    min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body {
+    min-height: 100vh;
+  }
+
+  .page {
+    height: auto;
+    min-height: 100vh;
+
+    grid-template-rows:
+      auto
+      auto
+      20px
+      18px;
+
+    align-content: start;
+  }
+
+  .top-section {
+    min-height: 0;
+  }
+
+  .control-panel {
+    height: auto;
+
+    grid-template-rows:
+      38px
+      auto
+      auto
+      auto;
+  }
+
+  .cover-panel,
+  #beatImage {
+    height: auto;
+    max-height: 34vh;
+  }
+
+  .cover-panel {
+    aspect-ratio: 1 / 1;
+  }
+
+  .beat-grid {
+    min-height: auto;
+
+    grid-template-rows:
+      repeat(4, minmax(78px, 1fr));
+
+    margin-top: 8px;
+  }
+
+  .beat-tile {
+    min-height: 78px;
+  }
+
+  .pitch-panel {
+    position: relative;
+    z-index: 2;
+  }
+
+  .news-ticker,
+  .copyright-footer {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@media (min-width: 1000px) and (max-height: 760px) {
+
+  .beat-grid {
+    grid-template-rows:
+      repeat(4, minmax(70px, 1fr));
+  }
+
+  .beat-tile {
+    min-height: 70px;
+  }
+
+  .cover-panel,
+  #beatImage {
+    max-height: 30vh;
+  }
+}
