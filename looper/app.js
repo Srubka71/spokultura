@@ -71,6 +71,12 @@ const stopBtn = document.getElementById("stopBtn");
 const restartBtn = document.getElementById("restartBtn");
 const autoPitchResetBtn = document.getElementById("autoPitchResetBtn");
 
+const rankingBtn = document.getElementById("rankingBtn");
+const rankingModal = document.getElementById("rankingModal");
+const closeRankingBtn = document.getElementById("closeRankingBtn");
+const rankingStatus = document.getElementById("rankingStatus");
+const rankingTableBody = document.getElementById("rankingTableBody");
+
 const moreInfoBtn = document.getElementById("moreInfoBtn");
 
 const helpBtn = document.getElementById("helpBtn");
@@ -460,18 +466,23 @@ if (beatBpmInput) {
 // =======================
 
 bindInfoHover(
+  rankingBtn,
+  "Pokaż ranking beatów według oceny"
+);
+
+bindInfoHover(
   moreInfoBtn,
-  "Otwórz opis projektu, changelog i więcej info"
+  "Otwórz opis projektu, roadmapę i changelog"
 );
 
 bindInfoHover(
   submitBeatBtn,
-  "Wyślij swój beat!"
+  "Wyślij swój beat do Looper Monthly Pack"
 );
 
 bindInfoHover(
   bugBtn,
-  "Zgłoś błąd, problem techniczny albo pomysł"
+  "Zgłoś błąd albo problem techniczny"
 );
 
 bindInfoHover(
@@ -803,6 +814,204 @@ const allBeats = Array.from({ length: totalSlots }, (_, i) => {
     available: false
   };
 });
+
+// =======================
+// RANKING
+// =======================
+
+function setRankingStatus(message) {
+  if (rankingStatus) {
+    rankingStatus.innerText = message;
+  }
+}
+
+function clearRankingTable() {
+  if (!rankingTableBody) return;
+
+  rankingTableBody.innerHTML = "";
+}
+
+function appendRankingMessage(message) {
+  if (!rankingTableBody) return;
+
+  clearRankingTable();
+
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+
+  cell.colSpan = 4;
+  cell.innerText = message;
+
+  row.appendChild(cell);
+  rankingTableBody.appendChild(row);
+}
+
+function getScoreClass(score) {
+  if (score > 0) {
+    return "ranking-score-positive";
+  }
+
+  if (score < 0) {
+    return "ranking-score-negative";
+  }
+
+  return "ranking-score-zero";
+}
+
+function formatScore(score) {
+  if (score > 0) {
+    return `+${score}`;
+  }
+
+  return String(score);
+}
+
+function renderRankingRows(rows) {
+  if (!rankingTableBody) return;
+
+  clearRankingTable();
+
+  if (!rows.length) {
+    appendRankingMessage("Brak beatów do wyświetlenia.");
+    return;
+  }
+
+  rows.forEach((item) => {
+    const row = document.createElement("tr");
+
+    const numberCell = document.createElement("td");
+    const producerCell = document.createElement("td");
+    const titleCell = document.createElement("td");
+    const scoreCell = document.createElement("td");
+
+    numberCell.innerText = String(item.id);
+    producerCell.innerText = item.producer || "Unknown";
+    titleCell.innerText = item.title || `Beat ${item.id}`;
+
+    scoreCell.innerText = formatScore(item.score);
+    scoreCell.classList.add(getScoreClass(item.score));
+
+    row.appendChild(numberCell);
+    row.appendChild(producerCell);
+    row.appendChild(titleCell);
+    row.appendChild(scoreCell);
+
+    rankingTableBody.appendChild(row);
+  });
+}
+
+async function buildRankingRows() {
+  const availableBeats = getAvailableBeats();
+
+  const scoreMap = new Map();
+
+  availableBeats.forEach((beat) => {
+    scoreMap.set(String(beat.id), 0);
+  });
+
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from("looper_votes")
+      .select("beat_id, vote_value");
+
+    if (error) {
+      throw error;
+    }
+
+    if (Array.isArray(data)) {
+      data.forEach((row) => {
+        const beatId = String(row.beat_id);
+        const value = parseInt(row.vote_value, 10);
+
+        if (!scoreMap.has(beatId)) {
+          return;
+        }
+
+        if (value === 1 || value === -1) {
+          scoreMap.set(
+            beatId,
+            scoreMap.get(beatId) + value
+          );
+        }
+      });
+    }
+  }
+
+  return availableBeats
+    .map((beat) => {
+      return {
+        id: beat.id,
+        producer: beat.producer,
+        title: beat.title,
+        score: scoreMap.get(String(beat.id)) || 0
+      };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+
+      return a.id - b.id;
+    });
+}
+
+async function loadRanking() {
+  if (!rankingTableBody) return;
+
+  setRankingStatus("Ładowanie rankingu...");
+  appendRankingMessage("Ładowanie rankingu...");
+
+  try {
+    const rows = await buildRankingRows();
+
+    renderRankingRows(rows);
+
+    if (!supabaseClient) {
+      setRankingStatus("Supabase niedostępny — pokazuję ranking lokalny bez głosów online.");
+      return;
+    }
+
+    setRankingStatus(`Załadowano ${rows.length} beatów.`);
+  } catch (error) {
+    console.error(error);
+
+    setRankingStatus("Nie udało się pobrać rankingu.");
+    appendRankingMessage("Błąd pobierania rankingu. Spróbuj ponownie później.");
+  }
+}
+
+function openRankingModal() {
+  if (!rankingModal) return;
+
+  rankingModal.classList.remove("hidden");
+  loadRanking();
+}
+
+function closeRankingModal() {
+  if (rankingModal) {
+    rankingModal.classList.add("hidden");
+  }
+}
+
+if (rankingBtn) {
+  rankingBtn.addEventListener("click", () => {
+    openRankingModal();
+  });
+}
+
+if (closeRankingBtn) {
+  closeRankingBtn.addEventListener("click", () => {
+    closeRankingModal();
+  });
+}
+
+if (rankingModal) {
+  rankingModal.addEventListener("click", (event) => {
+    if (event.target === rankingModal) {
+      closeRankingModal();
+    }
+  });
+}
 
 // =======================
 // CREATE BEAT TILES
