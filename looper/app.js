@@ -855,7 +855,7 @@ document.querySelectorAll(".loop-btn").forEach(button => {
 
     if (button.dataset.loop === "off") {
       loopTarget = "off";
-      updateInfoBar("Loop OFF");
+      updateInfoBar("INFINITY LOOP");
     } else {
       loopTarget = parseInt(button.dataset.loop, 10);
       updateInfoBar(`Loop ${loopTarget}x`);
