@@ -11,6 +11,8 @@ let infoTimer = null;
 let loadBeatTimer = null;
 let loadBeatRequestId = 0;
 
+let autoPitchResetEnabled = false;
+
 // =======================
 // FORMSPREE ENDPOINTS
 // =======================
@@ -67,6 +69,7 @@ const pitchLabel = document.getElementById("pitchLabel");
 
 const stopBtn = document.getElementById("stopBtn");
 const restartBtn = document.getElementById("restartBtn");
+const autoPitchResetBtn = document.getElementById("autoPitchResetBtn");
 
 const helpBtn = document.getElementById("helpBtn");
 const helpModal = document.getElementById("helpModal");
@@ -187,6 +190,31 @@ function cancelPendingBeatLoad() {
     clearTimeout(loadBeatTimer);
     loadBeatTimer = null;
   }
+}
+
+function resetPitchToZero(showMessage = false) {
+  if (!pitch) return;
+
+  pitch.value = 1;
+  pitch.dispatchEvent(new Event("input"));
+
+  if (showMessage) {
+    updateInfoBar("Pitch reset");
+  }
+}
+
+function updateAutoPitchButtonState() {
+  if (!autoPitchResetBtn) return;
+
+  autoPitchResetBtn.classList.toggle(
+    "active-auto-pitch",
+    autoPitchResetEnabled
+  );
+
+  autoPitchResetBtn.setAttribute(
+    "aria-pressed",
+    autoPitchResetEnabled ? "true" : "false"
+  );
 }
 
 function randomGlowColor() {
@@ -411,6 +439,34 @@ if (beatBpmInput) {
       showFeedbackModal("BŁĄD", "Wpisz prawidłowe BPM.");
     }
   });
+}
+
+// =======================
+// AUTO 0% PITCH RESET
+// =======================
+
+if (autoPitchResetBtn) {
+  autoPitchResetBtn.addEventListener("mouseenter", () => {
+    updateInfoBar("Always 0% pitch after beat change", false);
+  });
+
+  autoPitchResetBtn.addEventListener("mouseleave", () => {
+    clearInfoBar();
+  });
+
+  autoPitchResetBtn.addEventListener("click", () => {
+    autoPitchResetEnabled = !autoPitchResetEnabled;
+
+    updateAutoPitchButtonState();
+
+    if (autoPitchResetEnabled) {
+      updateInfoBar("AUTO 0% ON");
+    } else {
+      updateInfoBar("AUTO 0% OFF");
+    }
+  });
+
+  updateAutoPitchButtonState();
 }
 
 // =======================
@@ -780,6 +836,10 @@ function loadBeat(beat, btn) {
   currentBeat = beat;
   currentButton = btn;
 
+  if (autoPitchResetEnabled) {
+    resetPitchToZero(false);
+  }
+
   isPlaying = false;
   stopBtn.innerText = "START";
 
@@ -943,9 +1003,15 @@ function playNextAvailableBeat() {
 // =======================
 
 document.querySelectorAll(".loop-btn").forEach(button => {
+  if (button.id === "autoPitchResetBtn") {
+    return;
+  }
+
   button.addEventListener("click", () => {
     document.querySelectorAll(".loop-btn").forEach(btn => {
-      btn.classList.remove("active-loop");
+      if (btn.id !== "autoPitchResetBtn") {
+        btn.classList.remove("active-loop");
+      }
     });
 
     button.classList.add("active-loop");
@@ -1047,9 +1113,7 @@ document.getElementById("pitchPlus025").onclick = () => setPitch(0.025);
 document.getElementById("pitchMinus025").onclick = () => setPitch(-0.025);
 
 document.getElementById("pitchReset").onclick = () => {
-  pitch.value = 1;
-  pitch.dispatchEvent(new Event("input"));
-  updateInfoBar("Pitch reset");
+  resetPitchToZero(true);
 };
 
 // =======================
@@ -1360,4 +1424,3 @@ document.addEventListener("mouseleave", () => {
     img.style.transform = "translate3d(0, 0, 0) scale(1)";
   }
 });
-
