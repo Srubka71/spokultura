@@ -8,6 +8,9 @@ let loopTarget = "off";
 let loopCounter = 0;
 let infoTimer = null;
 
+let loadBeatTimer = null;
+let loadBeatRequestId = 0;
+
 // =======================
 // FORMSPREE ENDPOINTS
 // =======================
@@ -162,6 +165,30 @@ function setPlayingVisualState(isActive) {
   }
 }
 
+function stopAudioInstance(audio) {
+  if (!audio) return;
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.removeAttribute("src");
+    audio.load();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function stopAndResetCurrentAudio() {
+  stopAudioInstance(currentAudio);
+}
+
+function cancelPendingBeatLoad() {
+  if (loadBeatTimer) {
+    clearTimeout(loadBeatTimer);
+    loadBeatTimer = null;
+  }
+}
+
 function randomGlowColor() {
   const colors = [
     "#EAA221",
@@ -277,8 +304,10 @@ function findButtonByBeatId(id) {
 }
 
 function stopPlaybackCompletely() {
-  currentAudio.pause();
-  currentAudio.currentTime = 0;
+  loadBeatRequestId++;
+
+  cancelPendingBeatLoad();
+  stopAndResetCurrentAudio();
 
   isPlaying = false;
   stopBtn.innerText = "START";
@@ -567,8 +596,13 @@ async function updateVotePanel() {
 
   voteTotal.innerText = "...";
 
-  const voteValue = await getOnlineUserVote(currentBeat.id);
-  const displayedTotal = await getDisplayedVoteTotal(currentBeat.id);
+  const beatId = currentBeat.id;
+  const voteValue = await getOnlineUserVote(beatId);
+  const displayedTotal = await getDisplayedVoteTotal(beatId);
+
+  if (!currentBeat || currentBeat.id !== beatId) {
+    return;
+  }
 
   voteTotal.innerText = String(displayedTotal);
 
@@ -578,7 +612,7 @@ async function updateVotePanel() {
   voteDownBtn.setAttribute("aria-pressed", voteValue === -1 ? "true" : "false");
   voteUpBtn.setAttribute("aria-pressed", voteValue === 1 ? "true" : "false");
 
-  saveLocalVote(currentBeat.id, voteValue);
+  saveLocalVote(beatId, voteValue);
 }
 
 async function handleVote(selectedValue) {
@@ -731,15 +765,25 @@ allBeats.forEach((beat) => {
 // =======================
 
 function loadBeat(beat, btn) {
+  loadBeatRequestId++;
+
+  const requestId = loadBeatRequestId;
+
+  cancelPendingBeatLoad();
+
   resetActiveButtons();
 
-  currentAudio.pause();
-  currentAudio.currentTime = 0;
+  stopAndResetCurrentAudio();
 
   loopCounter = 0;
 
   currentBeat = beat;
   currentButton = btn;
+
+  isPlaying = false;
+  stopBtn.innerText = "START";
+
+  setPlayingVisualState(false);
 
   clearInfoBar();
   updateVotePanel();
@@ -749,20 +793,58 @@ function loadBeat(beat, btn) {
   const coverPanel = document.querySelector(".cover-panel");
   const infoBar = document.querySelector(".info-bar");
 
-  setTimeout(() => {
-    currentAudio = new Audio(beat.file);
+  loadBeatTimer = setTimeout(() => {
+    if (requestId !== loadBeatRequestId) {
+      return;
+    }
+
+    const nextAudio = new Audio(beat.file);
+
+    currentAudio = nextAudio;
 
     currentAudio.loop = false;
     currentAudio.playbackRate = parseFloat(pitch.value);
 
-    currentAudio.addEventListener("ended", handleBeatEnded);
+    currentAudio.addEventListener("ended", () => {
+      if (currentAudio !== nextAudio) {
+        return;
+      }
 
-    currentAudio.play();
+      handleBeatEnded();
+    });
 
-    isPlaying = true;
-    stopBtn.innerText = "STOP";
+    const playPromise = currentAudio.play();
 
-    setPlayingVisualState(true);
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise
+        .then(() => {
+          if (requestId !== loadBeatRequestId) {
+            stopAudioInstance(nextAudio);
+            return;
+          }
+
+          isPlaying = true;
+          stopBtn.innerText = "STOP";
+
+          setPlayingVisualState(true);
+        })
+        .catch((error) => {
+          console.error(error);
+
+          if (requestId === loadBeatRequestId) {
+            isPlaying = false;
+            stopBtn.innerText = "START";
+
+            setPlayingVisualState(false);
+            updateInfoBar("Nie udało się uruchomić beatu");
+          }
+        });
+    } else {
+      isPlaying = true;
+      stopBtn.innerText = "STOP";
+
+      setPlayingVisualState(true);
+    }
 
     if (img) {
       img.src = beat.image || "";
@@ -782,17 +864,30 @@ function loadBeat(beat, btn) {
     btn.classList.add("active");
 
     setTimeout(() => {
-      img.classList.remove("changing");
+      if (requestId === loadBeatRequestId && img) {
+        img.classList.remove("changing");
+      }
     }, 60);
 
-    coverPanel.classList.remove("active-cover");
-    infoBar.classList.remove("active-info");
+    if (coverPanel) {
+      coverPanel.classList.remove("active-cover");
+    }
 
-    void coverPanel.offsetWidth;
-    void infoBar.offsetWidth;
+    if (infoBar) {
+      infoBar.classList.remove("active-info");
+    }
 
-    coverPanel.classList.add("active-cover");
-    infoBar.classList.add("active-info");
+    if (coverPanel) {
+      void coverPanel.offsetWidth;
+      coverPanel.classList.add("active-cover");
+    }
+
+    if (infoBar) {
+      void infoBar.offsetWidth;
+      infoBar.classList.add("active-info");
+    }
+
+    loadBeatTimer = null;
   }, 220);
 }
 
@@ -801,6 +896,8 @@ function loadBeat(beat, btn) {
 // =======================
 
 function handleBeatEnded() {
+  if (!currentAudio || !currentAudio.src) return;
+
   if (loopTarget === "off") {
     currentAudio.currentTime = 0;
     currentAudio.play();
@@ -1263,3 +1360,4 @@ document.addEventListener("mouseleave", () => {
     img.style.transform = "translate3d(0, 0, 0) scale(1)";
   }
 });
+
