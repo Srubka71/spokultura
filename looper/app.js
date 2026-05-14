@@ -1254,6 +1254,18 @@ document.querySelectorAll(".loop-btn").forEach(button => {
     return;
   }
 
+  button.addEventListener("mouseenter", () => {
+  if (button.dataset.loop === "off") {
+    updateInfoBar("INFINITY LOOP", false);
+  } else {
+    updateInfoBar(`Loop ${button.dataset.loop}x`, false);
+  }
+});
+
+  button.addEventListener("mouseleave", () => {
+    clearInfoBar();
+  });
+
   button.addEventListener("click", () => {
     document.querySelectorAll(".loop-btn").forEach(btn => {
       if (btn.id !== "autoPitchResetBtn") {
@@ -1274,6 +1286,7 @@ document.querySelectorAll(".loop-btn").forEach(button => {
     loopCounter = 0;
   });
 });
+
 
 // =======================
 // STOP / START
