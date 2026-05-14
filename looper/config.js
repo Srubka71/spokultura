@@ -100,4 +100,49 @@ const beats = [
     image: "assets/images/beat11.jpg",
     available: true
   },
+   {
+    id: 12,
+    title: "Breakdance for ever",
+    producer: "Twister",
+    bpm: 90,
+    file: "assets/audio/beat12.mp3",
+    image: "assets/images/beat12.png",
+    available: true
+  },
+   {
+    id: 13 ,
+    title: "Nie inaczej",
+    producer: "Twister",
+    bpm: 92.2,
+    file: "assets/audio/beat13.mp3",
+    image: "assets/images/beat13.png",
+    available: true
+  },
+   {
+    id: 14,
+    title: "Nowy",
+    producer: "Twister",
+    bpm: 80,
+    file: "assets/audio/beat14.mp3",
+    image: "assets/images/beat14.png",
+    available: true
+  },
+   {
+    id: 15,
+    title: "Osiedlowe refleksje",
+    producer: "Twister",
+    bpm: 90,
+    file: "assets/audio/beat15.mp3",
+    image: "assets/images/beat15.png",
+    available: true
+  },
+   {
+    id: 16,
+    title: "Zrozum",
+    producer: "Twister",
+    bpm: 90,
+    file: "assets/audio/beat16.mp3",
+    image: "assets/images/beat16.png",
+    available: true
+  },
 ]
