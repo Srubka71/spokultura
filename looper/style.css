@@ -3810,3 +3810,385 @@ body.is-playing .meta-panel {
       none;
   }
 }
+
+/* =========================
+   ETAP 22A — COMPACT LAPTOP LAYOUT FIX
+   For laptops with desktop width but low screen height
+========================= */
+
+@media (min-width: 1000px) and (max-height: 850px) {
+
+  body {
+    overflow: hidden;
+  }
+
+  .page {
+    width: min(94vw, 1500px);
+
+    height: 100vh;
+
+    padding:
+      10px
+      clamp(14px, 3vw, 44px)
+      6px;
+
+    grid-template-rows:
+      minmax(210px, 34vh)
+      1fr
+      20px
+      18px;
+
+    gap: 8px;
+  }
+
+  .top-section {
+    gap:
+      clamp(12px, 2vw, 28px);
+
+    grid-template-columns:
+      minmax(220px, 28%)
+      1fr;
+  }
+
+  .cover-panel {
+    max-height:
+      34vh;
+  }
+
+  #beatImage {
+    max-height:
+      34vh;
+  }
+
+  .control-panel {
+    grid-template-rows:
+      38px
+      minmax(108px, 1fr)
+      auto
+      auto;
+
+    gap: 7px;
+  }
+
+  .info-bar {
+    min-height: 38px;
+
+    padding:
+      0 14px;
+  }
+
+  #infoText {
+    font-size:
+      clamp(12px, 0.9vw, 15px);
+  }
+
+  .top-buttons {
+    gap: 7px;
+  }
+
+  .more-info-mini,
+  #submitBeatBtn {
+    height: 28px;
+    min-height: 28px;
+
+    padding:
+      0 12px;
+
+    font-size: 11px;
+  }
+
+  #helpBtn,
+  #bugBtn {
+    width: 28px;
+    height: 28px;
+
+    font-size: 16px;
+  }
+
+  .meta-panel {
+    min-height: 112px;
+
+    padding:
+      14px 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .meta-panel h2 {
+    font-size:
+      clamp(34px, 4.3vw, 58px);
+
+    margin-bottom: 8px;
+  }
+
+  .meta-panel p {
+    font-size:
+      clamp(16px, 1.6vw, 24px);
+
+    margin:
+      5px 0;
+  }
+
+  .vote-panel {
+    min-width: 115px;
+
+    padding:
+      12px 10px;
+  }
+
+  .vote-label {
+    font-size:
+      12px;
+  }
+
+  .vote-total {
+    font-size:
+      34px;
+    line-height: 1;
+  }
+
+  .vote-buttons {
+    gap:
+      8px;
+  }
+
+  .vote-btn {
+    width: 34px;
+    height: 34px;
+
+    font-size: 17px;
+  }
+
+  .transport-panel {
+    padding:
+      9px 14px;
+
+    gap:
+      8px;
+  }
+
+  .transport-panel button,
+  .pitch-buttons button,
+  .loop-btn {
+    padding:
+      7px 13px;
+
+    font-size:
+      12px;
+  }
+
+  #stopBtn,
+  #restartBtn {
+    min-width: 92px;
+    min-height: 38px;
+  }
+
+  .loop-panel {
+    gap:
+      7px;
+  }
+
+  .pitch-panel {
+    min-height: 105px;
+
+    padding:
+      9px 14px;
+  }
+
+  .pitch-buttons {
+    gap:
+      7px;
+
+    margin-bottom:
+      9px;
+  }
+
+  #pitch {
+    height:
+      24px;
+
+    margin-bottom:
+      6px;
+  }
+
+  #pitchLabel {
+    font-size:
+      14px;
+
+    margin-top:
+      4px;
+  }
+
+  .beat-grid {
+    gap:
+      8px;
+
+    margin-top:
+      6px;
+  }
+
+  .beat-tile span {
+    font-size:
+      clamp(20px, 1.8vw, 30px);
+  }
+
+  .news-ticker {
+    height: 20px;
+    min-height: 20px;
+  }
+
+  .news-track {
+    font-size: 10px;
+    line-height: 20px;
+  }
+
+  .copyright-footer {
+    font-size:
+      9px;
+
+    line-height:
+      1.1;
+  }
+}
+
+/* Extra compact mode for very low laptop screens */
+@media (min-width: 1000px) and (max-height: 740px) {
+
+  .page {
+    width: min(92vw, 1400px);
+
+    padding:
+      8px
+      clamp(12px, 2.4vw, 34px)
+      5px;
+
+    grid-template-rows:
+      minmax(190px, 32vh)
+      1fr
+      18px
+      16px;
+
+    gap: 6px;
+  }
+
+  .top-section {
+    grid-template-columns:
+      minmax(190px, 26%)
+      1fr;
+
+    gap:
+      clamp(10px, 1.8vw, 24px);
+  }
+
+  .cover-panel,
+  #beatImage {
+    max-height:
+      32vh;
+  }
+
+  .control-panel {
+    grid-template-rows:
+      34px
+      minmax(96px, 1fr)
+      auto
+      auto;
+
+    gap:
+      6px;
+  }
+
+  .info-bar {
+    min-height:
+      34px;
+  }
+
+  .meta-panel {
+    min-height:
+      98px;
+
+    padding:
+      11px 16px;
+  }
+
+  .meta-panel h2 {
+    font-size:
+      clamp(30px, 4vw, 50px);
+  }
+
+  .meta-panel p {
+    font-size:
+      clamp(14px, 1.35vw, 20px);
+  }
+
+  .vote-panel {
+    min-width:
+      100px;
+
+    padding:
+      9px 8px;
+  }
+
+  .vote-total {
+    font-size:
+      28px;
+  }
+
+  .vote-btn {
+    width:
+      30px;
+
+    height:
+      30px;
+
+    font-size:
+      15px;
+  }
+
+  .transport-panel {
+    padding:
+      7px 12px;
+  }
+
+  #stopBtn,
+  #restartBtn {
+    min-height:
+      34px;
+  }
+
+  .pitch-panel {
+    min-height:
+      92px;
+
+    padding:
+      7px 12px;
+  }
+
+  .pitch-buttons {
+    margin-bottom:
+      6px;
+  }
+
+  .beat-grid {
+    gap:
+      7px;
+  }
+
+  .news-ticker {
+    height:
+      18px;
+
+    min-height:
+      18px;
+  }
+
+  .news-track {
+    font-size:
+      9px;
+
+    line-height:
+      18px;
+  }
+}
