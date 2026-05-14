@@ -13,6 +13,116 @@
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@400;500;600;700;800&family=Teko:wght@400;500;600&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="../looper/style.css">
+
+  <style>
+    .changelog-link-btn {
+      margin-top: 14px;
+      padding: 0;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+
+      background: transparent;
+      border: none;
+
+      color: #EAA221;
+
+      font-family: "Rajdhani", sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 1.2px;
+
+      text-transform: uppercase;
+      cursor: pointer;
+
+      text-shadow:
+        0 0 10px rgba(234,162,33,0.32);
+
+      transition:
+        color 0.18s ease,
+        transform 0.18s ease,
+        text-shadow 0.18s ease;
+    }
+
+    .changelog-link-btn:hover {
+      color: #ffb13b;
+
+      transform: translateX(3px);
+
+      text-shadow:
+        0 0 14px rgba(234,162,33,0.55),
+        0 0 28px rgba(234,162,33,0.18);
+    }
+
+    .changelog-list {
+      width: 100%;
+
+      display: flex;
+      flex-direction: column;
+
+      gap: 16px;
+
+      margin-top: 6px;
+
+      text-align: left;
+    }
+
+    .changelog-version {
+      padding: 14px 16px;
+
+      border-radius: 10px;
+
+      background:
+        rgba(255,255,255,0.045);
+
+      border:
+        1px solid rgba(234,162,33,0.18);
+    }
+
+    .changelog-version h3 {
+      margin: 0 0 8px;
+
+      color: #EAA221;
+
+      font-family: "Rajdhani", sans-serif;
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    .changelog-version ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .changelog-version li {
+      color:
+        rgba(255,255,255,0.86);
+
+      font-family: "Rajdhani", sans-serif;
+      font-size: 15px;
+      line-height: 1.42;
+    }
+
+    @media (max-width: 768px) {
+      .changelog-link-btn {
+        font-size: 14px;
+      }
+
+      .changelog-version {
+        padding: 12px 13px;
+      }
+
+      .changelog-version h3 {
+        font-size: 16px;
+      }
+
+      .changelog-version li {
+        font-size: 14px;
+      }
+    }
+  </style>
 </head>
 
 <body class="roadmap-body">
@@ -196,6 +306,10 @@
           Następny większy etap to ranking / statystyki beatów oraz dalsze dopracowanie
           systemu community.
         </p>
+
+        <button id="openChangelogBtn" class="changelog-link-btn" type="button">
+          OBCZAJ CHANGELOG
+        </button>
       </article>
 
     </section>
@@ -248,6 +362,75 @@
     </div>
   </div>
 
+  <div id="changelogModal" class="community-modal hidden">
+    <div class="community-box">
+      <h2>CHANGELOG</h2>
+
+      <p class="community-info">
+        Aktualizacje projektu zapisywane etapami — co zostało dodane i jak Looper zmieniał się w community beta.
+      </p>
+
+      <div class="changelog-list">
+
+        <section class="changelog-version">
+          <h3>v0.1 — Pierwsza wersja Loopera</h3>
+          <ul>
+            <li>odtwarzacz beatów,</li>
+            <li>kafelki beatów,</li>
+            <li>pitch,</li>
+            <li>loop.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.2 — Sterowanie i UX</h3>
+          <ul>
+            <li>skróty klawiaturowe,</li>
+            <li>info bar,</li>
+            <li>HELP modal,</li>
+            <li>poprawki mobile.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.3 — Community</h3>
+          <ul>
+            <li>WYŚLIJ BEAT,</li>
+            <li>ZGŁOŚ BUG,</li>
+            <li>Formspree,</li>
+            <li>roadmap / info.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.4 — Głosowanie online</h3>
+          <ul>
+            <li>łapki 👍 👎,</li>
+            <li>Supabase,</li>
+            <li>wspólna suma głosów.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.5 — Publiczna beta</h3>
+          <ul>
+            <li>domena spokultura.pl,</li>
+            <li>/looper/,</li>
+            <li>/info/,</li>
+            <li>favicon,</li>
+            <li>poprawki laptop layout,</li>
+            <li>zabezpieczenie przed graniem kilku beatów naraz.</li>
+          </ul>
+        </section>
+
+      </div>
+
+      <div class="modal-actions">
+        <button id="closeChangelogBtn">OK</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const BEAT_FORM_ENDPOINT = "https://formspree.io/f/mjglzzlg";
 
@@ -262,6 +445,10 @@
     const roadmapCloseFeedbackBtn = document.getElementById("roadmapCloseFeedbackBtn");
 
     const roadmapBeatBpmInput = document.getElementById("roadmapBeatBpm");
+
+    const openChangelogBtn = document.getElementById("openChangelogBtn");
+    const changelogModal = document.getElementById("changelogModal");
+    const closeChangelogBtn = document.getElementById("closeChangelogBtn");
 
     function isValidEmail(email) {
       if (!email) return false;
@@ -297,6 +484,18 @@
     function closeRoadmapFeedbackModal() {
       if (roadmapFeedbackModal) {
         roadmapFeedbackModal.classList.add("hidden");
+      }
+    }
+
+    function openChangelogModal() {
+      if (changelogModal) {
+        changelogModal.classList.remove("hidden");
+      }
+    }
+
+    function closeChangelogModal() {
+      if (changelogModal) {
+        changelogModal.classList.add("hidden");
       }
     }
 
@@ -372,6 +571,26 @@
       roadmapFeedbackModal.addEventListener("click", (event) => {
         if (event.target === roadmapFeedbackModal) {
           closeRoadmapFeedbackModal();
+        }
+      });
+    }
+
+    if (openChangelogBtn) {
+      openChangelogBtn.addEventListener("click", () => {
+        openChangelogModal();
+      });
+    }
+
+    if (closeChangelogBtn) {
+      closeChangelogBtn.addEventListener("click", () => {
+        closeChangelogModal();
+      });
+    }
+
+    if (changelogModal) {
+      changelogModal.addEventListener("click", (event) => {
+        if (event.target === changelogModal) {
+          closeChangelogModal();
         }
       });
     }
@@ -469,6 +688,11 @@
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
+        if (changelogModal && !changelogModal.classList.contains("hidden")) {
+          changelogModal.classList.add("hidden");
+          return;
+        }
+
         if (roadmapFeedbackModal && !roadmapFeedbackModal.classList.contains("hidden")) {
           roadmapFeedbackModal.classList.add("hidden");
           return;
