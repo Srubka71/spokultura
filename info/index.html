@@ -135,10 +135,10 @@
       <h1>LOOPER / BEAT CHOOSER</h1>
 
       <p class="roadmap-lead">
-        Stworzyłem ten looper z myślą o webowej (w przyszłości też desktopowej) wersji narzędzia do odsłuchu,
-        ćwiczeń, scratchu i pracy kreatywnej z beatami, a to jego beta(v1).
-        Projekt rozwija się jako otwarta baza loopów i beatów dla osób, które chcą ćwiczyć,
-        testować pomysły i wspierać scenę turntablistyczną.
+        Stworzyłem ten looper z myślą o webowej, a w przyszłości być może też desktopowej,
+        wersji narzędzia do odsłuchu, ćwiczeń, scratchu i pracy kreatywnej z beatami.
+        Projekt działa jako publiczna community beta: można już słuchać beatów, głosować online,
+        sprawdzać ranking, wysyłać własne beaty, zgłaszać błędy i testować rozwój narzędzia razem ze społecznością.
       </p>
 
       <div class="roadmap-actions">
@@ -156,12 +156,13 @@
 
         <p>
           To jest publiczna wersja testowa Loopera. Możesz już korzystać z playera,
-          głosować online, wysyłać beaty i zgłaszać błędy.
+          głosować online, sprawdzać ranking beatów, wysyłać beaty i zgłaszać błędy.
         </p>
 
         <p>
-          Projekt nadal jest rozwijany, więc pojedyncze rzeczy mogą się zmieniać,
-          ale obecna wersja jest gotowa do testów ze znajomymi i społecznością. Każdy feedback mile widziany :)
+          Projekt nadal jest rozwijany etapami, ale obecna wersja jest gotowa do testów
+          ze znajomymi i społecznością. Każdy feedback, beat i zgłoszenie błędu pomaga
+          dopracować narzędzie.
         </p>
       </article>
 
@@ -169,13 +170,13 @@
         <h2>Czym jest Looper?</h2>
 
         <p>
-          Ten looper/beatchooser to webowy odtwarzacz beatów stworzony z myślą o scratchu,
+          Ten looper / beatchooser to webowy odtwarzacz beatów stworzony z myślą o scratchu,
           freestyle’u, ćwiczeniu techniki i szybkim testowaniu loopów.
         </p>
 
         <p>
           Możesz wybierać beaty, zmieniać pitch, korzystać z loopów, skrótów klawiaturowych,
-          wysyłać własne beaty, zgłaszać błędy i głosować online na aktualnie odtwarzane numery.
+          wysyłać własne beaty, zgłaszać błędy, głosować online i sprawdzać ranking najlepiej ocenianych numerów.
         </p>
       </article>
 
@@ -211,8 +212,9 @@
         </p>
 
         <p>
-          Dzięki temu narzędzie nie stoi w miejscu i regularnie dostaje świeży materiał
-          do ćwiczeń oraz zabawy.
+          Ranking i głosy mogą pomagać w selekcji, ale nie muszą być jedynym kryterium.
+          Chodzi o to, żeby narzędzie regularnie dostawało świeży materiał do ćwiczeń,
+          scratchu i zabawy.
         </p>
       </article>
 
@@ -220,7 +222,7 @@
         <h2>Jak działa głosowanie?</h2>
 
         <p>
-          Głosowanie działa online. Oznacza to, że głosy oddane przez różnych
+          Głosowanie działa online przez Supabase. Oznacza to, że głosy oddane przez różnych
           użytkowników mogą być zliczane we wspólnej sumie.
         </p>
 
@@ -230,13 +232,18 @@
         </p>
 
         <p>
+          Głosy budują ranking beatów. Ranking pokazuje numer kafelka, producenta, tytuł
+          i ocenę, więc łatwo sprawdzić, który beat z listy jest aktualnie najwyżej.
+        </p>
+
+        <p>
           Strona zapamiętuje identyfikator przeglądarki, żeby jedna przeglądarka mogła mieć
           tylko jeden aktywny głos na dany beat.
         </p>
 
         <p>
           To jest wersja community test. System nie wymaga logowania, więc nie jest pancerny
-          antyspamowo, ale wystarcza do realnego testowania głosów ze znajomymi :)
+          antyspamowo, ale wystarcza do realnego testowania głosów ze znajomymi.
         </p>
       </article>
 
@@ -244,12 +251,14 @@
         <h2>Co będzie dodane później?</h2>
 
         <ul>
-          <li>ranking najlepiej ocenianych beatów,</li>
-          <li>statystyki popularności beatów,</li>
+          <li>rozbudowane statystyki popularności beatów,</li>
+          <li>filtrowanie lub dodatkowe sortowanie rankingu,</li>
           <li>lepsza selekcja Looper Monthly Pack,</li>
-          <li>publiczne informacje o aktualizacjach,</li>
+          <li>publiczne aktualizacje i dalszy changelog,</li>
           <li>możliwość lepszego zabezpieczenia głosów przed spamem,</li>
-          <li>dalsze poprawki mobile / Android / Mac.</li>
+          <li>dalsze poprawki mobile / Android / Mac,</li>
+          <li>rozbudowa strony głównej Spokultury,</li>
+          <li>sekcje /o-nas i /wydarzenia.</li>
         </ul>
       </article>
 
@@ -267,6 +276,7 @@
 
         <p>
           Zgłoszenie trafia bezpośrednio przez formularz, więc nie musisz otwierać programu pocztowego.
+          To pomaga szybciej zbierać feedback i poprawiać projekt.
         </p>
       </article>
 
@@ -293,18 +303,24 @@
         <h2>Status projektu</h2>
 
         <p>
-          Aktualnie działa publiczna beta: odtwarzacz, pitch, loop, skróty,
-          formularze zgłoszeń, news ticker, strona informacyjna community oraz głosowanie online przez Supabase.
+          Aktualnie działa publiczna beta: odtwarzacz, pitch, loop, AUTO 0%,
+          skróty klawiaturowe, formularze zgłoszeń, news ticker, strona informacyjna,
+          strona główna community, changelog oraz głosowanie online przez Supabase.
+        </p>
+
+        <p>
+          Działa też ranking online na <strong>/looper/</strong> oraz na stronie głównej
+          <strong>spokultura.pl</strong>. Ranking pokazuje numer beatu, producenta, tytuł i ocenę.
         </p>
 
         <p>
           Możesz już wysłać link znajomym, żeby testowali beaty, oddawali głosy,
-          zgłaszali bugi i wysyłali własne propozycje beatów.
+          zgłaszali bugi, sprawdzali ranking i wysyłali własne propozycje beatów.
         </p>
 
         <p>
-          Następny większy etap to ranking / statystyki beatów oraz dalsze dopracowanie
-          systemu community.
+          Następny większy etap to rozbudowa strony Spokultury, dokumentacja techniczna
+          oraz dalsze dopracowanie systemu community.
         </p>
 
         <button id="openChangelogBtn" class="changelog-link-btn" type="button">
@@ -420,6 +436,39 @@
             <li>favicon,</li>
             <li>poprawki laptop layout,</li>
             <li>zabezpieczenie przed graniem kilku beatów naraz.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.6 — Ranking beatów</h3>
+          <ul>
+            <li>ranking online na /looper/,</li>
+            <li>ranking na stronie głównej spokultura.pl,</li>
+            <li>tabela: Nr | Prod. | Tytuł | Ocena,</li>
+            <li>sortowanie od najwyższej oceny,</li>
+            <li>numer beatu zgodny z kafelkiem w Looperze.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.7 — Dopracowanie sterowania</h3>
+          <ul>
+            <li>AUTO 0% pitch przy zmianie beatu,</li>
+            <li>domyślne zachowanie pitcha zostaje bez zmian, jeśli AUTO 0% jest wyłączone,</li>
+            <li>hover info dla przycisków górnego menu,</li>
+            <li>hover info dla loopów 1 / 2 / 4 / 6 / 8,</li>
+            <li>aktualizacja HELP modala.</li>
+          </ul>
+        </section>
+
+        <section class="changelog-version">
+          <h3>v0.8 — Strona główna community</h3>
+          <ul>
+            <li>przycisk RANKING na stronie głównej,</li>
+            <li>przycisk LOOPER,</li>
+            <li>przycisk WIĘCEJ INFO,</li>
+            <li>wspólny ranking ze stroną /looper/,</li>
+            <li>aktualizacja treści strony /info/.</li>
           </ul>
         </section>
 
@@ -706,4 +755,4 @@
   </script>
 
 </body>
-</html>
+</html>s
