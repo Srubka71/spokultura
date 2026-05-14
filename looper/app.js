@@ -71,6 +71,8 @@ const stopBtn = document.getElementById("stopBtn");
 const restartBtn = document.getElementById("restartBtn");
 const autoPitchResetBtn = document.getElementById("autoPitchResetBtn");
 
+const moreInfoBtn = document.getElementById("moreInfoBtn");
+
 const helpBtn = document.getElementById("helpBtn");
 const helpModal = document.getElementById("helpModal");
 const closeHelpBtn = document.getElementById("closeHelpBtn");
@@ -215,6 +217,18 @@ function updateAutoPitchButtonState() {
     "aria-pressed",
     autoPitchResetEnabled ? "true" : "false"
   );
+}
+
+function bindInfoHover(element, text) {
+  if (!element) return;
+
+  element.addEventListener("mouseenter", () => {
+    updateInfoBar(text, false);
+  });
+
+  element.addEventListener("mouseleave", () => {
+    clearInfoBar();
+  });
 }
 
 function randomGlowColor() {
@@ -440,6 +454,30 @@ if (beatBpmInput) {
     }
   });
 }
+
+// =======================
+// TOP BUTTON INFO HOVERS
+// =======================
+
+bindInfoHover(
+  moreInfoBtn,
+  "Otwórz opis projektu, changelog i więcej info"
+);
+
+bindInfoHover(
+  submitBeatBtn,
+  "Wyślij swój beat!"
+);
+
+bindInfoHover(
+  bugBtn,
+  "Zgłoś błąd, problem techniczny albo pomysł"
+);
+
+bindInfoHover(
+  helpBtn,
+  "Otwórz pomoc i skróty Loopera"
+);
 
 // =======================
 // AUTO 0% PITCH RESET
