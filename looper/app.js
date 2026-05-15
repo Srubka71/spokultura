@@ -235,6 +235,14 @@ function bindInfoHover(element, text) {
   element.addEventListener("mouseleave", () => {
     clearInfoBar();
   });
+
+  element.addEventListener("click", () => {
+    updateInfoBar(text);
+  });
+
+  element.addEventListener("touchstart", () => {
+    updateInfoBar(text);
+  }, { passive: true });
 }
 
 function randomGlowColor() {
@@ -503,6 +511,10 @@ if (autoPitchResetBtn) {
     clearInfoBar();
   });
 
+  autoPitchResetBtn.addEventListener("touchstart", () => {
+    updateInfoBar("Always 0% pitch after beat change");
+  }, { passive: true });
+
   autoPitchResetBtn.addEventListener("click", () => {
     autoPitchResetEnabled = !autoPitchResetEnabled;
 
@@ -767,6 +779,10 @@ if (voteUpBtn) {
     clearInfoBar();
   });
 
+  voteUpBtn.addEventListener("touchstart", () => {
+    updateInfoBar("Zajebisty beat!");
+  }, { passive: true });
+
   voteUpBtn.addEventListener("click", () => {
     handleVote(1);
   });
@@ -780,6 +796,10 @@ if (voteDownBtn) {
   voteDownBtn.addEventListener("mouseleave", () => {
     clearInfoBar();
   });
+
+  voteDownBtn.addEventListener("touchstart", () => {
+    updateInfoBar("Nie siedzi mi..");
+  }, { passive: true });
 
   voteDownBtn.addEventListener("click", () => {
     handleVote(-1);
@@ -1051,6 +1071,10 @@ allBeats.forEach((beat) => {
     clearInfoBar();
   });
 
+  btn.addEventListener("touchstart", () => {
+    updateInfoBar(getBeatInfo(beat));
+  }, { passive: true });
+
   btn.addEventListener("click", () => {
     if (!beat.available || !beat.file) {
       updateInfoBar("Coming Soon...");
@@ -1255,16 +1279,24 @@ document.querySelectorAll(".loop-btn").forEach(button => {
   }
 
   button.addEventListener("mouseenter", () => {
-  if (button.dataset.loop === "off") {
-    updateInfoBar("INFINITY LOOP", false);
-  } else {
-    updateInfoBar(`Loop ${button.dataset.loop}x`, false);
-  }
-});
+    if (button.dataset.loop === "off") {
+      updateInfoBar("INFINITY LOOP", false);
+    } else {
+      updateInfoBar(`Loop ${button.dataset.loop}x`, false);
+    }
+  });
 
   button.addEventListener("mouseleave", () => {
     clearInfoBar();
   });
+
+  button.addEventListener("touchstart", () => {
+    if (button.dataset.loop === "off") {
+      updateInfoBar("INFINITY LOOP");
+    } else {
+      updateInfoBar(`Loop ${button.dataset.loop}x`);
+    }
+  }, { passive: true });
 
   button.addEventListener("click", () => {
     document.querySelectorAll(".loop-btn").forEach(btn => {
@@ -1286,7 +1318,6 @@ document.querySelectorAll(".loop-btn").forEach(button => {
     loopCounter = 0;
   });
 });
-
 
 // =======================
 // STOP / START
