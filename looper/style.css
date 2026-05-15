@@ -4271,161 +4271,147 @@ body.is-playing .meta-panel {
 }
 
 /* =========================
-   ETAP 31B — MOBILE INFO BAR HARD FIX
-   Wymusza osobny pasek tekstu pod przyciskami na telefonie.
+   ETAP 32A — LOOPER FOOTER HOME LINK
+   Link nad copyrightem, po lewej stronie
 ========================= */
 
+.looper-footer {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+
+  gap: 4px;
+
+  padding-top: 2px;
+}
+
+.looper-home-link {
+  align-self: flex-start;
+
+  color: #EAA221;
+
+  font-family:
+    "Rajdhani",
+    sans-serif;
+
+  font-size:
+    clamp(10px, 0.85vw, 13px);
+
+  font-weight: 900;
+  letter-spacing: 1px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+
+  text-shadow:
+    0 0 10px rgba(234,162,33,0.32);
+
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease,
+    text-shadow 0.18s ease;
+}
+
+.looper-home-link:hover {
+  color: #ffb13b;
+
+  transform:
+    translateX(2px);
+
+  text-shadow:
+    0 0 14px rgba(234,162,33,0.55),
+    0 0 28px rgba(234,162,33,0.18);
+}
+
+.looper-footer span {
+  display: block;
+
+  width: 100%;
+
+  text-align: center;
+}
+
 @media (max-width: 768px) {
-
-  .info-bar {
-    height: auto !important;
-    min-height: 92px !important;
+  .looper-footer {
+    gap: 6px;
 
     padding:
-      8px 6px 10px !important;
-
-    display: grid !important;
-
-    grid-template-columns:
-      1fr !important;
-
-    grid-template-areas:
-      "buttons"
-      "text" !important;
-
-    gap: 8px !important;
-
-    align-items: stretch !important;
-    justify-content: stretch !important;
-
-    overflow: visible !important;
-
-    background:
-      rgba(0,0,0,0.72) !important;
-
-    border:
-      1px solid rgba(234,162,33,0.26) !important;
-
-    border-radius: 10px !important;
+      8px 6px 30px;
   }
 
-  .info-bar .top-buttons {
-    grid-area: buttons !important;
-
-    width: 100% !important;
-
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-
-    gap: 6px !important;
-
-    flex-wrap: nowrap !important;
-
-    min-width: 0 !important;
+  .looper-home-link {
+    font-size: 11px;
   }
 
-  .info-bar #infoText {
-    grid-area: text !important;
-
-    width: 100% !important;
-    min-width: 0 !important;
-    min-height: 38px !important;
-
-    padding:
-      8px 10px !important;
-
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-
-    box-sizing: border-box !important;
-
-    border-radius: 8px !important;
-
-    background:
-      rgba(0,0,0,0.42) !important;
-
-    border:
-      1px solid rgba(234,162,33,0.22) !important;
-
-    color: #ff9f1a !important;
-
-    font-size: 12.5px !important;
-    line-height: 1.2 !important;
-
-    text-align: center !important;
-
-    white-space: normal !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-  }
-
-  .info-bar .ranking-mini,
-  .info-bar .more-info-mini,
-  .info-bar #submitBeatBtn.submit-beat-mini {
-    height: 34px !important;
-
-    padding:
-      0 8px !important;
-
-    font-size: 10px !important;
-    line-height: 1 !important;
-
-    flex:
-      0 1 auto !important;
-
-    white-space:
-      nowrap !important;
-  }
-
-  .info-bar .ranking-mini {
-    min-width: 68px !important;
-  }
-
-  .info-bar .more-info-mini {
-    min-width: 82px !important;
-  }
-
-  .info-bar #submitBeatBtn.submit-beat-mini {
-    min-width: 92px !important;
-  }
-
-  .info-bar #bugBtn,
-  .info-bar #helpBtn {
-    width: 34px !important;
-    min-width: 34px !important;
-    height: 34px !important;
-
-    flex:
-      0 0 34px !important;
+  .looper-footer span {
+    font-size: 10px;
+    line-height: 1.35;
   }
 }
 
-@media (max-width: 380px) {
+/* =========================
+   ETAP 32C — HOMEPAGE CARD SUBHEADINGS
+========================= */
 
-  .info-bar .top-buttons {
-    gap: 5px !important;
-  }
+.roadmap-card h3 {
+  margin:
+    22px 0 12px;
 
-  .info-bar .ranking-mini {
-    min-width: 62px !important;
-  }
+  color:
+    #EAA221;
 
-  .info-bar .more-info-mini {
-    min-width: 76px !important;
-  }
+  font-family:
+    "Anton",
+    sans-serif;
 
-  .info-bar #submitBeatBtn.submit-beat-mini {
-    min-width: 84px !important;
-  }
+  font-size:
+    clamp(28px, 2.8vw, 38px);
 
-  .info-bar .ranking-mini,
-  .info-bar .more-info-mini,
-  .info-bar #submitBeatBtn.submit-beat-mini {
-    padding:
-      0 6px !important;
+  font-weight:
+    400;
 
-    font-size: 9.5px !important;
+  letter-spacing:
+    1.4px;
+
+  line-height:
+    0.95;
+
+  text-transform:
+    uppercase;
+
+  text-shadow:
+    none;
+}
+
+.roadmap-card h3::before {
+  content:
+    "";
+
+  display:
+    block;
+
+  width:
+    54px;
+
+  height:
+    1px;
+
+  margin:
+    0 0 14px;
+
+  background:
+    rgba(234,162,33,0.42);
+}
+
+@media (max-width: 768px) {
+  .roadmap-card h3 {
+    margin:
+      18px 0 10px;
+
+    font-size:
+      28px;
   }
 }
