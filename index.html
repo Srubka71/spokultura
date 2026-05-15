@@ -30,12 +30,8 @@
       </p>
 
       <div class="roadmap-actions">
-        <button id="homeRankingBtn" class="roadmap-secondary-btn" type="button">
-          RANKING
-        </button>
-
+        <button id="homeRankingBtn" class="roadmap-secondary-btn" type="button">RANKING</button>
         <a class="roadmap-main-btn roadmap-submit-btn" href="looper/">LOOPER</a>
-
         <a class="roadmap-secondary-btn" href="info/">WIĘCEJ INFO</a>
       </div>
     </header>
@@ -51,12 +47,10 @@
 
         <p>
           Możesz odpalać beaty, zmieniać pitch, korzystać z loopów, wysyłać beaty,
-          zgłaszać bugi i oddawać głosy online.
+          zgłaszać bugi, sprawdzać ranking i oddawać głosy online.
         </p>
-      </article>
 
-      <article class="roadmap-card">
-        <h2>Community</h2>
+        <h3>Community</h3>
 
         <p>
           Projekt rozwija się jako narzędzie społecznościowe. Sekcja info opisuje,
@@ -64,7 +58,29 @@
         </p>
 
         <p>
-          To jest punkt startowy przyszłej strony Spokultury.
+          To jest punkt startowy przyszłej strony Spokultury oraz baza pod dalsze działania:
+          beaty, scratch, turntablism, wydarzenia i twórczą społeczność.
+        </p>
+      </article>
+
+      <article class="roadmap-card roadmap-card-highlight">
+        <h2>Rotacja beatów</h2>
+
+        <p>
+          Looper działa jako community beta, więc aktywna lista beatów może się zmieniać.
+          Beaty z najniższą oceną mogą wypadać z aktualnej paczki, a w ich miejsce będą
+          wpadać kolejne numery od społeczności.
+        </p>
+
+        <p>
+          Ranking pomaga sprawdzać, które beaty najlepiej siedzą użytkownikom.
+          Im więcej osób testuje, głosuje i wysyła własne propozycje, tym lepiej można
+          rozwijać Looper Monthly Pack.
+        </p>
+
+        <p>
+          Jeśli chcesz, żeby Twój beat trafił do rotacji, wejdź w Looper albo sekcję info
+          i użyj formularza <strong>WYŚLIJ BEAT!</strong>.
         </p>
       </article>
 
@@ -79,15 +95,11 @@
 
   <div id="homeRankingModal" class="community-modal hidden">
     <div class="community-box ranking-box">
-      <h2>RANKING BEATÓW</h2>
+      <h2>RANKING</h2>
 
-      <p class="community-info">
-        Ranking jest sortowany od najwyższej oceny. Ocena to suma głosów online dla danego beatu.
-      </p>
-
-      <div id="homeRankingStatus" class="ranking-status">
+      <p id="homeRankingStatus" class="community-info">
         Ładowanie rankingu...
-      </div>
+      </p>
 
       <div class="ranking-table-wrap">
         <table class="ranking-table">
@@ -102,7 +114,7 @@
 
           <tbody id="homeRankingTableBody">
             <tr>
-              <td colspan="4">Ranking zostanie załadowany po kliknięciu przycisku.</td>
+              <td colspan="4">Ładowanie...</td>
             </tr>
           </tbody>
         </table>
@@ -119,12 +131,12 @@
 
   <script>
     const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXJhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
 
-    let supabaseClient = null;
+    let homeSupabaseClient = null;
 
     if (window.supabase) {
-      supabaseClient = window.supabase.createClient(
+      homeSupabaseClient = window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_ANON_KEY
       );
@@ -135,35 +147,6 @@
     const homeCloseRankingBtn = document.getElementById("homeCloseRankingBtn");
     const homeRankingStatus = document.getElementById("homeRankingStatus");
     const homeRankingTableBody = document.getElementById("homeRankingTableBody");
-
-    const totalSlots =
-      typeof TOTAL_SLOTS !== "undefined"
-        ? TOTAL_SLOTS
-        : 36;
-
-    const homeAllBeats = Array.from({ length: totalSlots }, (_, i) => {
-      const id = i + 1;
-
-      const existingBeat = beats.find(beat => beat.id === id);
-
-      if (existingBeat) {
-        return existingBeat;
-      }
-
-      return {
-        id: id,
-        title: `Beat ${id}`,
-        producer: "Coming Soon",
-        bpm: null,
-        file: "",
-        image: `looper/assets/images/beat${id}.jpg`,
-        available: false
-      };
-    });
-
-    function getAvailableHomeBeats() {
-      return homeAllBeats.filter(beat => beat.available && beat.file);
-    }
 
     function setHomeRankingStatus(message) {
       if (homeRankingStatus) {
@@ -190,6 +173,16 @@
 
       row.appendChild(cell);
       homeRankingTableBody.appendChild(row);
+    }
+
+    function getHomeAvailableBeats() {
+      if (typeof beats === "undefined" || !Array.isArray(beats)) {
+        return [];
+      }
+
+      return beats.filter((beat) => {
+        return beat.available && beat.file;
+      });
     }
 
     function getHomeScoreClass(score) {
@@ -247,7 +240,7 @@
     }
 
     async function buildHomeRankingRows() {
-      const availableBeats = getAvailableHomeBeats();
+      const availableBeats = getHomeAvailableBeats();
 
       const scoreMap = new Map();
 
@@ -255,8 +248,8 @@
         scoreMap.set(String(beat.id), 0);
       });
 
-      if (supabaseClient) {
-        const { data, error } = await supabaseClient
+      if (homeSupabaseClient) {
+        const { data, error } = await homeSupabaseClient
           .from("looper_votes")
           .select("beat_id, vote_value");
 
@@ -312,7 +305,7 @@
 
         renderHomeRankingRows(rows);
 
-        if (!supabaseClient) {
+        if (!homeSupabaseClient) {
           setHomeRankingStatus("Supabase niedostępny — pokazuję ranking lokalny bez głosów online.");
           return;
         }
@@ -361,9 +354,7 @@
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
-        if (homeRankingModal && !homeRankingModal.classList.contains("hidden")) {
-          closeHomeRankingModal();
-        }
+        closeHomeRankingModal();
       }
     });
   </script>
