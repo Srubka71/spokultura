@@ -4585,3 +4585,24 @@ body.is-playing .meta-panel {
     height: 36px;
   }
 }
+
+/* =========================
+   ETAP 34B — MOBILE SOCIAL ICON SIZE FIX
+========================= */
+
+@media (max-width: 768px) {
+  .home-social-btn {
+    width: 52px;
+    height: 52px;
+  }
+
+  .home-social-btn img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .home-social-btn img[alt="Instagram"] {
+    width: 38px;
+    height: 38px;
+  }
+}
