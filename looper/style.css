@@ -4269,3 +4269,163 @@ body.is-playing .meta-panel {
       66px;
   }
 }
+
+/* =========================
+   ETAP 31B — MOBILE INFO BAR HARD FIX
+   Wymusza osobny pasek tekstu pod przyciskami na telefonie.
+========================= */
+
+@media (max-width: 768px) {
+
+  .info-bar {
+    height: auto !important;
+    min-height: 92px !important;
+
+    padding:
+      8px 6px 10px !important;
+
+    display: grid !important;
+
+    grid-template-columns:
+      1fr !important;
+
+    grid-template-areas:
+      "buttons"
+      "text" !important;
+
+    gap: 8px !important;
+
+    align-items: stretch !important;
+    justify-content: stretch !important;
+
+    overflow: visible !important;
+
+    background:
+      rgba(0,0,0,0.72) !important;
+
+    border:
+      1px solid rgba(234,162,33,0.26) !important;
+
+    border-radius: 10px !important;
+  }
+
+  .info-bar .top-buttons {
+    grid-area: buttons !important;
+
+    width: 100% !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    gap: 6px !important;
+
+    flex-wrap: nowrap !important;
+
+    min-width: 0 !important;
+  }
+
+  .info-bar #infoText {
+    grid-area: text !important;
+
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px !important;
+
+    padding:
+      8px 10px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    box-sizing: border-box !important;
+
+    border-radius: 8px !important;
+
+    background:
+      rgba(0,0,0,0.42) !important;
+
+    border:
+      1px solid rgba(234,162,33,0.22) !important;
+
+    color: #ff9f1a !important;
+
+    font-size: 12.5px !important;
+    line-height: 1.2 !important;
+
+    text-align: center !important;
+
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .info-bar .ranking-mini,
+  .info-bar .more-info-mini,
+  .info-bar #submitBeatBtn.submit-beat-mini {
+    height: 34px !important;
+
+    padding:
+      0 8px !important;
+
+    font-size: 10px !important;
+    line-height: 1 !important;
+
+    flex:
+      0 1 auto !important;
+
+    white-space:
+      nowrap !important;
+  }
+
+  .info-bar .ranking-mini {
+    min-width: 68px !important;
+  }
+
+  .info-bar .more-info-mini {
+    min-width: 82px !important;
+  }
+
+  .info-bar #submitBeatBtn.submit-beat-mini {
+    min-width: 92px !important;
+  }
+
+  .info-bar #bugBtn,
+  .info-bar #helpBtn {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+
+    flex:
+      0 0 34px !important;
+  }
+}
+
+@media (max-width: 380px) {
+
+  .info-bar .top-buttons {
+    gap: 5px !important;
+  }
+
+  .info-bar .ranking-mini {
+    min-width: 62px !important;
+  }
+
+  .info-bar .more-info-mini {
+    min-width: 76px !important;
+  }
+
+  .info-bar #submitBeatBtn.submit-beat-mini {
+    min-width: 84px !important;
+  }
+
+  .info-bar .ranking-mini,
+  .info-bar .more-info-mini,
+  .info-bar #submitBeatBtn.submit-beat-mini {
+    padding:
+      0 6px !important;
+
+    font-size: 9.5px !important;
+  }
+}
