@@ -15,6 +15,47 @@
   <link rel="stylesheet" href="../looper/style.css">
 
   <style>
+    .roadmap-top-return {
+      width: 100%;
+
+      margin:
+        0 0 14px;
+
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .roadmap-top-return a {
+      color: #EAA221;
+
+      font-family: "Rajdhani", sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 1.2px;
+
+      text-decoration: none;
+      text-transform: uppercase;
+
+      text-shadow:
+        0 0 10px rgba(234,162,33,0.32);
+
+      transition:
+        color 0.18s ease,
+        transform 0.18s ease,
+        text-shadow 0.18s ease;
+    }
+
+    .roadmap-top-return a:hover {
+      color: #ffb13b;
+
+      transform:
+        translateX(-2px);
+
+      text-shadow:
+        0 0 14px rgba(234,162,33,0.55),
+        0 0 28px rgba(234,162,33,0.18);
+    }
+
     .changelog-link-btn {
       margin-top: 14px;
       padding: 0;
@@ -106,6 +147,15 @@
     }
 
     @media (max-width: 768px) {
+      .roadmap-top-return {
+        margin:
+          0 0 10px;
+      }
+
+      .roadmap-top-return a {
+        font-size: 14px;
+      }
+
       .changelog-link-btn {
         font-size: 14px;
       }
@@ -128,6 +178,10 @@
 <body class="roadmap-body">
 
   <main class="roadmap-page">
+
+    <div class="roadmap-top-return">
+      <a href="../looper/">← WRÓĆ DO LOOPERA</a>
+    </div>
 
     <header class="roadmap-hero">
       <p class="roadmap-kicker">SPOKULTURA TURNTABLISM TOOL BY ŚRUBECKI</p>
