@@ -4415,3 +4415,173 @@ body.is-playing .meta-panel {
       28px;
   }
 }
+
+/* =========================
+   ETAP 33A — HOME SOCIAL BUTTONS
+========================= */
+
+.home-socials {
+  margin-top: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+}
+
+.home-social-btn {
+  width: 52px;
+  height: 52px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  background:
+    rgba(0,0,0,0.48);
+
+  border:
+    1px solid rgba(234,162,33,0.34);
+
+  box-shadow:
+    0 0 18px rgba(0,0,0,0.38),
+    inset 0 0 16px rgba(255,255,255,0.025);
+
+  text-decoration: none;
+
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.home-social-btn img {
+  width: 40px;
+  height: 40px;
+
+  display: block;
+
+  object-fit: contain;
+
+  filter:
+    drop-shadow(0 0 8px rgba(0,0,0,0.65));
+}
+
+.home-social-btn:hover {
+  transform:
+    translateY(-2px)
+    scale(1.04);
+
+  background:
+    rgba(234,162,33,0.12);
+
+  border-color:
+    rgba(234,162,33,0.72);
+
+  box-shadow:
+    0 0 22px rgba(234,162,33,0.26),
+    0 0 44px rgba(234,162,33,0.10),
+    inset 0 0 18px rgba(255,255,255,0.035);
+}
+
+.home-social-btn:active {
+  transform:
+    translateY(0)
+    scale(0.98);
+}
+
+@media (max-width: 768px) {
+  .home-socials {
+    margin-top: 14px;
+    gap: 10px;
+  }
+
+  .home-social-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .home-social-btn img {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* =========================
+   ETAP 33B — HOME HERO BUTTONS CENTER FIX
+========================= */
+
+.roadmap-hero .roadmap-actions {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.roadmap-hero .roadmap-actions .roadmap-main-btn,
+.roadmap-hero .roadmap-actions .roadmap-secondary-btn,
+.roadmap-hero .roadmap-actions button.roadmap-secondary-btn {
+  min-width: 142px;
+
+  text-align: center;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.roadmap-hero .home-socials {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 768px) {
+  .roadmap-hero .roadmap-actions {
+    flex-direction: column;
+
+    gap: 10px;
+  }
+
+  .roadmap-hero .roadmap-actions .roadmap-main-btn,
+  .roadmap-hero .roadmap-actions .roadmap-secondary-btn,
+  .roadmap-hero .roadmap-actions button.roadmap-secondary-btn {
+    width: min(100%, 260px);
+    min-width: 0;
+  }
+
+  .roadmap-hero .home-socials {
+    margin-top: 14px;
+  }
+}
+
+/* =========================
+   ETAP 33C — INSTAGRAM ICON SIZE FIX
+========================= */
+
+.home-social-btn img[alt="Instagram"] {
+  width: 60px;
+  height: 60px;
+}
+
+@media (max-width: 768px) {
+  .home-social-btn img[alt="Instagram"] {
+    width: 36px;
+    height: 36px;
+  }
+}
