@@ -53,7 +53,7 @@
           <div id="infoText"></div>
 
           <div class="top-buttons">
-            <button id="rankingBtn" class="more-info-mini ranking-mini" type="button">RANKING</button>
+            <button id="rankingBtn" class="more-info-mini" type="button">RANKING</button>
             <a href="../info/" id="moreInfoBtn" class="more-info-mini">WIĘCEJ INFO</a>
             <button id="submitBeatBtn" class="submit-beat-mini">WYŚLIJ BEAT!</button>
             <button id="bugBtn">!</button>
@@ -128,13 +128,35 @@
       </div>
     </section>
 
-<footer class="copyright-footer looper-footer">
-  <a class="looper-home-link" href="../">← WRÓĆ NA STRONĘ GŁÓWNĄ</a>
+    <footer class="copyright-footer looper-footer">
+      <a class="looper-home-link" href="../">← WRÓĆ NA STRONĘ GŁÓWNĄ</a>
 
-  <span>
-    © Looper by Spokultura. Zakaz kopiowania, udostępniania i wykorzystywania materiałów bez zgody właścicieli praw. Kontakt: vertuigames@gmail.com
-  </span>
-</footer>
+      <div class="home-socials" aria-label="Social media Spokultura">
+        <a
+          class="home-social-btn"
+          href="https://www.facebook.com/Spokultura/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Facebook Spokultura"
+        >
+          <img src="../assets/images/fbimg.png" alt="Facebook">
+        </a>
+
+        <a
+          class="home-social-btn"
+          href="https://www.instagram.com/spokultura"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Instagram Spokultura"
+        >
+          <img src="../assets/images/instaimg.png" alt="Instagram">
+        </a>
+      </div>
+
+      <span>
+        © Looper by Spokultura. Zakaz kopiowania, udostępniania i wykorzystywania materiałów bez zgody właścicieli praw. Kontakt: vertuigames@gmail.com
+      </span>
+    </footer>
 
   </main>
 
@@ -148,9 +170,9 @@
 
           <div class="help-card">
             <h3>BETA</h3>
-            <p>Looper działa obecnie jako publiczna community beta.</p>
-            <p>Możesz testować beaty, głosować online, wysyłać własne beaty, zgłaszać błędy i sprawdzać ranking.</p>
-            <p>Projekt jest rozwijany etapami, więc część funkcji może się jeszcze zmieniać.</p>
+            <p>Looper działa obecnie jako community beta.</p>
+            <p>Możesz testować beaty, głosować online, sprawdzać ranking, wysyłać własne beaty i zgłaszać błędy.</p>
+            <p>Jeśli coś nie działa, użyj przycisku ! i opisz problem.</p>
           </div>
 
           <div class="help-card">
@@ -159,14 +181,12 @@
             <p>Czerwone kafelki oznaczają beaty Coming Soon.</p>
             <p>START / STOP zatrzymuje albo wznawia aktualny beat.</p>
             <p>RESTART zaczyna aktualny beat od początku.</p>
-            <p>Looper ma zabezpieczenie przed graniem kilku beatów naraz przy szybkim klikaniu.</p>
           </div>
 
           <div class="help-card">
             <h3>LOOP</h3>
-            <p>INFINITY LOOP = aktualny beat gra w nieskończonej pętli.</p>
+            <p>OFF = aktualny beat gra w nieskończonej pętli.</p>
             <p>1 / 2 / 4 / 6 / 8 = liczba powtórzeń przed automatycznym przejściem do kolejnego dostępnego beatu.</p>
-            <p>Po najechaniu na przyciski loopa info bar pokazuje: Loop 1x, Loop 2x, Loop 4x, Loop 6x albo Loop 8x.</p>
           </div>
 
           <div class="help-card">
@@ -175,42 +195,14 @@
             <p>Przyciski -0.25 / +0.25 służą do precyzyjnej zmiany tempa.</p>
             <p>Przyciski -1 / +1 służą do większej zmiany tempa.</p>
             <p>0% resetuje pitch do wartości domyślnej.</p>
-            <p>BPM aktualnego beatu przelicza się zgodnie z ustawionym pitchem.</p>
-          </div>
-
-          <div class="help-card">
-            <h3>AUTO 0%</h3>
             <p>AUTO 0% automatycznie resetuje pitch do 0% przy zmianie beatu.</p>
-            <p>Domyślnie funkcja jest wyłączona, więc Looper zachowuje pitch tak jak wcześniej.</p>
-            <p>Po włączeniu przycisk podświetla się jako aktywny.</p>
-            <p>To przydatne, jeśli chcesz, żeby każdy nowy beat startował od oryginalnego tempa.</p>
-          </div>
-
-          <div class="help-card">
-            <h3>GŁOSOWANIE</h3>
-            <p>Łapka w górę dodaje głos +1 dla aktualnego beatu.</p>
-            <p>Łapka w dół dodaje głos -1 dla aktualnego beatu.</p>
-            <p>Ponowne kliknięcie tej samej łapki cofa głos.</p>
-            <p>Kliknięcie drugiej łapki zmienia głos.</p>
-            <p>Głosy są zapisywane online przez Supabase i powinny być widoczne dla innych użytkowników.</p>
           </div>
 
           <div class="help-card">
             <h3>RANKING</h3>
-            <p>Przycisk RANKING pokazuje aktualną tabelę beatów posortowaną według oceny.</p>
-            <p>Tabela ma układ: Nr | Prod. | Tytuł | Ocena.</p>
-            <p>Nr oznacza numer kafelka beatu w Looperze.</p>
-            <p>Ocena jest sumą łapek w górę i łapek w dół zapisanych online.</p>
-            <p>Ten sam ranking jest dostępny także na stronie głównej spokultura.pl.</p>
-          </div>
-
-          <div class="help-card">
-            <h3>FORMULARZE</h3>
-            <p>! otwiera formularz zgłoszenia błędu.</p>
-            <p>WYŚLIJ BEAT! otwiera formularz zgłoszenia własnego beatu.</p>
-            <p>Zgłoszenia są wysyłane bezpośrednio przez stronę przez Formspree.</p>
-            <p>Po wysłaniu lub błędzie pojawia się komunikat na stronie z przyciskiem OK.</p>
-            <p>ESC zamyka otwarty modal.</p>
+            <p>Przycisk RANKING pokazuje listę beatów posortowaną według oceny.</p>
+            <p>Tabela pokazuje numer kafelka, producenta, tytuł i ocenę.</p>
+            <p>Ranking korzysta z tych samych głosów online co łapki przy aktualnym bicie.</p>
           </div>
 
           <div class="help-card">
@@ -219,6 +211,7 @@
             <p>Można wpisać maksymalnie 3 cyfry.</p>
             <p>Jedna cyfra jest traktowana jako błędna wartość.</p>
             <p>Wartości powyżej 240 są odrzucane.</p>
+            <p>Przy błędzie pojawia się komunikat: Wpisz prawidłowe BPM.</p>
             <p>Jeśli nie znasz BPM, możesz zostawić pole puste.</p>
           </div>
 
@@ -245,10 +238,28 @@
           </div>
 
           <div class="help-card">
+            <h3>GŁOSOWANIE</h3>
+            <p>Łapka w górę dodaje głos +1 dla aktualnego beatu.</p>
+            <p>Łapka w dół dodaje głos -1 dla aktualnego beatu.</p>
+            <p>Ponowne kliknięcie tej samej łapki cofa głos.</p>
+            <p>Kliknięcie drugiej łapki zmienia głos.</p>
+            <p>Głosy są zapisywane online i powinny być widoczne dla innych użytkowników.</p>
+          </div>
+
+          <div class="help-card">
+            <h3>FORMULARZE</h3>
+            <p>! otwiera formularz zgłoszenia błędu.</p>
+            <p>WYŚLIJ BEAT! otwiera formularz zgłoszenia własnego beatu.</p>
+            <p>Zgłoszenia są wysyłane bezpośrednio przez stronę przez Formspree.</p>
+            <p>Po wysłaniu lub błędzie pojawia się komunikat na stronie z przyciskiem OK.</p>
+            <p>ESC zamyka otwarty modal.</p>
+          </div>
+
+          <div class="help-card">
             <h3>INFO BAR</h3>
             <p>Pasek informacyjny jest domyślnie pusty.</p>
-            <p>Pokazuje informacje po najechaniu na kafelek, przyciski górnego menu, łapki, AUTO 0% oraz przyciski loopa.</p>
-            <p>Pokazuje też komunikaty po akcjach: głosowaniu, zmianie pitcha, starcie, stopie, restarcie i zmianie loopa.</p>
+            <p>Pokazuje informacje po najechaniu na kafelek albo po użyciu przycisków i skrótów.</p>
+            <p>Na telefonie informacje pokazują się po kliknięciu wybranych opcji.</p>
             <p>Komunikaty po akcjach znikają automatycznie po kilku sekundach.</p>
           </div>
 
@@ -261,15 +272,8 @@
           <div class="help-card">
             <h3>WIĘCEJ INFO</h3>
             <p>Przycisk WIĘCEJ INFO prowadzi do strony informacyjnej projektu.</p>
-            <p>Adres tej sekcji to /info/.</p>
-            <p>Znajdziesz tam opis projektu, plan rozwoju, zasady wysyłania beatów, changelog i informacje o Looper Monthly Pack.</p>
-          </div>
-
-          <div class="help-card">
-            <h3>STRONA GŁÓWNA</h3>
-            <p>Na spokultura.pl działa prosta strona startowa community.</p>
-            <p>Znajdziesz tam przyciski: RANKING, LOOPER i WIĘCEJ INFO.</p>
-            <p>Ranking na stronie głównej korzysta z tych samych głosów online co ranking w Looperze.</p>
+            <p>W nowej strukturze adres tej sekcji to /info/.</p>
+            <p>Znajdziesz tam opis projektu, plan rozwoju, zasady wysyłania beatów i informacje o Looper Monthly Pack.</p>
           </div>
 
         </div>
@@ -278,43 +282,6 @@
 
         <button id="closeHelpBtn">ZROZUMIAŁEM GOŚCIU</button>
 
-      </div>
-    </div>
-  </div>
-
-  <div id="rankingModal" class="community-modal hidden">
-    <div class="community-box ranking-box">
-      <h2>RANKING BEATÓW</h2>
-
-      <p class="community-info">
-        Ranking jest sortowany od najwyższej oceny. Ocena to suma głosów online dla danego beatu.
-      </p>
-
-      <div id="rankingStatus" class="ranking-status">
-        Ładowanie rankingu...
-      </div>
-
-      <div class="ranking-table-wrap">
-        <table class="ranking-table">
-          <thead>
-            <tr>
-              <th>Nr</th>
-              <th>Prod.</th>
-              <th>Tytuł</th>
-              <th>Ocena</th>
-            </tr>
-          </thead>
-
-          <tbody id="rankingTableBody">
-            <tr>
-              <td colspan="4">Ranking zostanie załadowany po kliknięciu przycisku.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="modal-actions">
-        <button id="closeRankingBtn">ZAMKNIJ</button>
       </div>
     </div>
   </div>
@@ -361,6 +328,39 @@
       <div class="modal-actions">
         <button id="sendBeatBtn">WYŚLIJ ZGŁOSZENIE</button>
         <button id="closeSubmitBeatBtn">ZAMKNIJ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rankingModal" class="community-modal hidden">
+    <div class="community-box ranking-box">
+      <h2>RANKING</h2>
+
+      <p id="rankingStatus" class="community-info">
+        Ładowanie rankingu...
+      </p>
+
+      <div class="ranking-table-wrap">
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th>Nr</th>
+              <th>Prod.</th>
+              <th>Tytuł</th>
+              <th>Ocena</th>
+            </tr>
+          </thead>
+
+          <tbody id="rankingTableBody">
+            <tr>
+              <td colspan="4">Ładowanie...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions">
+        <button id="closeRankingBtn">ZAMKNIJ</button>
       </div>
     </div>
   </div>
