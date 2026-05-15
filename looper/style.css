@@ -4597,12 +4597,12 @@ body.is-playing .meta-panel {
   }
 
   .home-social-btn img {
-    width: 45px;
-    height: 45px;
+    width: 32px;
+    height: 32px;
   }
 
   .home-social-btn img[alt="Instagram"] {
-    width: 45px;
-    height: 45px;
+    width: 60px;
+    height: 60px;
   }
 }
