@@ -4587,22 +4587,118 @@ body.is-playing .meta-panel {
 }
 
 /* =========================
-   ETAP 34B — MOBILE SOCIAL ICON SIZE FIX
+   ETAP 35B — LOOPER FOOTER SOCIALS SUBTLE FIX
 ========================= */
 
+.looper-footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+
+  gap: 12px;
+
+  padding-top: 2px;
+}
+
+.looper-footer .looper-home-link {
+  grid-column: 1;
+  align-self: center;
+}
+
+.looper-footer span {
+  grid-column: 2;
+
+  text-align: center;
+}
+
+.looper-footer .home-socials {
+  grid-column: 3;
+
+  margin-top: 0;
+
+  gap: 7px;
+
+  justify-content: flex-end;
+}
+
+.looper-footer .home-social-btn {
+  width: 30px;
+  height: 30px;
+
+  border-color:
+    rgba(234,162,33,0.22);
+
+  background:
+    rgba(0,0,0,0.28);
+
+  box-shadow:
+    0 0 10px rgba(0,0,0,0.26),
+    inset 0 0 10px rgba(255,255,255,0.018);
+}
+
+.looper-footer .home-social-btn img {
+  width: 22px;
+  height: 22px;
+}
+
+.looper-footer .home-social-btn img[alt="Instagram"] {
+  width: 34px;
+  height: 34px;
+}
+
+.looper-footer .home-social-btn:hover {
+  transform:
+    translateY(-1px)
+    scale(1.03);
+
+  border-color:
+    rgba(234,162,33,0.55);
+
+  box-shadow:
+    0 0 14px rgba(234,162,33,0.18),
+    inset 0 0 12px rgba(255,255,255,0.025);
+}
+
 @media (max-width: 768px) {
-  .home-social-btn {
-    width: 52px;
-    height: 52px;
+  .looper-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 6px;
+
+    padding:
+      8px 6px 30px;
   }
 
-  .home-social-btn img {
-    width: 40px;
-    height: 40px;
+  .looper-footer .looper-home-link {
+    align-self: flex-start;
   }
 
-  .home-social-btn img[alt="Instagram"] {
-    width: 63px;
-    height: 63px;
+  .looper-footer .home-socials {
+    margin-top: 0;
+
+    gap: 8px;
+
+    justify-content: center;
+  }
+
+  .looper-footer .home-social-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .looper-footer .home-social-btn img {
+    width: 26px;
+    height: 26px;
+  }
+
+  .looper-footer .home-social-btn img[alt="Instagram"] {
+    width: 42px;
+    height: 42px;
+  }
+
+  .looper-footer span {
+    text-align: center;
   }
 }
