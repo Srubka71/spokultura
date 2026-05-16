@@ -145,4 +145,13 @@ const beats = [
     image: "assets/images/beat16.png",
     available: true
   },
+     {
+    id: 17,
+    title: "Unknown",
+    producer: "DC BELL",
+    bpm: 90,
+    file: "assets/audio/beat17.mp3",
+    image: "assets/images/beat17.jpg",
+    available: true
+  },
 ]
