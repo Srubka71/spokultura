@@ -154,4 +154,175 @@ const beats = [
     image: "assets/images/beat17.jpg",
     available: true
   },
+       {
+    id: 18,
+    title: "Watch Out",
+    producer: "Unknown",
+    bpm: 88,
+    file: "assets/audio/beat18.mp3",
+    image: "assets/images/beat18.jpg",
+    available: true
+  },
+       {
+    id: 19,
+    title: "King Kong",
+    producer: "Unknown",
+    bpm: 76,
+    file: "assets/audio/beat19.mp3",
+    image: "assets/images/beat19.jpg",
+    available: true
+  },
+       {
+    id: 20,
+    title: "Dark side",
+    producer: "Unknown",
+    bpm: 82.90,
+    file: "assets/audio/beat20.mp3",
+    image: "assets/images/beat20.jpg",
+    available: true
+  },
+       {
+    id: 21,
+    title: "Six feet",
+    producer: "Unknown",
+    bpm: 104,
+    file: "assets/audio/beat21.mp3",
+    image: "assets/images/beat21.jpg",
+    available: true
+  },
+       {
+    id: 22,
+    title: "The Squad",
+    producer: "Unknown  ",
+    bpm: 97,
+    file: "assets/audio/beat22.mp3",
+    image: "assets/images/beat22.jpg",
+    available: true
+  },
+       {
+    id: 23,
+    title: "Blinder",
+    producer: "Unknown",
+    bpm: 103,
+    file: "assets/audio/beat23.mp3",
+    image: "assets/images/beat23.jpg",
+    available: true
+  },
+       {
+    id: 24,
+    title: "Vandals",
+    producer: "Unknown",
+    bpm: 102,
+    file: "assets/audio/beat24.mp3",
+    image: "assets/images/beat24.jpg",
+    available: true
+  },
+       {
+    id: 25,
+    title: "Gotcha",
+    producer: "Unknown",
+    bpm: 96,
+    file: "assets/audio/beat25.mp3",
+    image: "assets/images/beat25.jpg",
+    available: true
+  },
+       {
+    id: 26,
+    title: "Boomboozled",
+    producer: "Unknown",
+    bpm: 89,
+    file: "assets/audio/beat26.mp3",
+    image: "assets/images/beat26.jpg",
+    available: true
+  },
+       {
+    id: 27,
+    title: "Burning bars",
+    producer: "Unknown",
+    bpm: 68,
+    file: "assets/audio/beat27.mp3",
+    image: "assets/images/beat27.jpg",
+    available: true
+  },
+       {
+    id: 28,
+    title: "Gloomy",
+    producer: "Unknown",
+    bpm: 95,
+    file: "assets/audio/beat28.mp3",
+    image: "assets/images/beat28.jpg",
+    available: true
+  },
+       {
+    id: 29,
+    title: "Grim",
+    producer: "Unknown",
+    bpm: 88,
+    file: "assets/audio/beat29.mp3",
+    image: "assets/images/beat29.jpg",
+    available: true
+  },
+       {
+    id: 30,
+    title: "No fear",
+    producer: "Unknown",
+    bpm: 88,
+    file: "assets/audio/beat30.mp3",
+    image: "assets/images/beat30.jpg",
+    available: true
+  },
+       {
+    id: 31,
+    title: "Fr13ay",
+    producer: "Unknown",
+    bpm: 97,
+    file: "assets/audio/beat31.mp3",
+    image: "assets/images/beat31.jpg",
+    available: true
+  },
+       {
+    id: 32,
+    title: "Balance",
+    producer: "Unknown",
+    bpm: 78,
+    file: "assets/audio/beat32.mp3",
+    image: "assets/images/beat32.jpg",
+    available: true
+  },
+       {
+    id: 33,
+    title: "Broke",
+    producer: "Unknown",
+    bpm: 93,
+    file: "assets/audio/beat33.mp3",
+    image: "assets/images/beat33.jpg",
+    available: true
+  },
+       {
+    id: 34,
+    title: "Corleone",
+    producer: "Unknown",
+    bpm: 95,
+    file: "assets/audio/beat17.mp3",
+    image: "assets/images/beat17.jpg",
+    available: true
+  },
+       {
+    id: 35,
+    title: "Mediatate",
+    producer: "Unknown",
+    bpm: 85,
+    file: "assets/audio/beat35.mp3",
+    image: "assets/images/beat35.jpg",
+    available: true
+  },
+       {
+    id: 36,
+    title: "Inmate",
+    producer: "Unknown",
+    bpm: 87,
+    file: "assets/audio/beat36.mp3",
+    image: "assets/images/beat36.jpg",
+    available: true
+  },
 ]
