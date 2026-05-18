@@ -13,6 +13,12 @@ let loadBeatRequestId = 0;
 
 let autoPitchResetEnabled = false;
 
+let smoothLoopMonitor = null;
+let smoothLoopArmed = true;
+
+const LOOP_END_OFFSET = 0.10;
+const AUTO_NEXT_OFFSET = 0.16;
+
 // =======================
 // FORMSPREE ENDPOINTS
 // =======================
@@ -176,6 +182,13 @@ function setPlayingVisualState(isActive) {
   }
 }
 
+function stopSmoothLoopMonitor() {
+  if (smoothLoopMonitor) {
+    clearInterval(smoothLoopMonitor);
+    smoothLoopMonitor = null;
+  }
+}
+
 function stopAudioInstance(audio) {
   if (!audio) return;
 
@@ -190,6 +203,7 @@ function stopAudioInstance(audio) {
 }
 
 function stopAndResetCurrentAudio() {
+  stopSmoothLoopMonitor();
   stopAudioInstance(currentAudio);
 }
 
@@ -369,6 +383,7 @@ function stopPlaybackCompletely() {
   stopBtn.innerText = "START";
 
   loopCounter = 0;
+  smoothLoopArmed = true;
 
   setPlayingVisualState(false);
   updateInfoBar("Koniec playlisty");
@@ -1081,7 +1096,7 @@ allBeats.forEach((beat) => {
       return;
     }
 
-    loadBeat(beat, btn);
+    loadBeat(beat, btn, false);
   });
 
   grid.appendChild(btn);
@@ -1091,7 +1106,7 @@ allBeats.forEach((beat) => {
 // LOAD BEAT
 // =======================
 
-function loadBeat(beat, btn) {
+function loadBeat(beat, btn, isAutoTransition = false) {
   loadBeatRequestId++;
 
   const requestId = loadBeatRequestId;
@@ -1103,6 +1118,7 @@ function loadBeat(beat, btn) {
   stopAndResetCurrentAudio();
 
   loopCounter = 0;
+  smoothLoopArmed = true;
 
   currentBeat = beat;
   currentButton = btn;
@@ -1119,10 +1135,14 @@ function loadBeat(beat, btn) {
   clearInfoBar();
   updateVotePanel();
 
-  img.classList.add("changing");
+  if (img) {
+    img.classList.add("changing");
+  }
 
   const coverPanel = document.querySelector(".cover-panel");
   const infoBar = document.querySelector(".info-bar");
+
+  const loadDelay = isAutoTransition ? 0 : 220;
 
   loadBeatTimer = setTimeout(() => {
     if (requestId !== loadBeatRequestId) {
@@ -1143,6 +1163,8 @@ function loadBeat(beat, btn) {
 
       handleBeatEnded();
     });
+
+    startSmoothLoopMonitor(nextAudio);
 
     const playPromise = currentAudio.play();
 
@@ -1219,7 +1241,104 @@ function loadBeat(beat, btn) {
     }
 
     loadBeatTimer = null;
-  }, 220);
+  }, loadDelay);
+}
+
+// =======================
+// SMOOTH LOOP / TRANSITION ENGINE
+// =======================
+
+function startSmoothLoopMonitor(audio) {
+  stopSmoothLoopMonitor();
+
+  smoothLoopArmed = true;
+
+  smoothLoopMonitor = setInterval(() => {
+    handleSmoothLoopProgress(audio);
+  }, 30);
+}
+
+function handleSmoothLoopProgress(audio) {
+  if (!audio || audio !== currentAudio) return;
+  if (!currentBeat || !audio.src) return;
+  if (audio.paused) return;
+  if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+
+  const remaining = audio.duration - audio.currentTime;
+
+  if (remaining < 0) return;
+
+  if (!smoothLoopArmed) {
+    if (remaining > 0.45) {
+      smoothLoopArmed = true;
+    }
+
+    return;
+  }
+
+  if (loopTarget === "off") {
+    if (remaining <= LOOP_END_OFFSET) {
+      smoothLoopArmed = false;
+      loopCounter = 0;
+
+      try {
+        audio.currentTime = 0;
+
+        const playPromise = audio.play();
+
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch(error => {
+            console.error(error);
+          });
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    return;
+  }
+
+  const targetLoopCount = parseInt(loopTarget, 10);
+
+  if (!targetLoopCount || targetLoopCount <= 0) {
+    return;
+  }
+
+  const shouldGoNextAfterThisPass =
+    loopCounter + 1 >= targetLoopCount;
+
+  const activeOffset =
+    shouldGoNextAfterThisPass
+      ? AUTO_NEXT_OFFSET
+      : LOOP_END_OFFSET;
+
+  if (remaining > activeOffset) {
+    return;
+  }
+
+  smoothLoopArmed = false;
+  loopCounter++;
+
+  if (loopCounter < targetLoopCount) {
+    try {
+      audio.currentTime = 0;
+
+      const playPromise = audio.play();
+
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(error => {
+          console.error(error);
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    return;
+  }
+
+  playNextAvailableBeat(true);
 }
 
 // =======================
@@ -1243,10 +1362,10 @@ function handleBeatEnded() {
     return;
   }
 
-  playNextAvailableBeat();
+  playNextAvailableBeat(true);
 }
 
-function playNextAvailableBeat() {
+function playNextAvailableBeat(isAutoTransition = false) {
   const availableBeats = getAvailableBeats();
 
   if (!availableBeats.length) {
@@ -1259,7 +1378,7 @@ function playNextAvailableBeat() {
     const firstButton = findButtonByBeatId(firstBeat.id);
 
     if (firstButton) {
-      loadBeat(firstBeat, firstButton);
+      loadBeat(firstBeat, firstButton, isAutoTransition);
     }
 
     return;
@@ -1277,7 +1396,7 @@ function playNextAvailableBeat() {
   const nextButton = findButtonByBeatId(nextBeat.id);
 
   if (nextButton) {
-    loadBeat(nextBeat, nextButton);
+    loadBeat(nextBeat, nextButton, isAutoTransition);
   }
 }
 
@@ -1332,6 +1451,7 @@ document.querySelectorAll(".loop-btn").forEach(button => {
     }
 
     loopCounter = 0;
+    smoothLoopArmed = true;
   });
 });
 
@@ -1369,6 +1489,7 @@ restartBtn.addEventListener("click", () => {
   if (!currentAudio.src) return;
 
   loopCounter = 0;
+  smoothLoopArmed = true;
 
   currentAudio.currentTime = 0;
   currentAudio.play();
