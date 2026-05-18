@@ -303,8 +303,8 @@ const beats = [
     title: "Corleone",
     producer: "Unknown",
     bpm: 95,
-    file: "assets/audio/beat17.mp3",
-    image: "assets/images/beat17.jpg",
+    file: "assets/audio/beat34.mp3",
+    image: "assets/images/beat34.jpg",
     available: true
   },
        {
