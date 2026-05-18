@@ -205,7 +205,7 @@ const beats = [
     producer: "Unknown",
     bpm: 103,
     file: "assets/audio/beat23.mp3",
-    image: "assets/audio/beat11.jpg,",
+    image: "assets/audio/beat11.jpg",
     available: true
   },
        {
