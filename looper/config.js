@@ -4,8 +4,8 @@ const beats = [
   {
     id: 1,
     title: "Dark Bounce",
-    producer: "SPK",
-    bpm: 140,
+    producer: "Unknown",
+    bpm: 78,
     file: "assets/audio/beat1.mp3",
     image: "assets/images/beat1.jpg",
     available: true
@@ -13,8 +13,8 @@ const beats = [
   {
     id: 2,
     title: "Drill Night",
-    producer: "SPK",
-    bpm: 145,
+    producer: "Unknown",
+    bpm: 95,
     file: "assets/audio/beat2.mp3",
     image: "assets/images/beat2.jpg",
     available: true
@@ -22,34 +22,34 @@ const beats = [
   {
     id: 3,
     title: "Drill Night 2",
-    producer: "SPK",
-    bpm: 145,
+    producer: "Unknown",
+    bpm: 86,
     file: "assets/audio/beat3.mp3",
     image: "assets/images/beat3.jpg",
     available: true
   },
   {
     id: 4,
-    title: "Jakoś tak",
-    producer: "SPK",
-    bpm: 145,
+    title: "Sick (!) ",
+    producer: "Unknown",
+    bpm: 93,
     file: "assets/audio/beat4.mp3",
     image: "assets/images/beat4.jpg",
     available: true
   },
    {
     id: 5,
-    title: "Jakoś tak3",
-    producer: "TaK",
-    bpm: 12,
+    title: "Three for free",
+    producer: "Unknown",
+    bpm: 91,
     file: "assets/audio/beat5.mp3",
     image: "assets/images/beat5.jpg",
     available: true
   },
   {
     id: 6,
-    title: "Nie wiem",
-    producer: "TaK",
+    title: "Lambada",
+    producer: "Unknown",
     bpm: 60,
     file: "assets/audio/beat6.mp3",
     image: "assets/images/beat6.jpg",
@@ -57,45 +57,45 @@ const beats = [
   },
    {
     id: 7,
-    title: "Nie wiem ale 7",
-    producer: "Dalej nie wiem",
-    bpm: 110,
+    title: "Dunno",
+    producer: "Unknown",
+    bpm: 105,
     file: "assets/audio/beat7.mp3",
     image: "assets/images/beat7.png",
     available: true
   },
    {
     id: 8,
-    title: "Nie wiem ale 8",
-    producer: "Wiem ale nie powiem",
-    bpm: 69,
+    title: "I dont want to",
+    producer: "Unknown",
+    bpm: 98,
     file: "assets/audio/beat8.mp3",
     image: "assets/images/beat8.png",
     available: true
   },
    {
     id: 9,
-    title: "Nie wiem, ale sie dowiem",
-    producer: "a jakże że nie wiem",
-    bpm: 71,
+    title: "Lucky Seven",
+    producer: "Unknown",
+    bpm: 93,
     file: "assets/audio/beat9.mp3",
     image: "assets/images/beat9.jpg",
     available: true
   },
    {
     id: 10,
-    title: "Zielona Dolina",
-    producer: "Jakiś Zenek",
-    bpm: 120,
+    title: "Desert",
+    producer: "Unknown",
+    bpm: 93,
     file: "assets/audio/beat10.mp3",
     image: "assets/images/beat10.jpg",
     available: true
   },
    {
     id: 11,
-    title: "Co to to nie tera to nie",
-    producer: "Magdalena z Kamionki",
-    bpm: 110,
+    title: "Who?",
+    producer: "Unknown",
+    bpm: 87,
     file: "assets/audio/beat11.mp3",
     image: "assets/images/beat23.jpeg",
     available: true
