@@ -160,7 +160,7 @@ const beats = [
     producer: "Unknown",
     bpm: 88,
     file: "assets/audio/beat18.mp3",
-    image: "assets/images/beat18.jpg",
+    image: "assets/images/beat18.jpeg",
     available: true
   },
        {
@@ -169,7 +169,7 @@ const beats = [
     producer: "Unknown",
     bpm: 76,
     file: "assets/audio/beat19.mp3",
-    image: "assets/images/beat19.jpg",
+    image: "assets/images/beat19.jpeg",
     available: true
   },
        {
@@ -178,7 +178,7 @@ const beats = [
     producer: "Unknown",
     bpm: 82.90,
     file: "assets/audio/beat20.mp3",
-    image: "assets/images/beat20.jpg",
+    image: "assets/images/beat20.jpeg",
     available: true
   },
        {
@@ -187,7 +187,7 @@ const beats = [
     producer: "Unknown",
     bpm: 104,
     file: "assets/audio/beat21.mp3",
-    image: "assets/images/beat21.jpg",
+    image: "assets/images/beat21.jpeg",
     available: true
   },
        {
@@ -196,7 +196,7 @@ const beats = [
     producer: "Unknown  ",
     bpm: 97,
     file: "assets/audio/beat22.mp3",
-    image: "assets/images/beat22.jpg",
+    image: "assets/images/beat22.jpeg",
     available: true
   },
        {
@@ -205,7 +205,7 @@ const beats = [
     producer: "Unknown",
     bpm: 103,
     file: "assets/audio/beat23.mp3",
-    image: "assets/images/beat23.jpg",
+    image: "assets/images/beat23.jepg",
     available: true
   },
        {
@@ -214,7 +214,7 @@ const beats = [
     producer: "Unknown",
     bpm: 102,
     file: "assets/audio/beat24.mp3",
-    image: "assets/images/beat24.jpg",
+    image: "assets/images/beat24.jpeg",
     available: true
   },
        {
@@ -223,7 +223,7 @@ const beats = [
     producer: "Unknown",
     bpm: 96,
     file: "assets/audio/beat25.mp3",
-    image: "assets/images/beat25.jpg",
+    image: "assets/images/beat25.jpeg",
     available: true
   },
        {
@@ -232,7 +232,7 @@ const beats = [
     producer: "Unknown",
     bpm: 89,
     file: "assets/audio/beat26.mp3",
-    image: "assets/images/beat26.jpg",
+    image: "assets/images/beat26.jpeg",
     available: true
   },
        {
@@ -241,7 +241,7 @@ const beats = [
     producer: "Unknown",
     bpm: 68,
     file: "assets/audio/beat27.mp3",
-    image: "assets/images/beat27.jpg",
+    image: "assets/images/beat27.jpeg",
     available: true
   },
        {
@@ -250,7 +250,7 @@ const beats = [
     producer: "Unknown",
     bpm: 95,
     file: "assets/audio/beat28.mp3",
-    image: "assets/images/beat28.jpg",
+    image: "assets/images/beat28.jpeg",
     available: true
   },
        {
@@ -259,7 +259,7 @@ const beats = [
     producer: "Unknown",
     bpm: 88,
     file: "assets/audio/beat29.mp3",
-    image: "assets/images/beat29.jpg",
+    image: "assets/images/beat29.jpeg",
     available: true
   },
        {
@@ -268,7 +268,7 @@ const beats = [
     producer: "Unknown",
     bpm: 88,
     file: "assets/audio/beat30.mp3",
-    image: "assets/images/beat30.jpg",
+    image: "assets/images/beat30.jpeg",
     available: true
   },
        {
@@ -277,7 +277,7 @@ const beats = [
     producer: "Unknown",
     bpm: 97,
     file: "assets/audio/beat31.mp3",
-    image: "assets/images/beat31.jpg",
+    image: "assets/images/beat31.jpeg",
     available: true
   },
        {
@@ -286,7 +286,7 @@ const beats = [
     producer: "Unknown",
     bpm: 78,
     file: "assets/audio/beat32.mp3",
-    image: "assets/images/beat32.jpg",
+    image: "assets/images/beat32.jpeg",
     available: true
   },
        {
@@ -295,7 +295,7 @@ const beats = [
     producer: "Unknown",
     bpm: 93,
     file: "assets/audio/beat33.mp3",
-    image: "assets/images/beat33.jpg",
+    image: "assets/images/beat33.jpeg",
     available: true
   },
        {
@@ -304,7 +304,7 @@ const beats = [
     producer: "Unknown",
     bpm: 95,
     file: "assets/audio/beat34.mp3",
-    image: "assets/images/beat34.jpg",
+    image: "assets/images/beat34.jpeg",
     available: true
   },
        {
@@ -313,7 +313,7 @@ const beats = [
     producer: "Unknown",
     bpm: 85,
     file: "assets/audio/beat35.mp3",
-    image: "assets/images/beat35.jpg",
+    image: "assets/images/beat35.jpeg",
     available: true
   },
        {
@@ -322,7 +322,7 @@ const beats = [
     producer: "Unknown",
     bpm: 87,
     file: "assets/audio/beat36.mp3",
-    image: "assets/images/beat36.jpg",
+    image: "assets/images/beat36.jpeg",
     available: true
   },
 ]
