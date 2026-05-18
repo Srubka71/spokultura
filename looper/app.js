@@ -1133,7 +1133,7 @@ function loadBeat(beat, btn) {
 
     currentAudio = nextAudio;
 
-    currentAudio.loop = false;
+    currentAudio.loop = loopTarget === "off";
     currentAudio.playbackRate = parseFloat(pitch.value);
 
     currentAudio.addEventListener("ended", () => {
@@ -1249,18 +1249,30 @@ function handleBeatEnded() {
 function playNextAvailableBeat() {
   const availableBeats = getAvailableBeats();
 
-  if (!currentBeat) return;
+  if (!availableBeats.length) {
+    stopPlaybackCompletely();
+    return;
+  }
+
+  if (!currentBeat) {
+    const firstBeat = availableBeats[0];
+    const firstButton = findButtonByBeatId(firstBeat.id);
+
+    if (firstButton) {
+      loadBeat(firstBeat, firstButton);
+    }
+
+    return;
+  }
 
   const currentIndex = availableBeats.findIndex(
     beat => beat.id === currentBeat.id
   );
 
-  const nextBeat = availableBeats[currentIndex + 1];
-
-  if (!nextBeat) {
-    stopPlaybackCompletely();
-    return;
-  }
+  const nextBeat =
+    currentIndex >= 0 && currentIndex < availableBeats.length - 1
+      ? availableBeats[currentIndex + 1]
+      : availableBeats[0];
 
   const nextButton = findButtonByBeatId(nextBeat.id);
 
@@ -1313,6 +1325,10 @@ document.querySelectorAll(".loop-btn").forEach(button => {
     } else {
       loopTarget = parseInt(button.dataset.loop, 10);
       updateInfoBar(`Loop ${loopTarget}x`);
+    }
+
+    if (currentAudio && currentAudio.src) {
+      currentAudio.loop = loopTarget === "off";
     }
 
     loopCounter = 0;
