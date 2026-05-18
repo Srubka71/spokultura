@@ -97,7 +97,7 @@ const beats = [
     producer: "Magdalena z Kamionki",
     bpm: 110,
     file: "assets/audio/beat11.mp3",
-    image: "assets/images/beat11.jpg",
+    image: "assets/images/beat23.jpeg",
     available: true
   },
    {
@@ -205,7 +205,7 @@ const beats = [
     producer: "Unknown",
     bpm: 103,
     file: "assets/audio/beat23.mp3",
-    image: "assets/images/beat23.jpeg",
+    image: "assets/audio/beat11.jpg,
     available: true
   },
        {
