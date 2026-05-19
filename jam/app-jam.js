@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55A-2 — ROOM_STATE READ-ONLY FOUNDATION
+// ETAP 55A-3 — ROOM_STATE JAM_ACTIVE WRITE
 // Spokultura Jam Room #1
 // =======================
 
@@ -79,7 +79,6 @@ let jamRecentChatTimes = [];
 let jamRecentReactionTimes = [];
 
 let jamSpamState = loadSpamState();
-let jamNotificationTimer = null;
 
 const jamSeenRealtimeMessageIds = new Set();
 const jamPendingLeaveTimers = new Map();
@@ -456,7 +455,7 @@ function schedulePresenceLeaveNotice(presence) {
 }
 
 // =======================
-// ROOM_STATE READ-ONLY
+// ROOM_STATE READ / WRITE
 // =======================
 
 async function fetchJamRoomState() {
@@ -553,9 +552,73 @@ function initJamRoomStateReadOnly() {
   subscribeJamRoomState();
 }
 
+async function saveJamActiveToRoomState(nextJamActive) {
+  if (!jamSupabaseClient) {
+    showSystemInfo("room_state: brak połączenia Supabase.", "warn");
+    return false;
+  }
+
+  if (!jamUser) {
+    showSystemInfo("room_state: brak użytkownika.", "warn");
+    return false;
+  }
+
+  try {
+    const updatePayload = {
+      jam_active: Boolean(nextJamActive),
+
+      host_session_id: isCurrentUserHost()
+        ? JAM_SESSION_ID
+        : jamRoomState?.host_session_id || null,
+
+      host_user_id: isCurrentUserHost()
+        ? jamUser.id
+        : jamRoomState?.host_user_id || null,
+
+      host_nick: isCurrentUserHost()
+        ? jamUser.nick
+        : jamRoomState?.host_nick || null,
+
+      updated_by_session_id: JAM_SESSION_ID,
+      updated_by_nick: jamUser.nick,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(updatePayload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM ROOM_STATE] jam_active update error:", error);
+      showSystemInfo("room_state: nie udało się zapisać jam_active.", "warn");
+      return false;
+    }
+
+    jamRoomState = data;
+    jamRoomStateReady = true;
+
+    console.log("[JAM ROOM_STATE] jam_active saved:", jamRoomState);
+
+    showSystemInfo(
+      nextJamActive
+        ? "room_state: jam_active zapisany jako TRUE."
+        : "room_state: jam_active zapisany jako FALSE.",
+      "success"
+    );
+
+    return true;
+  } catch (error) {
+    console.error("[JAM ROOM_STATE] jam_active update exception:", error);
+    showSystemInfo("room_state: błąd zapisu jam_active.", "warn");
+    return false;
+  }
+}
+
 // =======================
 // INFO NOTIFICATION STACK
-// ETAP 55A-2B
 // =======================
 
 function ensureInfoNotification() {
@@ -2562,7 +2625,16 @@ async function toggleJamActive() {
     return;
   }
 
-  jamActive = !jamActive;
+  const nextJamActive = !jamActive;
+
+  const roomStateSaved = await saveJamActiveToRoomState(nextJamActive);
+
+  if (!roomStateSaved) {
+    showSystemInfo("Jam nie został zmieniony — room_state nie zapisał stanu.", "warn");
+    return;
+  }
+
+  jamActive = nextJamActive;
 
   if (jamActive) {
     showSystemInfo(`${jamUser.nick} wystartował jam.`, "success");
