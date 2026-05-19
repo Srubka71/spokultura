@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55A-4B — ROOM_STATE AUTO-RESYNC
+// ETAP 55A-4C — ANTI-BUG RESYNC + CURRENT PERFORMER BRIDGE
 // Spokultura Jam Room #1
 // =======================
 
@@ -29,6 +29,9 @@ const JAM_ACTION_MIN_INTERVAL_MS = 650;
 const JAM_ROOM_STATE_RESYNC_MS = 3500;
 const JAM_ROOM_STATE_FOCUS_RESYNC_COOLDOWN_MS = 1200;
 
+const JAM_PRESENCE_HEARTBEAT_MS = 2500;
+const JAM_PRESENCE_FOCUS_RETRACK_COOLDOWN_MS = 1200;
+
 const JAM_SPAM_BLOCK_LEVELS_MS = [
   60 * 1000,
   2 * 60 * 1000,
@@ -56,6 +59,10 @@ let jamRoomState = null;
 let jamRoomStateReady = false;
 let jamRoomStateResyncTimer = null;
 let jamLastRoomStateFocusResyncAt = 0;
+
+let jamPresenceHeartbeatTimer = null;
+let jamLastPresenceFocusRetrackAt = 0;
+let jamPresenceFocusListenersBound = false;
 
 let jamUser = null;
 let jamJoined = false;
@@ -297,6 +304,12 @@ const statusPills = qsa(".jam-pill");
 // ROLE / QUEUE HELPERS
 // =======================
 
+function getRoomStateHostSessionId() {
+  return jamRoomState && jamRoomState.host_session_id
+    ? jamRoomState.host_session_id
+    : null;
+}
+
 function getCurrentPresenceUser() {
   if (!jamUser) return null;
 
@@ -306,6 +319,12 @@ function getCurrentPresenceUser() {
 }
 
 function isCurrentUserHost() {
+  const roomStateHostSessionId = getRoomStateHostSessionId();
+
+  if (roomStateHostSessionId) {
+    return roomStateHostSessionId === JAM_SESSION_ID;
+  }
+
   const currentPresenceUser = getCurrentPresenceUser();
 
   if (currentPresenceUser && currentPresenceUser.role === "Host") {
@@ -343,6 +362,12 @@ function isCurrentHostNormalPerformer() {
 }
 
 function isHostSession(sessionId) {
+  const roomStateHostSessionId = getRoomStateHostSessionId();
+
+  if (roomStateHostSessionId) {
+    return roomStateHostSessionId === sessionId;
+  }
+
   if (!jamOnlineUsers.length) return false;
 
   const host = jamOnlineUsers.find((user) => user.role === "Host");
@@ -460,6 +485,94 @@ function schedulePresenceLeaveNotice(presence) {
 }
 
 // =======================
+// ROOM_STATE APPLY
+// =======================
+
+function applyRoomStateToLocalState(nextRoomState, options = {}) {
+  if (!nextRoomState) return;
+
+  const silent = Boolean(options.silent);
+  const source = options.source || "room_state";
+
+  const previousJamActive = Boolean(jamActive);
+  const previousPerformerSessionId =
+    jamCurrentPerformer && jamCurrentPerformer.sessionId
+      ? jamCurrentPerformer.sessionId
+      : null;
+
+  jamRoomState = nextRoomState;
+  jamRoomStateReady = true;
+
+  const nextJamActive = Boolean(nextRoomState.jam_active);
+
+  if (previousJamActive !== nextJamActive) {
+    jamActive = nextJamActive;
+
+    showSystemInfo(
+      jamActive
+        ? `${source}: Jam LIVE.`
+        : `${source}: Jam STOP.`,
+      "success"
+    );
+  }
+
+  const nextPerformerSessionId =
+    nextRoomState.current_performer_session_id || null;
+
+  if (nextPerformerSessionId) {
+    jamCurrentPerformer = {
+      id: nextRoomState.current_performer_user_id || nextPerformerSessionId,
+      sessionId: nextPerformerSessionId,
+      nick: nextRoomState.current_performer_nick || "Performer",
+      joinedAt: Date.now()
+    };
+
+    jamMicSource = nextRoomState.mic_source || "queue";
+  } else {
+    jamCurrentPerformer = null;
+    jamMicSource = null;
+  }
+
+  const performerChanged = previousPerformerSessionId !== nextPerformerSessionId;
+
+  if (performerChanged && !silent) {
+    if (nextPerformerSessionId) {
+      showSystemInfo(
+        `${source}: mikrofon ma ${jamCurrentPerformer.nick}.`,
+        "success"
+      );
+    } else {
+      showSystemInfo(`${source}: mikrofon wyłączony.`);
+    }
+  }
+
+  if (jamUser && jamJoined) {
+    const shouldBePerformer =
+      nextPerformerSessionId === JAM_SESSION_ID;
+
+    if (jamUser.isPerformer !== shouldBePerformer) {
+      jamUser.isPerformer = shouldBePerformer;
+      jamMicRequested = Boolean(jamUser.isPerformer || jamUser.isInQueue);
+      saveJamUser();
+
+      updateCurrentPresence();
+    }
+  }
+
+  console.log("[JAM ROOM_STATE] applied:", {
+    source,
+    silent,
+    jam_active: jamRoomState.jam_active,
+    current_performer_nick: jamRoomState.current_performer_nick,
+    mic_source: jamRoomState.mic_source,
+    updated_at: jamRoomState.updated_at,
+    updated_by_nick: jamRoomState.updated_by_nick
+  });
+
+  renderJamState();
+}
+
+// =======================
 // ROOM_STATE READ / WRITE
 // =======================
 
@@ -486,34 +599,10 @@ async function fetchJamRoomState(options = {}) {
       return;
     }
 
-    jamRoomState = data;
-    jamRoomStateReady = true;
-
-    const nextJamActive = Boolean(jamRoomState.jam_active);
-    const jamActiveChanged = jamActive !== nextJamActive;
-
-    if (jamActiveChanged) {
-      jamActive = nextJamActive;
-
-      showSystemInfo(
-        jamActive
-          ? "room_state: Jam LIVE."
-          : "room_state: Jam STOP.",
-        "success"
-      );
-    } else if (!silent) {
-      showSystemInfo("room_state odczytany.", "success");
-    }
-
-    console.log("[JAM ROOM_STATE] fetch:", {
-      reason,
-      silent,
-      jam_active: jamRoomState.jam_active,
-      updated_at: jamRoomState.updated_at,
-      updated_by_nick: jamRoomState.updated_by_nick
+    applyRoomStateToLocalState(data, {
+      silent: silent,
+      source: reason
     });
-
-    renderJamState();
   } catch (error) {
     console.error("[JAM ROOM_STATE] fetch exception:", error);
 
@@ -549,33 +638,10 @@ function subscribeJamRoomState() {
       },
       (payload) => {
         if (payload && payload.new) {
-          const previousJamActive = Boolean(jamActive);
-
-          jamRoomState = payload.new;
-          jamRoomStateReady = true;
-
-          const nextJamActive = Boolean(jamRoomState.jam_active);
-          const jamActiveChanged = previousJamActive !== nextJamActive;
-
-          if (jamActiveChanged) {
-            jamActive = nextJamActive;
-
-            showSystemInfo(
-              jamActive
-                ? "room_state realtime: Jam LIVE."
-                : "room_state realtime: Jam STOP.",
-              "success"
-            );
-          }
-
-          console.log("[JAM ROOM_STATE] realtime update:", {
-            jam_active: jamRoomState.jam_active,
-            updated_at: jamRoomState.updated_at,
-            updated_by_nick: jamRoomState.updated_by_nick,
-            changed: jamActiveChanged
+          applyRoomStateToLocalState(payload.new, {
+            silent: true,
+            source: "room_state realtime"
           });
-
-          renderJamState();
         }
       }
     )
@@ -700,10 +766,10 @@ async function saveJamActiveToRoomState(nextJamActive) {
       return false;
     }
 
-    jamRoomState = data;
-    jamRoomStateReady = true;
-
-    console.log("[JAM ROOM_STATE] jam_active saved:", jamRoomState);
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "jam_active write"
+    });
 
     showSystemInfo(
       nextJamActive
@@ -716,6 +782,92 @@ async function saveJamActiveToRoomState(nextJamActive) {
   } catch (error) {
     console.error("[JAM ROOM_STATE] jam_active update exception:", error);
     showSystemInfo("room_state: błąd zapisu jam_active.", "warn");
+    return false;
+  }
+}
+
+async function saveCurrentPerformerToRoomState(targetUser, micSource) {
+  if (!jamSupabaseClient || !targetUser) {
+    return false;
+  }
+
+  try {
+    const updatePayload = {
+      current_performer_session_id: targetUser.sessionId || null,
+      current_performer_user_id: targetUser.id || targetUser.userId || null,
+      current_performer_nick: targetUser.nick || null,
+      mic_source: micSource || null,
+
+      updated_by_session_id: JAM_SESSION_ID,
+      updated_by_nick: jamUser ? jamUser.nick : null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(updatePayload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM ROOM_STATE] performer update error:", error);
+      showSystemInfo("room_state: nie udało się zapisać performera.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "performer write"
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM ROOM_STATE] performer update exception:", error);
+    showSystemInfo("room_state: błąd zapisu performera.", "warn");
+    return false;
+  }
+}
+
+async function clearCurrentPerformerInRoomState() {
+  if (!jamSupabaseClient) {
+    return false;
+  }
+
+  try {
+    const updatePayload = {
+      current_performer_session_id: null,
+      current_performer_user_id: null,
+      current_performer_nick: null,
+      mic_source: null,
+
+      updated_by_session_id: JAM_SESSION_ID,
+      updated_by_nick: jamUser ? jamUser.nick : null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(updatePayload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM ROOM_STATE] performer clear error:", error);
+      showSystemInfo("room_state: nie udało się wyczyścić performera.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "performer clear"
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM ROOM_STATE] performer clear exception:", error);
+    showSystemInfo("room_state: błąd czyszczenia performera.", "warn");
     return false;
   }
 }
@@ -1475,11 +1627,20 @@ function flattenPresenceState(state) {
     return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
   });
 
+  const roomStateHostSessionId = getRoomStateHostSessionId();
+
   users.forEach((user, index) => {
-    const isHost = index === 0;
+    const isHost = roomStateHostSessionId
+      ? user.sessionId === roomStateHostSessionId
+      : index === 0;
 
     if (isHost) {
       user.role = "Host";
+    } else if (
+      jamCurrentPerformer &&
+      jamCurrentPerformer.sessionId === user.sessionId
+    ) {
+      user.role = "Performer";
     } else if (user.isPerformer) {
       user.role = "Performer";
     } else {
@@ -1501,30 +1662,6 @@ function flattenPresenceState(state) {
       };
     });
 
-  const performerFromPresence = users.find((user) => {
-    return user.isPerformer;
-  });
-
-  if (performerFromPresence) {
-    const currentPerformerStillSame =
-      jamCurrentPerformer &&
-      jamCurrentPerformer.sessionId === performerFromPresence.sessionId;
-
-    jamCurrentPerformer = {
-      id: performerFromPresence.userId,
-      sessionId: performerFromPresence.sessionId,
-      nick: performerFromPresence.nick,
-      joinedAt: performerFromPresence.queueJoinedAt || Date.now()
-    };
-
-    if (!currentPerformerStillSame && !jamMicSource) {
-      jamMicSource = "queue";
-    }
-  } else {
-    jamCurrentPerformer = null;
-    jamMicSource = null;
-  }
-
   return users;
 }
 
@@ -1541,17 +1678,10 @@ function updatePresenceStateFromChannel() {
     });
 
     if (currentPresence) {
-      const oldMicSource = jamMicSource;
-
       jamUser.role = currentPresence.role;
       jamUser.isInQueue = Boolean(currentPresence.isInQueue);
-      jamUser.isPerformer = Boolean(currentPresence.isPerformer);
       jamUser.queueJoinedAt = Number(currentPresence.queueJoinedAt || 0);
       jamMicRequested = Boolean(jamUser.isPerformer || jamUser.isInQueue);
-
-      if (!jamUser.isPerformer && oldMicSource === "host_takeover") {
-        jamMicSource = null;
-      }
 
       saveJamUser();
     }
@@ -1574,6 +1704,70 @@ async function updateCurrentPresence() {
   saveJamUser();
 
   await jamPresenceChannel.track(getPresencePayload());
+}
+
+function startJamPresenceHeartbeat() {
+  if (jamPresenceHeartbeatTimer) {
+    clearInterval(jamPresenceHeartbeatTimer);
+    jamPresenceHeartbeatTimer = null;
+  }
+
+  jamPresenceHeartbeatTimer = setInterval(() => {
+    if (!jamJoined || !jamPresenceChannel || !jamUser) return;
+
+    updateCurrentPresence();
+
+    setTimeout(() => {
+      updatePresenceStateFromChannel();
+    }, 180);
+  }, JAM_PRESENCE_HEARTBEAT_MS);
+
+  if (!jamPresenceFocusListenersBound) {
+    jamPresenceFocusListenersBound = true;
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        forceRetrackPresenceAfterFocus("visibilitychange");
+      }
+    });
+
+    window.addEventListener("focus", () => {
+      forceRetrackPresenceAfterFocus("focus");
+    });
+  }
+}
+
+function stopJamPresenceHeartbeat() {
+  if (jamPresenceHeartbeatTimer) {
+    clearInterval(jamPresenceHeartbeatTimer);
+    jamPresenceHeartbeatTimer = null;
+  }
+}
+
+function forceRetrackPresenceAfterFocus(reason) {
+  const now = Date.now();
+
+  if (
+    now - jamLastPresenceFocusRetrackAt <
+    JAM_PRESENCE_FOCUS_RETRACK_COOLDOWN_MS
+  ) {
+    return;
+  }
+
+  jamLastPresenceFocusRetrackAt = now;
+
+  if (jamJoined && jamPresenceChannel && jamUser) {
+    updateCurrentPresence();
+
+    setTimeout(() => {
+      updatePresenceStateFromChannel();
+    }, 200);
+  }
+
+  fetchJamRoomState({
+    silent: true,
+    reason: `presence-${reason}`
+  });
 }
 
 // =======================
@@ -1632,6 +1826,11 @@ function handleRealtimeQueueRequest(payload) {
   }
 
   updatePresenceStateFromChannel();
+  fetchJamRoomState({
+    silent: true,
+    reason: "queue-request"
+  });
+
   renderJamState();
 }
 
@@ -1644,13 +1843,10 @@ function handleRealtimeJamStatus(payload) {
 
   jamSeenRealtimeMessageIds.add(payload.message_id);
 
-  jamActive = Boolean(payload.active);
-
-  if (jamActive) {
-    showSystemInfo(`${payload.nick || "Host"} wystartował jam.`, "success");
-  } else {
-    showSystemInfo(`${payload.nick || "Host"} zakończył jam.`);
-  }
+  fetchJamRoomState({
+    silent: true,
+    reason: "jam-status-broadcast"
+  });
 
   updatePresenceStateFromChannel();
   renderJamState();
@@ -1665,84 +1861,10 @@ async function handleRealtimePerformerStatus(payload) {
 
   jamSeenRealtimeMessageIds.add(payload.message_id);
 
-  const targetSessionId = payload.session_id;
-  const active = Boolean(payload.active);
-  const preserveQueue = Boolean(payload.preserve_queue);
-  const addToQueue = Boolean(payload.add_to_queue);
-  const incomingMicSource = payload.mic_source || null;
-
-  if (payload.clear_all && jamUser && jamUser.isPerformer && targetSessionId !== JAM_SESSION_ID) {
-    jamUser.isPerformer = false;
-    jamMicRequested = Boolean(jamUser.isInQueue);
-
-    saveJamUser();
-    await updateCurrentPresence();
-  }
-
-  if (active) {
-    if (targetSessionId === JAM_SESSION_ID && jamUser) {
-      jamUser.isPerformer = true;
-
-      if (addToQueue) {
-        jamUser.isInQueue = true;
-
-        if (!jamUser.queueJoinedAt) {
-          jamUser.queueJoinedAt = Date.now();
-        }
-      } else if (!preserveQueue) {
-        jamUser.isInQueue = false;
-        jamUser.queueJoinedAt = 0;
-      }
-
-      jamMicRequested = true;
-      saveJamUser();
-      await updateCurrentPresence();
-    }
-
-    jamMicSource = incomingMicSource || "queue";
-
-    jamCurrentPerformer = {
-      id: payload.user_id,
-      sessionId: targetSessionId,
-      nick: payload.nick || "Anon",
-      joinedAt: Date.now()
-    };
-
-    if (jamMicSource === "host_takeover") {
-      showSystemInfo("Host przejął mikrofon.", "success");
-    } else if (isHostSession(targetSessionId)) {
-      showSystemInfo(`${payload.nick || "Host"} ma teraz głos.`, "success");
-    } else {
-      showSystemInfo(`${payload.nick || "Użytkownik"} ma teraz mikrofon.`, "success");
-    }
-  } else {
-    if (targetSessionId === JAM_SESSION_ID && jamUser) {
-      jamUser.isPerformer = false;
-
-      if (!preserveQueue) {
-        jamUser.isInQueue = false;
-        jamUser.queueJoinedAt = 0;
-      }
-
-      jamMicRequested = Boolean(jamUser.isInQueue);
-      saveJamUser();
-      await updateCurrentPresence();
-    }
-
-    if (
-      jamCurrentPerformer &&
-      jamCurrentPerformer.sessionId === targetSessionId
-    ) {
-      jamCurrentPerformer = null;
-      jamMicSource = null;
-    }
-
-    if (isHostSession(targetSessionId)) {
-      showSystemInfo("Host wyłączył mikrofon.");
-    } else {
-      showSystemInfo(`${payload.nick || "Użytkownik"} wrócił do słuchania.`);
-    }
-  }
+  fetchJamRoomState({
+    silent: true,
+    reason: "performer-status-broadcast"
+  });
 
   updatePresenceStateFromChannel();
   renderJamState();
@@ -1822,6 +1944,14 @@ function connectPresence() {
         await trackCurrentUserPresence();
 
         jamRealtimeReady = true;
+
+        startJamPresenceHeartbeat();
+
+        fetchJamRoomState({
+          silent: true,
+          reason: "presence-subscribed"
+        });
+
         showSystemInfo("Połączono z Jam Room realtime.", "success");
         renderJamState();
       }
@@ -1865,6 +1995,8 @@ async function leavePresence() {
 }
 
 async function disconnectPresence() {
+  stopJamPresenceHeartbeat();
+
   if (!jamSupabaseClient || !jamPresenceChannel) {
     jamPresenceChannel = null;
     return;
@@ -2323,6 +2455,7 @@ async function addSelfToMicrophoneQueue() {
   ) {
     jamCurrentPerformer = null;
     jamMicSource = null;
+    await clearCurrentPerformerInRoomState();
   }
 
   saveJamUser();
@@ -2362,6 +2495,9 @@ async function leaveQueueCompletely(shouldBroadcast = true) {
 
   const wasPerformer = Boolean(jamUser.isPerformer);
   const wasInQueue = Boolean(jamUser.isInQueue);
+  const wasRoomStatePerformer =
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId === JAM_SESSION_ID;
 
   jamMicRequested = false;
 
@@ -2371,12 +2507,11 @@ async function leaveQueueCompletely(shouldBroadcast = true) {
 
   saveJamUser();
 
-  if (
-    jamCurrentPerformer &&
-    jamCurrentPerformer.sessionId === JAM_SESSION_ID
-  ) {
+  if (wasRoomStatePerformer) {
     jamCurrentPerformer = null;
     jamMicSource = null;
+
+    await clearCurrentPerformerInRoomState();
   }
 
   renderJamState();
@@ -2526,18 +2661,16 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
     });
   }
 
-  const messageId = createMessageId();
-
-  jamSeenRealtimeMessageIds.add(messageId);
-
   jamMicSource = micSource;
 
   jamCurrentPerformer = {
-    id: targetUser.id,
+    id: targetUser.id || targetUser.userId,
     sessionId: targetUser.sessionId,
     nick: targetUser.nick,
     joinedAt: targetUser.joinedAt || Date.now()
   };
+
+  await saveCurrentPerformerToRoomState(jamCurrentPerformer, micSource);
 
   if (micSource === "host_takeover") {
     showSystemInfo("Host przejął mikrofon.", "success");
@@ -2549,6 +2682,10 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
 
   renderJamState();
 
+  const messageId = createMessageId();
+
+  jamSeenRealtimeMessageIds.add(messageId);
+
   await sendRealtimeBroadcast("performer_status", {
     message_id: messageId,
     active: true,
@@ -2557,7 +2694,7 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
     preserve_queue: preserveQueue,
     mic_source: micSource,
     session_id: targetUser.sessionId,
-    user_id: targetUser.id,
+    user_id: targetUser.id || targetUser.userId,
     nick: targetUser.nick,
     created_at: new Date().toISOString()
   });
@@ -2655,6 +2792,8 @@ async function hostReleaseMicrophone() {
     jamCurrentPerformer = null;
     jamMicSource = null;
   }
+
+  await clearCurrentPerformerInRoomState();
 
   renderJamState();
 
@@ -2755,6 +2894,7 @@ async function toggleJamActive() {
     }
   } else {
     showSystemInfo(`${jamUser.nick} zakończył jam.`);
+    await clearCurrentPerformerInRoomState();
   }
 
   renderJamState();
