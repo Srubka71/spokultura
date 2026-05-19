@@ -1,5 +1,5 @@
 // =======================
-// ETAP 54B — STABILITY COOLDOWN POLISH
+// ETAP 55A-2 — ROOM_STATE READ-ONLY FOUNDATION
 // Spokultura Jam Room #1
 // =======================
 
@@ -11,6 +11,8 @@ const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
 const SUPABASE_ANON_KEY_STABLE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
 
 const JAM_ROOM_CHANNEL = "spokultura_jam_room_1";
+const JAM_ROOM_STATE_CHANNEL = "spokultura_jam_room_state_1";
+const JAM_ROOM_STATE_ID = "room_1";
 
 const JAM_SESSION_ID =
   "session_" +
@@ -21,9 +23,6 @@ const JAM_SESSION_ID =
 const JAM_PRESENCE_LEAVE_DEBOUNCE_MS = 1800;
 const JAM_SPAM_ESCALATION_WINDOW_MS = 4 * 60 * 1000;
 
-// ETAP 54B:
-// Większy lock i minimalny odstęp między akcjami.
-// To chroni przed rozjazdem stanu przy szybkim klikaniu na kilku urządzeniach.
 const JAM_ACTION_LOCK_MS = 850;
 const JAM_ACTION_MIN_INTERVAL_MS = 650;
 
@@ -48,6 +47,10 @@ const JAM_SPAM_BLOCK_LEVELS_MS = [
 
 let jamSupabaseClient = null;
 let jamPresenceChannel = null;
+let jamRoomStateChannel = null;
+
+let jamRoomState = null;
+let jamRoomStateReady = false;
 
 let jamUser = null;
 let jamJoined = false;
@@ -450,6 +453,104 @@ function schedulePresenceLeaveNotice(presence) {
   }, JAM_PRESENCE_LEAVE_DEBOUNCE_MS);
 
   jamPendingLeaveTimers.set(sessionId, timer);
+}
+
+// =======================
+// ROOM_STATE READ-ONLY
+// =======================
+
+async function fetchJamRoomState() {
+  if (!jamSupabaseClient) return;
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .select("*")
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .single();
+
+    if (error) {
+      console.error("[JAM ROOM_STATE] fetch error:", error);
+      showSystemInfo("room_state: błąd odczytu.", "warn");
+      return;
+    }
+
+    jamRoomState = data;
+    jamRoomStateReady = true;
+
+    console.log("[JAM ROOM_STATE] loaded:", jamRoomState);
+
+    showSystemInfo("room_state odczytany.", "success");
+    renderJamState();
+  } catch (error) {
+    console.error("[JAM ROOM_STATE] fetch exception:", error);
+    showSystemInfo("room_state: błąd połączenia.", "warn");
+  }
+}
+
+function subscribeJamRoomState() {
+  if (!jamSupabaseClient) return;
+
+  if (jamRoomStateChannel) {
+    try {
+      jamSupabaseClient.removeChannel(jamRoomStateChannel);
+    } catch (error) {
+      console.error(error);
+    }
+
+    jamRoomStateChannel = null;
+  }
+
+  jamRoomStateChannel = jamSupabaseClient.channel(JAM_ROOM_STATE_CHANNEL);
+
+  jamRoomStateChannel
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "jam_room_state",
+        filter: `room_id=eq.${JAM_ROOM_STATE_ID}`
+      },
+      (payload) => {
+        if (payload && payload.new) {
+          jamRoomState = payload.new;
+          jamRoomStateReady = true;
+
+          console.log("[JAM ROOM_STATE] realtime update:", jamRoomState);
+
+          showSystemInfo("room_state realtime update.", "success");
+          renderJamState();
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log("[JAM ROOM_STATE] channel status:", status);
+
+      if (status === "SUBSCRIBED") {
+        jamRoomStateReady = true;
+        showSystemInfo("room_state realtime podłączony.", "success");
+      }
+
+      if (status === "CHANNEL_ERROR") {
+        jamRoomStateReady = false;
+        showSystemInfo("room_state realtime: błąd kanału.", "warn");
+      }
+
+      if (status === "TIMED_OUT") {
+        jamRoomStateReady = false;
+        showSystemInfo("room_state realtime: timeout.", "warn");
+      }
+
+      renderJamState();
+    });
+}
+
+function initJamRoomStateReadOnly() {
+  if (!jamSupabaseClient) return;
+
+  fetchJamRoomState();
+  subscribeJamRoomState();
 }
 
 // =======================
@@ -1742,6 +1843,7 @@ function updateButtons() {
 function updateStatusPills() {
   const statusPill = statusPills[0];
   const jamModePill = statusPills[1];
+  const roomStatePill = statusPills[2];
 
   if (statusPill) {
     if (jamActionLocked) {
@@ -1759,6 +1861,12 @@ function updateStatusPills() {
     jamModePill.innerHTML = jamActive
       ? "Jam: <strong>Live</strong>"
       : "Jam: <strong>Stop</strong>";
+  }
+
+  if (roomStatePill) {
+    roomStatePill.innerHTML = jamRoomStateReady
+      ? "Room State: <strong>Read</strong>"
+      : "Room State: <strong>Off</strong>";
   }
 }
 
@@ -2680,6 +2788,8 @@ function initJamRoom() {
   saveJamUser();
 
   initSupabaseClient();
+  initJamRoomStateReadOnly();
+
   ensureSpamModal();
   ensureInfoNotification();
   ensureHostPickMicModal();
