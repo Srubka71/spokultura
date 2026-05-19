@@ -554,34 +554,43 @@ function initJamRoomStateReadOnly() {
 }
 
 // =======================
-// INFO NOTIFICATION
+// INFO NOTIFICATION STACK
+// ETAP 55A-2B
 // =======================
 
 function ensureInfoNotification() {
-  let notification = qs("#jamInfoNotification");
+  let container = qs("#jamInfoNotificationStack");
 
-  if (notification) {
-    return notification;
+  if (container) {
+    return container;
   }
 
-  notification = document.createElement("div");
-  notification.id = "jamInfoNotification";
-  notification.className = "jam-info-notification";
-
-  notification.innerHTML = `
-    <span id="jamInfoNotificationText">Jam Room gotowy.</span>
-  `;
+  container = document.createElement("div");
+  container.id = "jamInfoNotificationStack";
+  container.className = "jam-info-notification-stack";
 
   const style = document.createElement("style");
 
   style.innerHTML = `
-    .jam-info-notification {
+    .jam-info-notification-stack {
       position: fixed;
       top: 16px;
       left: 50%;
       z-index: 1200;
 
-      max-width: min(560px, calc(100% - 28px));
+      width: min(560px, calc(100% - 28px));
+
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      transform: translateX(-50%);
+
+      pointer-events: none;
+    }
+
+    .jam-info-notification {
+      width: 100%;
       padding: 11px 15px;
 
       border-radius: 999px;
@@ -606,24 +615,30 @@ function ensureInfoNotification() {
         0 14px 38px rgba(0,0,0,0.48),
         0 0 26px rgba(234,162,33,0.12);
 
+      opacity: 0;
       transform:
-        translate(-50%, -18px)
+        translateY(-10px)
         scale(0.98);
 
-      opacity: 0;
-      pointer-events: none;
-
       transition:
-        opacity 0.18s ease,
-        transform 0.18s ease;
+        opacity 0.22s ease,
+        transform 0.22s ease;
     }
 
     .jam-info-notification.visible {
       opacity: 1;
 
       transform:
-        translate(-50%, 0)
+        translateY(0)
         scale(1);
+    }
+
+    .jam-info-notification.leaving {
+      opacity: 0;
+
+      transform:
+        translateY(-8px)
+        scale(0.98);
     }
 
     .jam-info-notification.attention {
@@ -652,45 +667,55 @@ function ensureInfoNotification() {
     @keyframes jamInfoShake {
       0% {
         transform:
-          translate(-50%, 0)
+          translateX(0)
+          translateY(0)
           scale(1);
       }
 
       18% {
         transform:
-          translate(calc(-50% - 4px), 0)
+          translateX(-4px)
+          translateY(0)
           scale(1.01);
       }
 
       36% {
         transform:
-          translate(calc(-50% + 4px), 0)
+          translateX(4px)
+          translateY(0)
           scale(1.01);
       }
 
       54% {
         transform:
-          translate(calc(-50% - 3px), 0)
+          translateX(-3px)
+          translateY(0)
           scale(1.005);
       }
 
       72% {
         transform:
-          translate(calc(-50% + 3px), 0)
+          translateX(3px)
+          translateY(0)
           scale(1.005);
       }
 
       100% {
         transform:
-          translate(-50%, 0)
+          translateX(0)
+          translateY(0)
           scale(1);
       }
     }
 
     @media (max-width: 620px) {
-      .jam-info-notification {
+      .jam-info-notification-stack {
         top: 10px;
+        width: min(100% - 18px, 560px);
+        gap: 7px;
+      }
 
+      .jam-info-notification {
         border-radius: 16px;
 
         font-size: 12px;
@@ -700,25 +725,20 @@ function ensureInfoNotification() {
   `;
 
   document.head.appendChild(style);
-  document.body.appendChild(notification);
+  document.body.appendChild(container);
 
-  return notification;
+  return container;
 }
 
-function showInfoNotification(message, type = "default", duration = 3200) {
-  const notification = ensureInfoNotification();
-  const textElement = notification.querySelector("#jamInfoNotificationText");
+function showInfoNotification(message, type = "default", duration = 4200) {
+  const container = ensureInfoNotification();
 
-  if (jamNotificationTimer) {
-    clearTimeout(jamNotificationTimer);
-    jamNotificationTimer = null;
-  }
+  const notification = document.createElement("div");
+  notification.className = "jam-info-notification";
 
-  if (textElement) {
-    textElement.innerText = sanitizeText(message, 160);
-  }
+  const cleanMessage = sanitizeText(message, 180);
 
-  notification.classList.remove("warn", "success", "attention");
+  notification.innerText = cleanMessage || "Info";
 
   if (type === "warn") {
     notification.classList.add("warn");
@@ -728,14 +748,36 @@ function showInfoNotification(message, type = "default", duration = 3200) {
     notification.classList.add("success");
   }
 
-  notification.classList.add("visible");
+  container.prepend(notification);
 
-  void notification.offsetWidth;
-  notification.classList.add("attention");
+  const maxVisibleNotifications = 5;
+  const notifications = Array.from(
+    container.querySelectorAll(".jam-info-notification")
+  );
 
-  jamNotificationTimer = setTimeout(() => {
-    notification.classList.remove("visible", "attention");
+  notifications.slice(maxVisibleNotifications).forEach((oldNotification) => {
+    oldNotification.classList.add("leaving");
+
+    setTimeout(() => {
+      oldNotification.remove();
+    }, 260);
+  });
+
+  requestAnimationFrame(() => {
+    notification.classList.add("visible");
+
+    void notification.offsetWidth;
+    notification.classList.add("attention");
+  });
+
+  setTimeout(() => {
+    notification.classList.add("leaving");
+    notification.classList.remove("visible");
   }, duration);
+
+  setTimeout(() => {
+    notification.remove();
+  }, duration + 320);
 }
 
 function showSystemInfo(message, type = "default") {
