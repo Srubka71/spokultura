@@ -1,5 +1,5 @@
 // =======================
-// ETAP 53A-8 — HOST QUEUE PERSISTENCE + FASTER UI STATE
+// ETAP 53A-9 — HOST TAKEOVER FLAG FIX
 // Spokultura Jam Room #1
 // =======================
 
@@ -52,6 +52,7 @@ let jamQueue = [];
 let jamOnlineUsers = [];
 let jamCurrentPerformer = null;
 let jamMicRequested = false;
+let jamHostMicTakeoverActive = false;
 
 let jamLastChatText = "";
 let jamLastChatAt = 0;
@@ -1137,11 +1138,20 @@ function updatePresenceStateFromChannel() {
     });
 
     if (currentPresence) {
+      const wasTakeover = Boolean(jamHostMicTakeoverActive);
+
       jamUser.role = currentPresence.role;
       jamUser.isInQueue = Boolean(currentPresence.isInQueue);
       jamUser.isPerformer = Boolean(currentPresence.isPerformer);
       jamUser.queueJoinedAt = Number(currentPresence.queueJoinedAt || 0);
       jamMicRequested = Boolean(jamUser.isPerformer || jamUser.isInQueue);
+
+      if (!jamUser.isPerformer) {
+        jamHostMicTakeoverActive = false;
+      } else {
+        jamHostMicTakeoverActive = wasTakeover;
+      }
+
       saveJamUser();
     }
   }
@@ -1262,6 +1272,7 @@ async function handleRealtimePerformerStatus(payload) {
 
   if (payload.clear_all && jamUser && jamUser.isPerformer && targetSessionId !== JAM_SESSION_ID) {
     jamUser.isPerformer = false;
+    jamHostMicTakeoverActive = false;
     jamMicRequested = Boolean(jamUser.isInQueue);
 
     saveJamUser();
@@ -1271,6 +1282,7 @@ async function handleRealtimePerformerStatus(payload) {
   if (active) {
     if (targetSessionId === JAM_SESSION_ID && jamUser) {
       jamUser.isPerformer = true;
+      jamHostMicTakeoverActive = Boolean(isHostTakeover);
 
       if (addToQueue) {
         jamUser.isInQueue = true;
@@ -1305,6 +1317,7 @@ async function handleRealtimePerformerStatus(payload) {
   } else {
     if (targetSessionId === JAM_SESSION_ID && jamUser) {
       jamUser.isPerformer = false;
+      jamHostMicTakeoverActive = false;
 
       if (!preserveQueue) {
         jamUser.isInQueue = false;
@@ -1601,7 +1614,7 @@ function updateButtons() {
   }
 
   if (hostTakeMicBtn) {
-    hostTakeMicBtn.innerText = isCurrentHostWithMic()
+    hostTakeMicBtn.innerText = jamHostMicTakeoverActive
       ? "WYŁĄCZ MIKROFON"
       : "PRZEJMIJ MIKROFON";
   }
@@ -1739,6 +1752,7 @@ function resetLocalRoomState() {
   jamCurrentPerformer = null;
   jamMicRequested = false;
   jamRealtimeReady = false;
+  jamHostMicTakeoverActive = false;
 
   if (jamUser) {
     jamUser.isInQueue = false;
@@ -1766,6 +1780,7 @@ function joinRoom() {
 
   jamJoined = true;
   jamRealtimeReady = false;
+  jamHostMicTakeoverActive = false;
 
   jamUser.role = "Listener";
   jamUser.joinedAt = Date.now();
@@ -1852,6 +1867,7 @@ async function addSelfToMicrophoneQueue() {
 
   jamUser.isInQueue = true;
   jamUser.isPerformer = false;
+  jamHostMicTakeoverActive = false;
 
   if (!jamUser.queueJoinedAt) {
     jamUser.queueJoinedAt = Date.now();
@@ -1896,6 +1912,7 @@ async function returnToListening(shouldBroadcast = true) {
   const wasInQueue = Boolean(jamUser.isInQueue);
 
   jamMicRequested = false;
+  jamHostMicTakeoverActive = false;
 
   jamUser.isPerformer = false;
   jamUser.isInQueue = false;
@@ -1950,7 +1967,13 @@ async function setSelfPerformerState(active, options = {}) {
       ? Boolean(options.preserveQueue)
       : true;
 
+  const hostTakeover =
+    options.hostTakeover !== undefined
+      ? Boolean(options.hostTakeover)
+      : false;
+
   jamUser.isPerformer = Boolean(active);
+  jamHostMicTakeoverActive = Boolean(active && hostTakeover);
 
   if (active) {
     if (addToQueue) {
@@ -2003,11 +2026,13 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
   if (targetUser.sessionId === JAM_SESSION_ID) {
     await setSelfPerformerState(true, {
       addToQueue: addToQueue,
-      preserveQueue: preserveQueue
+      preserveQueue: preserveQueue,
+      hostTakeover: hostTakeover
     });
   } else if (jamUser && jamUser.isPerformer) {
     await setSelfPerformerState(false, {
-      preserveQueue: true
+      preserveQueue: true,
+      hostTakeover: false
     });
   }
 
@@ -2082,7 +2107,7 @@ async function hostTakeMicrophone() {
     return;
   }
 
-  if (isCurrentHostWithMic()) {
+  if (jamHostMicTakeoverActive) {
     await hostReleaseMicrophone();
     return;
   }
@@ -2103,6 +2128,7 @@ async function hostReleaseMicrophone() {
   if (!jamUser || !jamJoined) return;
 
   jamUser.isPerformer = false;
+  jamHostMicTakeoverActive = false;
 
   // Ważne:
   // Nie ruszamy isInQueue ani queueJoinedAt.
@@ -2412,6 +2438,7 @@ function initJamRoom() {
   jamUser.isInQueue = false;
   jamUser.isPerformer = false;
   jamUser.queueJoinedAt = 0;
+  jamHostMicTakeoverActive = false;
   saveJamUser();
 
   initSupabaseClient();
