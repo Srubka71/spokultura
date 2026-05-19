@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55A-3 — ROOM_STATE JAM_ACTIVE WRITE
+// ETAP 55A-4 — ROOM_STATE JAM_ACTIVE SOURCE OF TRUTH
 // Spokultura Jam Room #1
 // =======================
 
@@ -477,6 +477,19 @@ async function fetchJamRoomState() {
     jamRoomState = data;
     jamRoomStateReady = true;
 
+    const nextJamActive = Boolean(jamRoomState.jam_active);
+
+    if (jamActive !== nextJamActive) {
+      jamActive = nextJamActive;
+
+      showSystemInfo(
+        jamActive
+          ? "room_state: Jam ustawiony jako LIVE."
+          : "room_state: Jam ustawiony jako STOP.",
+        "success"
+      );
+    }
+
     console.log("[JAM ROOM_STATE] loaded:", jamRoomState);
 
     showSystemInfo("room_state odczytany.", "success");
@@ -513,12 +526,28 @@ function subscribeJamRoomState() {
       },
       (payload) => {
         if (payload && payload.new) {
+          const previousJamActive = Boolean(jamActive);
+
           jamRoomState = payload.new;
           jamRoomStateReady = true;
 
+          const nextJamActive = Boolean(jamRoomState.jam_active);
+
+          if (previousJamActive !== nextJamActive) {
+            jamActive = nextJamActive;
+
+            showSystemInfo(
+              jamActive
+                ? "room_state realtime: Jam LIVE."
+                : "room_state realtime: Jam STOP.",
+              "success"
+            );
+          } else {
+            showSystemInfo("room_state realtime update.", "success");
+          }
+
           console.log("[JAM ROOM_STATE] realtime update:", jamRoomState);
 
-          showSystemInfo("room_state realtime update.", "success");
           renderJamState();
         }
       }
