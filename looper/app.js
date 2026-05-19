@@ -1,23 +1,46 @@
-let currentAudio = new Audio();
+// =======================
+// ETAP 40C-3 — WEB AUDIO API LAB ENGINE / GITHUB CANDIDATE
+// Lokalna wersja testowa dla Spokultura Looper
+// =======================
+
+let audioContext = null;
+let masterGain = null;
+
+let currentSource = null;
+let currentGain = null;
+let currentBuffer = null;
 
 let currentBeat = null;
 let isPlaying = false;
 let currentButton = null;
 
+let currentStartedAt = 0;
+let currentOffset = 0;
+
 let loopTarget = "off";
 let loopCounter = 0;
+let finiteLoopTimer = null;
 let infoTimer = null;
 
 let loadBeatTimer = null;
 let loadBeatRequestId = 0;
+let webAudioRunId = 0;
 
 let autoPitchResetEnabled = false;
 
-let smoothLoopMonitor = null;
-let smoothLoopArmed = true;
+const audioBufferCache = new Map();
 
-const LOOP_END_OFFSET = 0.10;
-const AUTO_NEXT_OFFSET = 0.16;
+// =======================
+// WEB AUDIO SETTINGS
+// =======================
+
+const WEB_AUDIO_DEFAULT_LOOP_START = 0;
+const WEB_AUDIO_DEFAULT_LOOP_END_TRIM = 0.005;
+
+const WEB_AUDIO_MANUAL_FADE_MS = 0;
+const WEB_AUDIO_NEXT_BEAT_CROSSFADE_MS = 18;
+
+const WEB_AUDIO_PRELOAD_NEIGHBORS = true;
 
 // =======================
 // FORMSPREE ENDPOINTS
@@ -171,7 +194,449 @@ closeWelcomeBtn.addEventListener("click", () => {
 });
 
 // =======================
-// HELPERS
+// WEB AUDIO HELPERS
+// =======================
+
+async function ensureAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    masterGain = audioContext.createGain();
+    masterGain.gain.value = 1;
+    masterGain.connect(audioContext.destination);
+  }
+
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+}
+
+function getPitchRate() {
+  if (!pitch) return 1;
+
+  const value = parseFloat(pitch.value);
+
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+
+  return value;
+}
+
+function getLoopSettings(buffer, beat) {
+  const loopStart =
+    typeof beat.loopStart === "number"
+      ? beat.loopStart
+      : WEB_AUDIO_DEFAULT_LOOP_START;
+
+  const loopEndTrim =
+    typeof beat.loopEndTrim === "number"
+      ? beat.loopEndTrim
+      : WEB_AUDIO_DEFAULT_LOOP_END_TRIM;
+
+  const explicitLoopEnd =
+    typeof beat.loopEnd === "number"
+      ? beat.loopEnd
+      : null;
+
+  const loopEnd = explicitLoopEnd
+    ? explicitLoopEnd
+    : Math.max(loopStart + 0.1, buffer.duration - loopEndTrim);
+
+  return {
+    loopStart,
+    loopEnd,
+    loopEndTrim
+  };
+}
+
+async function loadAudioBuffer(beat) {
+  if (!beat || !beat.file) {
+    throw new Error("Beat nie ma pliku audio.");
+  }
+
+  if (audioBufferCache.has(beat.file)) {
+    return audioBufferCache.get(beat.file);
+  }
+
+  const response = await fetch(beat.file);
+
+  if (!response.ok) {
+    throw new Error(`Nie udało się pobrać pliku: ${beat.file}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+  audioBufferCache.set(beat.file, audioBuffer);
+
+  return audioBuffer;
+}
+
+function clearFiniteLoopTimer() {
+  if (finiteLoopTimer) {
+    clearTimeout(finiteLoopTimer);
+    finiteLoopTimer = null;
+  }
+}
+
+function stopSourceNode(sourceNode) {
+  if (!sourceNode) return;
+
+  try {
+    sourceNode.onended = null;
+    sourceNode.stop();
+  } catch (error) {
+    // Source mógł już być zatrzymany — ignorujemy.
+  }
+
+  try {
+    sourceNode.disconnect();
+  } catch (error) {
+    // Ignorujemy.
+  }
+}
+
+function disconnectGainNode(gainNode) {
+  if (!gainNode) return;
+
+  try {
+    gainNode.disconnect();
+  } catch (error) {
+    // Ignorujemy.
+  }
+}
+
+function stopCurrentWebAudioSource() {
+  clearFiniteLoopTimer();
+
+  stopSourceNode(currentSource);
+  disconnectGainNode(currentGain);
+
+  currentSource = null;
+  currentGain = null;
+}
+
+function stopWebAudioCompletely() {
+  webAudioRunId++;
+
+  stopCurrentWebAudioSource();
+
+  currentBuffer = null;
+  currentStartedAt = 0;
+  currentOffset = 0;
+  loopCounter = 0;
+}
+
+function getCurrentPlaybackOffset() {
+  if (!audioContext || !currentBeat || !currentBuffer) {
+    return currentOffset || 0;
+  }
+
+  if (!isPlaying || !currentSource) {
+    return currentOffset || 0;
+  }
+
+  const settings = getLoopSettings(currentBuffer, currentBeat);
+  const loopLength = settings.loopEnd - settings.loopStart;
+
+  if (loopLength <= 0) {
+    return 0;
+  }
+
+  const elapsed = (audioContext.currentTime - currentStartedAt) * getPitchRate();
+  const rawOffset = currentOffset + elapsed;
+
+  if (rawOffset < settings.loopEnd) {
+    return rawOffset;
+  }
+
+  return settings.loopStart + ((rawOffset - settings.loopStart) % loopLength);
+}
+
+function createWebAudioSource(buffer, beat) {
+  const settings = getLoopSettings(buffer, beat);
+
+  const source = audioContext.createBufferSource();
+  const gain = audioContext.createGain();
+
+  source.buffer = buffer;
+  source.loop = true;
+  source.loopStart = settings.loopStart;
+  source.loopEnd = settings.loopEnd;
+  source.playbackRate.value = getPitchRate();
+
+  gain.gain.value = 1;
+
+  source.connect(gain);
+  gain.connect(masterGain);
+
+  return {
+    source,
+    gain,
+    settings
+  };
+}
+
+function applyGainFade(gainNode, fromValue, toValue, startTime, durationSeconds) {
+  if (!gainNode) return;
+
+  try {
+    gainNode.gain.cancelScheduledValues(startTime);
+    gainNode.gain.setValueAtTime(fromValue, startTime);
+
+    if (durationSeconds > 0) {
+      gainNode.gain.linearRampToValueAtTime(toValue, startTime + durationSeconds);
+    } else {
+      gainNode.gain.setValueAtTime(toValue, startTime);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function scheduleFiniteLoopTransition(localRunId) {
+  clearFiniteLoopTimer();
+
+  if (loopTarget === "off") {
+    return;
+  }
+
+  if (!currentBuffer || !currentBeat || !audioContext || !isPlaying) {
+    return;
+  }
+
+  const targetLoopCount = parseInt(loopTarget, 10);
+
+  if (!targetLoopCount || targetLoopCount <= 0) {
+    return;
+  }
+
+  const settings = getLoopSettings(currentBuffer, currentBeat);
+  const loopLength = settings.loopEnd - settings.loopStart;
+  const rate = getPitchRate();
+
+  if (loopLength <= 0 || rate <= 0) {
+    return;
+  }
+
+  const currentPosition = getCurrentPlaybackOffset();
+
+  const firstPassRemaining =
+    Math.max(0, settings.loopEnd - currentPosition) / rate;
+
+  const extraPasses =
+    Math.max(0, targetLoopCount - 1) * (loopLength / rate);
+
+  const fadeSeconds = WEB_AUDIO_NEXT_BEAT_CROSSFADE_MS / 1000;
+
+  const transitionTimeSeconds = Math.max(
+    0,
+    firstPassRemaining + extraPasses - fadeSeconds
+  );
+
+  finiteLoopTimer = setTimeout(() => {
+    if (localRunId !== webAudioRunId) {
+      return;
+    }
+
+    loopCounter = targetLoopCount;
+    playNextAvailableBeat(true);
+  }, transitionTimeSeconds * 1000);
+}
+
+function getNeighborBeats(beat) {
+  const availableBeats = getAvailableBeats();
+
+  if (!availableBeats.length || !beat) {
+    return [];
+  }
+
+  const currentIndex = availableBeats.findIndex(
+    item => item.id === beat.id
+  );
+
+  if (currentIndex === -1) {
+    return [];
+  }
+
+  const previousIndex =
+    currentIndex > 0
+      ? currentIndex - 1
+      : availableBeats.length - 1;
+
+  const nextIndex =
+    currentIndex < availableBeats.length - 1
+      ? currentIndex + 1
+      : 0;
+
+  const neighbors = [
+    availableBeats[currentIndex],
+    availableBeats[nextIndex],
+    availableBeats[previousIndex]
+  ];
+
+  const uniqueNeighbors = [];
+
+  neighbors.forEach(item => {
+    if (
+      item &&
+      item.file &&
+      !uniqueNeighbors.some(existing => existing.id === item.id)
+    ) {
+      uniqueNeighbors.push(item);
+    }
+  });
+
+  return uniqueNeighbors;
+}
+
+async function preloadNeighborBeats(beat) {
+  if (!WEB_AUDIO_PRELOAD_NEIGHBORS || !audioContext || !beat) {
+    return;
+  }
+
+  const neighborBeats = getNeighborBeats(beat);
+
+  neighborBeats.forEach(item => {
+    loadAudioBuffer(item).catch(error => {
+      console.error(error);
+    });
+  });
+}
+
+async function startBeatWithWebAudio(beat, btn, options = {}) {
+  const {
+    offset = 0,
+    fadeMs = 0,
+    resetLoopCount = true,
+    requestId = loadBeatRequestId
+  } = options;
+
+  await ensureAudioContext();
+
+  const localRunId = ++webAudioRunId;
+
+  const oldSource = currentSource;
+  const oldGain = currentGain;
+
+  if (fadeMs <= 0) {
+    stopCurrentWebAudioSource();
+  } else {
+    clearFiniteLoopTimer();
+  }
+
+  const buffer = await loadAudioBuffer(beat);
+
+  if (requestId !== loadBeatRequestId) {
+    return;
+  }
+
+  if (localRunId !== webAudioRunId) {
+    return;
+  }
+
+  const node = createWebAudioSource(buffer, beat);
+  const now = audioContext.currentTime;
+  const fadeSeconds = Math.max(0, fadeMs / 1000);
+
+  const safeOffset = Math.max(
+    node.settings.loopStart,
+    Math.min(offset, node.settings.loopEnd - 0.001)
+  );
+
+  currentSource = node.source;
+  currentGain = node.gain;
+  currentBuffer = buffer;
+
+  currentStartedAt = now;
+  currentOffset = safeOffset;
+
+  currentBeat = beat;
+  currentButton = btn;
+
+  if (resetLoopCount) {
+    loopCounter = 0;
+  }
+
+  if (fadeMs > 0) {
+    applyGainFade(currentGain, 0, 1, now, fadeSeconds);
+  } else {
+    currentGain.gain.setValueAtTime(1, now);
+  }
+
+  currentSource.start(0, safeOffset);
+
+  if (fadeMs > 0 && oldGain && oldSource) {
+    applyGainFade(oldGain, oldGain.gain.value, 0, now, fadeSeconds);
+
+    setTimeout(() => {
+      stopSourceNode(oldSource);
+      disconnectGainNode(oldGain);
+    }, fadeMs + 40);
+  }
+
+  isPlaying = true;
+  stopBtn.innerText = "STOP";
+  setPlayingVisualState(true);
+
+  scheduleFiniteLoopTransition(localRunId);
+  preloadNeighborBeats(beat);
+
+  if (audioContext.state === "suspended") {
+    updateInfoBar("Kliknij START, żeby wznowić audio");
+  }
+}
+
+function pauseWebAudioPlayback() {
+  if (!isPlaying || !currentBeat) {
+    return;
+  }
+
+  currentOffset = getCurrentPlaybackOffset();
+
+  stopCurrentWebAudioSource();
+
+  isPlaying = false;
+  stopBtn.innerText = "START";
+
+  setPlayingVisualState(false);
+  updateInfoBar("STOP");
+}
+
+async function resumeWebAudioPlayback() {
+  if (!currentBeat) {
+    return;
+  }
+
+  await startBeatWithWebAudio(currentBeat, currentButton, {
+    offset: currentOffset,
+    fadeMs: 0,
+    resetLoopCount: false
+  });
+
+  updateInfoBar("START");
+}
+
+async function restartWebAudioPlayback() {
+  if (!currentBeat) {
+    return;
+  }
+
+  currentOffset = 0;
+  loopCounter = 0;
+
+  await startBeatWithWebAudio(currentBeat, currentButton, {
+    offset: 0,
+    fadeMs: 0,
+    resetLoopCount: true
+  });
+
+  updateInfoBar("RESTART");
+}
+
+// =======================
+// GENERAL HELPERS
 // =======================
 
 function setPlayingVisualState(isActive) {
@@ -182,29 +647,8 @@ function setPlayingVisualState(isActive) {
   }
 }
 
-function stopSmoothLoopMonitor() {
-  if (smoothLoopMonitor) {
-    clearInterval(smoothLoopMonitor);
-    smoothLoopMonitor = null;
-  }
-}
-
-function stopAudioInstance(audio) {
-  if (!audio) return;
-
-  try {
-    audio.pause();
-    audio.currentTime = 0;
-    audio.removeAttribute("src");
-    audio.load();
-  } catch (error) {
-    console.error(error);
-  }
-}
-
 function stopAndResetCurrentAudio() {
-  stopSmoothLoopMonitor();
-  stopAudioInstance(currentAudio);
+  stopWebAudioCompletely();
 }
 
 function cancelPendingBeatLoad() {
@@ -353,7 +797,7 @@ function updateBpmDisplay() {
     return;
   }
 
-  const rate = parseFloat(pitch.value);
+  const rate = getPitchRate();
   const calculatedBpm = currentBeat.bpm * rate;
 
   bpm.innerText = `BPM: ${calculatedBpm.toFixed(2)}`;
@@ -383,7 +827,7 @@ function stopPlaybackCompletely() {
   stopBtn.innerText = "START";
 
   loopCounter = 0;
-  smoothLoopArmed = true;
+  currentOffset = 0;
 
   setPlayingVisualState(false);
   updateInfoBar("Koniec playlisty");
@@ -1103,8 +1547,58 @@ allBeats.forEach((beat) => {
 });
 
 // =======================
-// LOAD BEAT
+// LOAD BEAT — WEB AUDIO
 // =======================
+
+function updateBeatVisuals(beat, btn, requestId) {
+  resetActiveButtons();
+
+  if (img) {
+    img.src = beat.image || "";
+  }
+
+  if (title) {
+    title.innerText = beat.title || "";
+  }
+
+  if (producer) {
+    producer.innerText = beat.producer || "";
+  }
+
+  updateBpmDisplay();
+  updateVotePanel();
+
+  if (btn) {
+    btn.classList.add("active");
+  }
+
+  setTimeout(() => {
+    if (requestId === loadBeatRequestId && img) {
+      img.classList.remove("changing");
+    }
+  }, 60);
+
+  const coverPanel = document.querySelector(".cover-panel");
+  const infoBar = document.querySelector(".info-bar");
+
+  if (coverPanel) {
+    coverPanel.classList.remove("active-cover");
+  }
+
+  if (infoBar) {
+    infoBar.classList.remove("active-info");
+  }
+
+  if (coverPanel) {
+    void coverPanel.offsetWidth;
+    coverPanel.classList.add("active-cover");
+  }
+
+  if (infoBar) {
+    void infoBar.offsetWidth;
+    infoBar.classList.add("active-info");
+  }
+}
 
 function loadBeat(beat, btn, isAutoTransition = false) {
   loadBeatRequestId++;
@@ -1113,24 +1607,36 @@ function loadBeat(beat, btn, isAutoTransition = false) {
 
   cancelPendingBeatLoad();
 
-  resetActiveButtons();
+  const shouldCrossfade =
+    isAutoTransition &&
+    isPlaying &&
+    currentSource &&
+    currentGain;
 
-  stopAndResetCurrentAudio();
+  const fadeMs = shouldCrossfade
+    ? WEB_AUDIO_NEXT_BEAT_CROSSFADE_MS
+    : WEB_AUDIO_MANUAL_FADE_MS;
 
-  loopCounter = 0;
-  smoothLoopArmed = true;
-
-  currentBeat = beat;
-  currentButton = btn;
+  if (!shouldCrossfade) {
+    stopAndResetCurrentAudio();
+  }
 
   if (autoPitchResetEnabled) {
     resetPitchToZero(false);
   }
 
+  currentBeat = beat;
+  currentButton = btn;
+  currentOffset = 0;
+
+  loopCounter = 0;
+
   isPlaying = false;
   stopBtn.innerText = "START";
 
-  setPlayingVisualState(false);
+  if (!shouldCrossfade) {
+    setPlayingVisualState(false);
+  }
 
   clearInfoBar();
   updateVotePanel();
@@ -1139,9 +1645,6 @@ function loadBeat(beat, btn, isAutoTransition = false) {
     img.classList.add("changing");
   }
 
-  const coverPanel = document.querySelector(".cover-panel");
-  const infoBar = document.querySelector(".info-bar");
-
   const loadDelay = isAutoTransition ? 0 : 220;
 
   loadBeatTimer = setTimeout(() => {
@@ -1149,221 +1652,43 @@ function loadBeat(beat, btn, isAutoTransition = false) {
       return;
     }
 
-    const nextAudio = new Audio(beat.file);
+    updateBeatVisuals(beat, btn, requestId);
 
-    currentAudio = nextAudio;
+    startBeatWithWebAudio(beat, btn, {
+      offset: 0,
+      fadeMs: fadeMs,
+      resetLoopCount: true,
+      requestId: requestId
+    })
+      .then(() => {
+        if (requestId !== loadBeatRequestId) {
+          return;
+        }
 
-    currentAudio.loop = loopTarget === "off";
-    currentAudio.playbackRate = parseFloat(pitch.value);
+        isPlaying = true;
+        stopBtn.innerText = "STOP";
 
-    currentAudio.addEventListener("ended", () => {
-      if (currentAudio !== nextAudio) {
-        return;
-      }
+        setPlayingVisualState(true);
+      })
+      .catch((error) => {
+        console.error(error);
 
-      handleBeatEnded();
-    });
+        if (requestId === loadBeatRequestId) {
+          isPlaying = false;
+          stopBtn.innerText = "START";
 
-    startSmoothLoopMonitor(nextAudio);
-
-    const playPromise = currentAudio.play();
-
-    if (playPromise && typeof playPromise.then === "function") {
-      playPromise
-        .then(() => {
-          if (requestId !== loadBeatRequestId) {
-            stopAudioInstance(nextAudio);
-            return;
-          }
-
-          isPlaying = true;
-          stopBtn.innerText = "STOP";
-
-          setPlayingVisualState(true);
-        })
-        .catch((error) => {
-          console.error(error);
-
-          if (requestId === loadBeatRequestId) {
-            isPlaying = false;
-            stopBtn.innerText = "START";
-
-            setPlayingVisualState(false);
-            updateInfoBar("Nie udało się uruchomić beatu");
-          }
-        });
-    } else {
-      isPlaying = true;
-      stopBtn.innerText = "STOP";
-
-      setPlayingVisualState(true);
-    }
-
-    if (img) {
-      img.src = beat.image || "";
-    }
-
-    if (title) {
-      title.innerText = beat.title || "";
-    }
-
-    if (producer) {
-      producer.innerText = beat.producer || "";
-    }
-
-    updateBpmDisplay();
-    updateVotePanel();
-
-    btn.classList.add("active");
-
-    setTimeout(() => {
-      if (requestId === loadBeatRequestId && img) {
-        img.classList.remove("changing");
-      }
-    }, 60);
-
-    if (coverPanel) {
-      coverPanel.classList.remove("active-cover");
-    }
-
-    if (infoBar) {
-      infoBar.classList.remove("active-info");
-    }
-
-    if (coverPanel) {
-      void coverPanel.offsetWidth;
-      coverPanel.classList.add("active-cover");
-    }
-
-    if (infoBar) {
-      void infoBar.offsetWidth;
-      infoBar.classList.add("active-info");
-    }
+          setPlayingVisualState(false);
+          updateInfoBar("Nie udało się uruchomić beatu");
+        }
+      });
 
     loadBeatTimer = null;
   }, loadDelay);
 }
 
 // =======================
-// SMOOTH LOOP / TRANSITION ENGINE
+// LOOP ENGINE — WEB AUDIO
 // =======================
-
-function startSmoothLoopMonitor(audio) {
-  stopSmoothLoopMonitor();
-
-  smoothLoopArmed = true;
-
-  smoothLoopMonitor = setInterval(() => {
-    handleSmoothLoopProgress(audio);
-  }, 30);
-}
-
-function handleSmoothLoopProgress(audio) {
-  if (!audio || audio !== currentAudio) return;
-  if (!currentBeat || !audio.src) return;
-  if (audio.paused) return;
-  if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
-
-  const remaining = audio.duration - audio.currentTime;
-
-  if (remaining < 0) return;
-
-  if (!smoothLoopArmed) {
-    if (remaining > 0.45) {
-      smoothLoopArmed = true;
-    }
-
-    return;
-  }
-
-  if (loopTarget === "off") {
-    if (remaining <= LOOP_END_OFFSET) {
-      smoothLoopArmed = false;
-      loopCounter = 0;
-
-      try {
-        audio.currentTime = 0;
-
-        const playPromise = audio.play();
-
-        if (playPromise && typeof playPromise.catch === "function") {
-          playPromise.catch(error => {
-            console.error(error);
-          });
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    return;
-  }
-
-  const targetLoopCount = parseInt(loopTarget, 10);
-
-  if (!targetLoopCount || targetLoopCount <= 0) {
-    return;
-  }
-
-  const shouldGoNextAfterThisPass =
-    loopCounter + 1 >= targetLoopCount;
-
-  const activeOffset =
-    shouldGoNextAfterThisPass
-      ? AUTO_NEXT_OFFSET
-      : LOOP_END_OFFSET;
-
-  if (remaining > activeOffset) {
-    return;
-  }
-
-  smoothLoopArmed = false;
-  loopCounter++;
-
-  if (loopCounter < targetLoopCount) {
-    try {
-      audio.currentTime = 0;
-
-      const playPromise = audio.play();
-
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(error => {
-          console.error(error);
-        });
-      }
-    } catch (error) {
-      console.error(error);
-    }
-
-    return;
-  }
-
-  playNextAvailableBeat(true);
-}
-
-// =======================
-// LOOP ENGINE
-// =======================
-
-function handleBeatEnded() {
-  if (!currentAudio || !currentAudio.src) return;
-
-  if (loopTarget === "off") {
-    currentAudio.currentTime = 0;
-    currentAudio.play();
-    return;
-  }
-
-  loopCounter++;
-
-  if (loopCounter < loopTarget) {
-    currentAudio.currentTime = 0;
-    currentAudio.play();
-    return;
-  }
-
-  playNextAvailableBeat(true);
-}
 
 function playNextAvailableBeat(isAutoTransition = false) {
   const availableBeats = getAvailableBeats();
@@ -1446,12 +1771,12 @@ document.querySelectorAll(".loop-btn").forEach(button => {
       updateInfoBar(`Loop ${loopTarget}x`);
     }
 
-    if (currentAudio && currentAudio.src) {
-      currentAudio.loop = loopTarget === "off";
-    }
-
     loopCounter = 0;
-    smoothLoopArmed = true;
+
+    if (isPlaying && currentBeat) {
+      const localRunId = webAudioRunId;
+      scheduleFiniteLoopTransition(localRunId);
+    }
   });
 });
 
@@ -1460,24 +1785,15 @@ document.querySelectorAll(".loop-btn").forEach(button => {
 // =======================
 
 stopBtn.addEventListener("click", () => {
-  if (!currentAudio.src) return;
+  if (!currentBeat) return;
 
   if (isPlaying) {
-    currentAudio.pause();
-
-    isPlaying = false;
-    stopBtn.innerText = "START";
-
-    setPlayingVisualState(false);
-    updateInfoBar("STOP");
+    pauseWebAudioPlayback();
   } else {
-    currentAudio.play();
-
-    isPlaying = true;
-    stopBtn.innerText = "STOP";
-
-    setPlayingVisualState(true);
-    updateInfoBar("START");
+    resumeWebAudioPlayback().catch((error) => {
+      console.error(error);
+      updateInfoBar("Nie udało się wznowić beatu");
+    });
   }
 });
 
@@ -1486,19 +1802,12 @@ stopBtn.addEventListener("click", () => {
 // =======================
 
 restartBtn.addEventListener("click", () => {
-  if (!currentAudio.src) return;
+  if (!currentBeat) return;
 
-  loopCounter = 0;
-  smoothLoopArmed = true;
-
-  currentAudio.currentTime = 0;
-  currentAudio.play();
-
-  isPlaying = true;
-  stopBtn.innerText = "STOP";
-
-  setPlayingVisualState(true);
-  updateInfoBar("RESTART");
+  restartWebAudioPlayback().catch((error) => {
+    console.error(error);
+    updateInfoBar("Nie udało się zrobić restartu");
+  });
 });
 
 // =======================
@@ -1506,10 +1815,15 @@ restartBtn.addEventListener("click", () => {
 // =======================
 
 pitch.addEventListener("input", () => {
-  const value = parseFloat(pitch.value);
+  const value = getPitchRate();
 
-  if (currentAudio) {
-    currentAudio.playbackRate = value;
+  if (currentSource) {
+    currentSource.playbackRate.value = value;
+  }
+
+  if (isPlaying && currentBeat) {
+    const localRunId = webAudioRunId;
+    scheduleFiniteLoopTransition(localRunId);
   }
 
   const percent = ((value - 1) * 10).toFixed(2);
@@ -1522,7 +1836,7 @@ pitch.addEventListener("input", () => {
 });
 
 function setPitch(delta) {
-  let value = parseFloat(pitch.value) + delta;
+  let value = getPitchRate() + delta;
 
   value = Math.max(
     0.80,
@@ -1825,6 +2139,22 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     setPitch(-0.025);
     updateInfoBar("Pitch -0.25");
+  }
+});
+
+// =======================
+// PAGE VISIBILITY
+// =======================
+
+document.addEventListener("visibilitychange", () => {
+  if (!audioContext) return;
+
+  if (document.visibilityState === "visible") {
+    if (audioContext.state === "suspended" && isPlaying) {
+      audioContext.resume().catch(error => {
+        console.error(error);
+      });
+    }
   }
 });
 
