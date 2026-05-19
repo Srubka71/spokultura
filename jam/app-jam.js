@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55A-4 — ROOM_STATE JAM_ACTIVE SOURCE OF TRUTH
+// ETAP 55A-4B — ROOM_STATE AUTO-RESYNC
 // Spokultura Jam Room #1
 // =======================
 
@@ -26,6 +26,9 @@ const JAM_SPAM_ESCALATION_WINDOW_MS = 4 * 60 * 1000;
 const JAM_ACTION_LOCK_MS = 850;
 const JAM_ACTION_MIN_INTERVAL_MS = 650;
 
+const JAM_ROOM_STATE_RESYNC_MS = 3500;
+const JAM_ROOM_STATE_FOCUS_RESYNC_COOLDOWN_MS = 1200;
+
 const JAM_SPAM_BLOCK_LEVELS_MS = [
   60 * 1000,
   2 * 60 * 1000,
@@ -51,6 +54,8 @@ let jamRoomStateChannel = null;
 
 let jamRoomState = null;
 let jamRoomStateReady = false;
+let jamRoomStateResyncTimer = null;
+let jamLastRoomStateFocusResyncAt = 0;
 
 let jamUser = null;
 let jamJoined = false;
@@ -458,8 +463,11 @@ function schedulePresenceLeaveNotice(presence) {
 // ROOM_STATE READ / WRITE
 // =======================
 
-async function fetchJamRoomState() {
+async function fetchJamRoomState(options = {}) {
   if (!jamSupabaseClient) return;
+
+  const silent = Boolean(options.silent);
+  const reason = options.reason || "manual";
 
   try {
     const { data, error } = await jamSupabaseClient
@@ -470,7 +478,11 @@ async function fetchJamRoomState() {
 
     if (error) {
       console.error("[JAM ROOM_STATE] fetch error:", error);
-      showSystemInfo("room_state: błąd odczytu.", "warn");
+
+      if (!silent) {
+        showSystemInfo("room_state: błąd odczytu.", "warn");
+      }
+
       return;
     }
 
@@ -478,25 +490,36 @@ async function fetchJamRoomState() {
     jamRoomStateReady = true;
 
     const nextJamActive = Boolean(jamRoomState.jam_active);
+    const jamActiveChanged = jamActive !== nextJamActive;
 
-    if (jamActive !== nextJamActive) {
+    if (jamActiveChanged) {
       jamActive = nextJamActive;
 
       showSystemInfo(
         jamActive
-          ? "room_state: Jam ustawiony jako LIVE."
-          : "room_state: Jam ustawiony jako STOP.",
+          ? "room_state: Jam LIVE."
+          : "room_state: Jam STOP.",
         "success"
       );
+    } else if (!silent) {
+      showSystemInfo("room_state odczytany.", "success");
     }
 
-    console.log("[JAM ROOM_STATE] loaded:", jamRoomState);
+    console.log("[JAM ROOM_STATE] fetch:", {
+      reason,
+      silent,
+      jam_active: jamRoomState.jam_active,
+      updated_at: jamRoomState.updated_at,
+      updated_by_nick: jamRoomState.updated_by_nick
+    });
 
-    showSystemInfo("room_state odczytany.", "success");
     renderJamState();
   } catch (error) {
     console.error("[JAM ROOM_STATE] fetch exception:", error);
-    showSystemInfo("room_state: błąd połączenia.", "warn");
+
+    if (!silent) {
+      showSystemInfo("room_state: błąd połączenia.", "warn");
+    }
   }
 }
 
@@ -532,8 +555,9 @@ function subscribeJamRoomState() {
           jamRoomStateReady = true;
 
           const nextJamActive = Boolean(jamRoomState.jam_active);
+          const jamActiveChanged = previousJamActive !== nextJamActive;
 
-          if (previousJamActive !== nextJamActive) {
+          if (jamActiveChanged) {
             jamActive = nextJamActive;
 
             showSystemInfo(
@@ -542,11 +566,14 @@ function subscribeJamRoomState() {
                 : "room_state realtime: Jam STOP.",
               "success"
             );
-          } else {
-            showSystemInfo("room_state realtime update.", "success");
           }
 
-          console.log("[JAM ROOM_STATE] realtime update:", jamRoomState);
+          console.log("[JAM ROOM_STATE] realtime update:", {
+            jam_active: jamRoomState.jam_active,
+            updated_at: jamRoomState.updated_at,
+            updated_by_nick: jamRoomState.updated_by_nick,
+            changed: jamActiveChanged
+          });
 
           renderJamState();
         }
@@ -577,8 +604,55 @@ function subscribeJamRoomState() {
 function initJamRoomStateReadOnly() {
   if (!jamSupabaseClient) return;
 
-  fetchJamRoomState();
+  fetchJamRoomState({
+    silent: false,
+    reason: "init"
+  });
+
   subscribeJamRoomState();
+  startJamRoomStateAutoResync();
+}
+
+function startJamRoomStateAutoResync() {
+  if (jamRoomStateResyncTimer) {
+    clearInterval(jamRoomStateResyncTimer);
+    jamRoomStateResyncTimer = null;
+  }
+
+  jamRoomStateResyncTimer = setInterval(() => {
+    fetchJamRoomState({
+      silent: true,
+      reason: "interval"
+    });
+  }, JAM_ROOM_STATE_RESYNC_MS);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      resyncJamRoomStateAfterFocus("visibilitychange");
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    resyncJamRoomStateAfterFocus("focus");
+  });
+}
+
+function resyncJamRoomStateAfterFocus(reason) {
+  const now = Date.now();
+
+  if (
+    now - jamLastRoomStateFocusResyncAt <
+    JAM_ROOM_STATE_FOCUS_RESYNC_COOLDOWN_MS
+  ) {
+    return;
+  }
+
+  jamLastRoomStateFocusResyncAt = now;
+
+  fetchJamRoomState({
+    silent: true,
+    reason: reason
+  });
 }
 
 async function saveJamActiveToRoomState(nextJamActive) {
