@@ -1,5 +1,5 @@
 // =======================
-// ETAP 53A-5 — MICROPHONE QUEUE ORDER FIX
+// ETAP 53A-6 — STABLE MICROPHONE QUEUE + HOST PICK MODAL
 // Spokultura Jam Room #1
 // =======================
 
@@ -8,7 +8,11 @@ const JAM_LOCAL_NICK_KEY = "spokulturaJamNick";
 const JAM_SPAM_STATE_KEY = "spokulturaJamSpamState";
 
 const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
-const SUPABASE_ANON_KEY_STABLE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
+const SUPABASE_ANON_KEY_STABLE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
+
+// UWAGA:
+// Jeśli po tej podmianie Supabase przestanie działać, użyj poprzedniego klucza z działającego pliku.
+// Powyżej jest standardowy stały klucz projektu, ale w razie literówki najłatwiej wrócić do ostatniego działającego ANON KEY.
 
 const JAM_ROOM_CHANNEL = "spokultura_jam_room_1";
 
@@ -309,6 +313,10 @@ function getQueueUserAfter(sessionId) {
   return jamQueue[nextIndex];
 }
 
+function getOnlineUserBySession(sessionId) {
+  return jamOnlineUsers.find((user) => user.sessionId === sessionId) || null;
+}
+
 function sessionIsCurrentlyOnline(sessionId) {
   return jamOnlineUsers.some((user) => user.sessionId === sessionId);
 }
@@ -542,6 +550,115 @@ function showInfoNotification(message, type = "default", duration = 3200) {
 
 function showSystemInfo(message, type = "default") {
   showInfoNotification(message, type);
+}
+
+// =======================
+// HOST PICK MODAL
+// =======================
+
+function ensureHostPickMicModal() {
+  let modal = qs("#jamHostPickMicModal");
+
+  if (modal) {
+    return modal;
+  }
+
+  modal = document.createElement("div");
+  modal.id = "jamHostPickMicModal";
+  modal.className = "jam-modal hidden";
+
+  modal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Przekaż mikrofon</h2>
+
+      <p>
+        Wybierz osobę, której Host ma przekazać mikrofon. Osoba zostanie dodana do kolejki,
+        jeśli jeszcze jej tam nie ma.
+      </p>
+
+      <div id="jamHostPickMicList" class="jam-list"></div>
+
+      <div class="jam-modal-actions">
+        <button id="closeHostPickMicModalBtn" class="jam-btn" type="button">
+          ANULUJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeBtn = modal.querySelector("#closeHostPickMicModalBtn");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeHostPickMicModal();
+    });
+  }
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      closeHostPickMicModal();
+    }
+  });
+
+  return modal;
+}
+
+function openHostPickMicModal() {
+  const modal = ensureHostPickMicModal();
+  const list = modal.querySelector("#jamHostPickMicList");
+
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  const candidates = jamOnlineUsers.filter((user) => {
+    return user.sessionId !== JAM_SESSION_ID;
+  });
+
+  if (!candidates.length) {
+    const emptyRow = createElement(
+      "div",
+      "jam-user-row",
+      "Brak innych osób online"
+    );
+
+    list.appendChild(emptyRow);
+  } else {
+    candidates.forEach((user) => {
+      const row = createElement("button", "jam-btn", "");
+
+      row.type = "button";
+      row.style.width = "100%";
+      row.style.justifyContent = "space-between";
+      row.style.marginBottom = "8px";
+      row.innerText = `${user.nick} — ${user.role || "Listener"}`;
+
+      row.addEventListener("click", async () => {
+        closeHostPickMicModal();
+
+        await assignPerformer({
+          id: user.userId,
+          sessionId: user.sessionId,
+          nick: user.nick,
+          joinedAt: user.queueJoinedAt || Date.now()
+        }, "Host");
+      });
+
+      list.appendChild(row);
+    });
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function closeHostPickMicModal() {
+  const modal = qs("#jamHostPickMicModal");
+
+  if (modal) {
+    modal.classList.add("hidden");
+  }
 }
 
 // =======================
@@ -1098,6 +1215,29 @@ function handleRealtimeJamStatus(payload) {
   renderJamState();
 }
 
+function handleRealtimeQueueRequest(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  if (payload.session_id === JAM_SESSION_ID) {
+    return;
+  }
+
+  if (payload.is_host_request) {
+    showSystemInfo(`${payload.nick || "Host"} prosi o głos.`, "success");
+  } else {
+    showSystemInfo(`${payload.nick || "Użytkownik"} dołączył do kolejki mikrofonu.`, "success");
+  }
+
+  updatePresenceStateFromChannel();
+  renderJamState();
+}
+
 async function handleRealtimePerformerStatus(payload) {
   if (!payload || !payload.message_id) return;
 
@@ -1141,7 +1281,7 @@ async function handleRealtimePerformerStatus(payload) {
     };
 
     if (isHostRequest) {
-      showSystemInfo(`${payload.nick || "Host"} prosi o głos.`, "success");
+      showSystemInfo(`${payload.nick || "Host"} ma teraz głos.`, "success");
     } else {
       showSystemInfo(`${payload.nick || "Użytkownik"} ma teraz mikrofon.`, "success");
     }
@@ -1229,6 +1369,9 @@ function connectPresence() {
     .on("broadcast", { event: "reaction" }, ({ payload }) => {
       handleRealtimeReaction(payload);
     })
+    .on("broadcast", { event: "queue_request" }, ({ payload }) => {
+      handleRealtimeQueueRequest(payload);
+    })
     .on("broadcast", { event: "jam_status" }, ({ payload }) => {
       handleRealtimeJamStatus(payload);
     })
@@ -1250,10 +1393,6 @@ function connectPresence() {
 
       if (status === "TIMED_OUT") {
         showSystemInfo("Realtime timeout — spróbuj odświeżyć stronę.", "warn");
-      }
-
-      if (status === "CLOSED") {
-        showSystemInfo("Realtime rozłączony.", "warn");
       }
     });
 }
@@ -1803,7 +1942,7 @@ async function assignPerformer(targetUser, sourceLabel = "Host") {
   };
 
   if (targetIsHost) {
-    showSystemInfo(`${sourceLabel}: Host prosi o głos.`, "success");
+    showSystemInfo(`${sourceLabel}: Host ma teraz głos.`, "success");
   } else {
     showSystemInfo(`${sourceLabel}: mikrofon przechodzi do ${targetUser.nick}.`, "success");
   }
@@ -1868,8 +2007,6 @@ async function hostTakeMicrophone() {
     nick: jamUser.nick,
     joinedAt: jamUser.queueJoinedAt
   }, "Host");
-
-  showSystemInfo("Host przejął głos.", "success");
 }
 
 async function hostPassMicrophoneNext() {
@@ -1883,18 +2020,7 @@ async function hostPassMicrophoneNext() {
     return;
   }
 
-  const currentSessionId = jamCurrentPerformer
-    ? jamCurrentPerformer.sessionId
-    : null;
-
-  const nextUser = getQueueUserAfter(currentSessionId);
-
-  if (!nextUser) {
-    showSystemInfo("Nie ma kolejnej osoby w kolejce.", "warn");
-    return;
-  }
-
-  await assignPerformer(nextUser, "Host");
+  openHostPickMicModal();
 }
 
 async function toggleJamActive() {
@@ -2128,6 +2254,7 @@ function bindJamEvents() {
     if (event.key === "Escape") {
       closeHeadphonesModal();
       closeSpamModal();
+      closeHostPickMicModal();
     }
   });
 
@@ -2151,6 +2278,7 @@ function initJamRoom() {
   initSupabaseClient();
   ensureSpamModal();
   ensureInfoNotification();
+  ensureHostPickMicModal();
 
   showSystemInfo("Jam Room gotowy.");
 
