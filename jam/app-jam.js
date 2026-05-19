@@ -1,5 +1,5 @@
 // =======================
-// ETAP 53A-10 — CIRCULAR PERFORMER HANDOFF
+// ETAP 53A-11 — SEPARATE LEAVE QUEUE / PASS MIC / HOST TAKEOVER RESTORE
 // Spokultura Jam Room #1
 // =======================
 
@@ -11,6 +11,7 @@ const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
 const SUPABASE_ANON_KEY_STABLE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
 
 const JAM_ROOM_CHANNEL = "spokultura_jam_room_1";
+
 const JAM_SESSION_ID =
   "session_" +
   Date.now().toString(36) +
@@ -19,6 +20,7 @@ const JAM_SESSION_ID =
 
 const JAM_PRESENCE_LEAVE_DEBOUNCE_MS = 1800;
 const JAM_SPAM_ESCALATION_WINDOW_MS = 4 * 60 * 1000;
+const JAM_ACTION_LOCK_MS = 700;
 
 const JAM_SPAM_BLOCK_LEVELS_MS = [
   60 * 1000,
@@ -51,12 +53,17 @@ let jamQueue = [];
 let jamOnlineUsers = [];
 let jamCurrentPerformer = null;
 let jamMicRequested = false;
+
 let jamHostMicTakeoverActive = false;
+let jamHostTakeoverPreviousPerformer = null;
+
+let jamActionLocked = false;
 
 let jamLastChatText = "";
 let jamLastChatAt = 0;
 let jamLastReactionText = "";
 let jamLastReactionAt = 0;
+
 let jamRecentChatTimes = [];
 let jamRecentReactionTimes = [];
 
@@ -116,6 +123,28 @@ function createMessageId() {
     "_" +
     Math.random().toString(36).slice(2)
   );
+}
+
+async function runLockedAction(action) {
+  if (jamActionLocked) {
+    showSystemInfo("Poczekaj chwilę — synchronizuję akcję.", "warn");
+    return;
+  }
+
+  jamActionLocked = true;
+  renderJamState();
+
+  try {
+    await action();
+  } catch (error) {
+    console.error(error);
+    showSystemInfo("Wystąpił błąd akcji. Spróbuj ponownie.", "warn");
+  } finally {
+    setTimeout(() => {
+      jamActionLocked = false;
+      renderJamState();
+    }, JAM_ACTION_LOCK_MS);
+  }
 }
 
 // =======================
@@ -286,6 +315,14 @@ function getFirstQueueUser() {
   return jamQueue[0];
 }
 
+function getFirstQueueUserExcept(sessionId) {
+  if (!jamQueue.length) return null;
+
+  return jamQueue.find((user) => {
+    return user.sessionId !== sessionId;
+  }) || null;
+}
+
 function getQueueUserAfter(sessionId) {
   if (!jamQueue.length) return null;
 
@@ -311,7 +348,37 @@ function getQueueUserAfter(sessionId) {
 }
 
 function sessionIsCurrentlyOnline(sessionId) {
-  return jamOnlineUsers.some((user) => user.sessionId === sessionId);
+  return jamOnlineUsers.some((user) => {
+    return user.sessionId === sessionId;
+  });
+}
+
+function sessionIsCurrentlyQueued(sessionId) {
+  return jamQueue.some((user) => {
+    return user.sessionId === sessionId;
+  });
+}
+
+function getRestorablePreviousPerformer() {
+  if (!jamHostTakeoverPreviousPerformer) {
+    return null;
+  }
+
+  const previousSessionId = jamHostTakeoverPreviousPerformer.sessionId;
+
+  if (!sessionIsCurrentlyOnline(previousSessionId)) {
+    return null;
+  }
+
+  const queuedVersion = jamQueue.find((user) => {
+    return user.sessionId === previousSessionId;
+  });
+
+  if (queuedVersion) {
+    return queuedVersion;
+  }
+
+  return jamHostTakeoverPreviousPerformer;
 }
 
 function clearPendingLeaveNotice(sessionId) {
@@ -627,18 +694,20 @@ function openHostPickMicModal() {
       row.style.marginBottom = "8px";
       row.innerText = `${user.nick} — ${user.role || "Listener"}`;
 
-      row.addEventListener("click", async () => {
-        closeHostPickMicModal();
+      row.addEventListener("click", () => {
+        runLockedAction(async () => {
+          closeHostPickMicModal();
 
-        await assignPerformer({
-          id: user.userId,
-          sessionId: user.sessionId,
-          nick: user.nick,
-          joinedAt: user.queueJoinedAt || Date.now()
-        }, "Host", {
-          addToQueue: true,
-          preserveQueue: true,
-          hostTakeover: false
+          await assignPerformer({
+            id: user.userId,
+            sessionId: user.sessionId,
+            nick: user.nick,
+            joinedAt: user.queueJoinedAt || Date.now()
+          }, "Host", {
+            addToQueue: true,
+            preserveQueue: true,
+            hostTakeover: false
+          });
         });
       });
 
@@ -1580,10 +1649,14 @@ function renderCurrentPerformer() {
 }
 
 function updateButtons() {
+  const disabled = jamActionLocked;
+
   if (joinRoomBtn) {
     joinRoomBtn.innerText = jamJoined
       ? "OPUŚĆ POKÓJ"
       : "DOŁĄCZ DO POKOJU";
+
+    joinRoomBtn.disabled = disabled;
   }
 
   if (requestMicBtn) {
@@ -1592,18 +1665,40 @@ function updateButtons() {
     } else {
       requestMicBtn.innerText = "POPROŚ O MIKROFON";
     }
+
+    requestMicBtn.disabled = disabled;
   }
 
   if (startJamBtn) {
     startJamBtn.innerText = jamActive
       ? "ZAKOŃCZ JAM"
       : "START JAM";
+
+    startJamBtn.disabled = disabled;
   }
 
   if (hostTakeMicBtn) {
     hostTakeMicBtn.innerText = jamHostMicTakeoverActive
       ? "WYŁĄCZ MIKROFON"
       : "PRZEJMIJ MIKROFON";
+
+    hostTakeMicBtn.disabled = disabled;
+  }
+
+  if (hostPassMicBtn) {
+    hostPassMicBtn.disabled = disabled;
+  }
+
+  if (skipPerformerBtn) {
+    skipPerformerBtn.disabled = disabled;
+  }
+
+  if (performerPassNextBtn) {
+    performerPassNextBtn.disabled = disabled;
+  }
+
+  if (performerBackToListeningBtn) {
+    performerBackToListeningBtn.disabled = disabled;
   }
 }
 
@@ -1740,6 +1835,7 @@ function resetLocalRoomState() {
   jamMicRequested = false;
   jamRealtimeReady = false;
   jamHostMicTakeoverActive = false;
+  jamHostTakeoverPreviousPerformer = null;
 
   if (jamUser) {
     jamUser.isInQueue = false;
@@ -1768,6 +1864,7 @@ function joinRoom() {
   jamJoined = true;
   jamRealtimeReady = false;
   jamHostMicTakeoverActive = false;
+  jamHostTakeoverPreviousPerformer = null;
 
   jamUser.role = "Listener";
   jamUser.joinedAt = Date.now();
@@ -1811,7 +1908,7 @@ async function leaveRoom() {
   const leavingNick = jamUser && jamUser.nick ? jamUser.nick : "Użytkownik";
 
   if (jamUser && jamUser.isPerformer) {
-    await returnToListening(false);
+    await leaveQueueCompletely(false);
   }
 
   await disconnectPresence();
@@ -1826,25 +1923,29 @@ async function leaveRoom() {
 }
 
 function toggleRoom() {
-  if (jamJoined) {
-    leaveRoom();
-  } else {
-    joinRoom();
-  }
+  runLockedAction(async () => {
+    if (jamJoined) {
+      await leaveRoom();
+    } else {
+      joinRoom();
+    }
+  });
 }
 
 function requestMicrophone() {
-  if (!jamJoined) {
-    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-    return;
-  }
+  runLockedAction(async () => {
+    if (!jamJoined) {
+      showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+      return;
+    }
 
-  if (isCurrentUserPerformer() || (jamUser && jamUser.isInQueue)) {
-    returnToListening(true);
-    return;
-  }
+    if (isCurrentUserPerformer() || (jamUser && jamUser.isInQueue)) {
+      await returnToListening(true);
+      return;
+    }
 
-  openHeadphonesModal();
+    openHeadphonesModal();
+  });
 }
 
 async function addSelfToMicrophoneQueue() {
@@ -1887,9 +1988,11 @@ async function addSelfToMicrophoneQueue() {
   });
 }
 
-async function confirmMicrophoneRequest() {
-  closeHeadphonesModal();
-  await addSelfToMicrophoneQueue();
+function confirmMicrophoneRequest() {
+  runLockedAction(async () => {
+    closeHeadphonesModal();
+    await addSelfToMicrophoneQueue();
+  });
 }
 
 async function leaveQueueCompletely(shouldBroadcast = true) {
@@ -1919,7 +2022,7 @@ async function leaveQueueCompletely(shouldBroadcast = true) {
   await updateCurrentPresence();
 
   if (wasPerformer || wasInQueue || shouldBroadcast) {
-    showSystemInfo(`${jamUser.nick} wrócił do słuchania.`);
+    showSystemInfo(`${jamUser.nick} wyszedł z kolejki.`);
   }
 
   if (shouldBroadcast) {
@@ -1942,32 +2045,35 @@ async function leaveQueueCompletely(shouldBroadcast = true) {
 async function returnToListening(shouldBroadcast = true) {
   if (!jamUser) return;
 
-  const currentUserHasMic = isCurrentUserPerformer();
-  const currentUserIsQueued = Boolean(jamUser.isInQueue);
-  const currentUserUsedHostTakeover = Boolean(jamHostMicTakeoverActive);
+  const currentUserHadMic = isCurrentUserPerformer();
+  const currentUserWasQueued = Boolean(jamUser.isInQueue);
+  const currentUserWasTakeover = Boolean(jamHostMicTakeoverActive);
+
+  let nextUser = null;
 
   if (
     shouldBroadcast &&
-    currentUserHasMic &&
-    currentUserIsQueued &&
-    !currentUserUsedHostTakeover
+    currentUserHadMic &&
+    currentUserWasQueued &&
+    !currentUserWasTakeover
   ) {
-    const nextUser = getQueueUserAfter(JAM_SESSION_ID);
-
-    if (nextUser) {
-      showSystemInfo(`${jamUser.nick} przekazuje mikrofon dalej.`);
-
-      await assignPerformer(nextUser, "Performer", {
-        addToQueue: true,
-        preserveQueue: true,
-        hostTakeover: false
-      });
-
-      return;
-    }
+    nextUser = getQueueUserAfter(JAM_SESSION_ID);
   }
 
   await leaveQueueCompletely(shouldBroadcast);
+
+  if (
+    shouldBroadcast &&
+    nextUser &&
+    nextUser.sessionId !== JAM_SESSION_ID &&
+    sessionIsCurrentlyOnline(nextUser.sessionId)
+  ) {
+    await assignPerformer(nextUser, "Kolejka", {
+      addToQueue: true,
+      preserveQueue: true,
+      hostTakeover: false
+    });
+  }
 }
 
 async function setSelfPerformerState(active, options = {}) {
@@ -2128,6 +2234,17 @@ async function hostTakeMicrophone() {
     return;
   }
 
+  jamHostTakeoverPreviousPerformer =
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId !== JAM_SESSION_ID
+      ? {
+          id: jamCurrentPerformer.id,
+          sessionId: jamCurrentPerformer.sessionId,
+          nick: jamCurrentPerformer.nick,
+          joinedAt: jamCurrentPerformer.joinedAt || Date.now()
+        }
+      : null;
+
   await assignPerformer({
     id: jamUser.id,
     sessionId: JAM_SESSION_ID,
@@ -2142,6 +2259,8 @@ async function hostTakeMicrophone() {
 
 async function hostReleaseMicrophone() {
   if (!jamUser || !jamJoined) return;
+
+  const restoreTarget = getRestorablePreviousPerformer();
 
   jamUser.isPerformer = false;
   jamHostMicTakeoverActive = false;
@@ -2176,6 +2295,31 @@ async function hostReleaseMicrophone() {
     nick: jamUser.nick,
     created_at: new Date().toISOString()
   });
+
+  if (restoreTarget) {
+    showSystemInfo(`Mikrofon wraca do ${restoreTarget.nick}.`, "success");
+
+    await assignPerformer(restoreTarget, "Host", {
+      addToQueue: true,
+      preserveQueue: true,
+      hostTakeover: false
+    });
+
+    jamHostTakeoverPreviousPerformer = null;
+    return;
+  }
+
+  const fallbackUser = getFirstQueueUserExcept(JAM_SESSION_ID);
+
+  if (fallbackUser && sessionIsCurrentlyOnline(fallbackUser.sessionId)) {
+    await assignPerformer(fallbackUser, "Host", {
+      addToQueue: true,
+      preserveQueue: true,
+      hostTakeover: false
+    });
+  }
+
+  jamHostTakeoverPreviousPerformer = null;
 }
 
 async function hostPassMicrophoneNext() {
@@ -2328,13 +2472,17 @@ function bindJamEvents() {
 
   if (performerPassNextBtn) {
     performerPassNextBtn.addEventListener("click", () => {
-      performerPassNext();
+      runLockedAction(async () => {
+        await performerPassNext();
+      });
     });
   }
 
   if (performerBackToListeningBtn) {
     performerBackToListeningBtn.addEventListener("click", () => {
-      returnToListening(true);
+      runLockedAction(async () => {
+        await returnToListening(true);
+      });
     });
   }
 
@@ -2361,19 +2509,25 @@ function bindJamEvents() {
 
   if (startJamBtn) {
     startJamBtn.addEventListener("click", () => {
-      toggleJamActive();
+      runLockedAction(async () => {
+        await toggleJamActive();
+      });
     });
   }
 
   if (hostTakeMicBtn) {
     hostTakeMicBtn.addEventListener("click", () => {
-      hostTakeMicrophone();
+      runLockedAction(async () => {
+        await hostTakeMicrophone();
+      });
     });
   }
 
   if (hostPassMicBtn) {
     hostPassMicBtn.addEventListener("click", () => {
-      hostPassMicrophoneNext();
+      runLockedAction(async () => {
+        await hostPassMicrophoneNext();
+      });
     });
   }
 
@@ -2385,7 +2539,9 @@ function bindJamEvents() {
 
   if (skipPerformerBtn) {
     skipPerformerBtn.addEventListener("click", () => {
-      skipPerformerPlaceholder();
+      runLockedAction(async () => {
+        await skipPerformerPlaceholder();
+      });
     });
   }
 
@@ -2450,7 +2606,9 @@ function initJamRoom() {
   jamUser.isInQueue = false;
   jamUser.isPerformer = false;
   jamUser.queueJoinedAt = 0;
+
   jamHostMicTakeoverActive = false;
+  jamHostTakeoverPreviousPerformer = null;
 
   saveJamUser();
 
