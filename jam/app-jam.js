@@ -1,5 +1,5 @@
 // =======================
-// ETAP 53A-9 — HOST TAKEOVER FLAG FIX
+// ETAP 53A-10 — CIRCULAR PERFORMER HANDOFF
 // Spokultura Jam Room #1
 // =======================
 
@@ -11,7 +11,6 @@ const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
 const SUPABASE_ANON_KEY_STABLE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
 
 const JAM_ROOM_CHANNEL = "spokultura_jam_room_1";
-
 const JAM_SESSION_ID =
   "session_" +
   Date.now().toString(36) +
@@ -58,7 +57,6 @@ let jamLastChatText = "";
 let jamLastChatAt = 0;
 let jamLastReactionText = "";
 let jamLastReactionAt = 0;
-
 let jamRecentChatTimes = [];
 let jamRecentReactionTimes = [];
 
@@ -125,7 +123,7 @@ function createMessageId() {
 // =======================
 
 function getOrCreateJamUser() {
-  let savedUser = localStorage.getItem(JAM_LOCAL_USER_KEY);
+  const savedUser = localStorage.getItem(JAM_LOCAL_USER_KEY);
 
   if (savedUser) {
     try {
@@ -147,17 +145,15 @@ function getOrCreateJamUser() {
 
   const savedNick = localStorage.getItem(JAM_LOCAL_NICK_KEY);
 
-  const nick =
-    savedNick ||
-    `Tester ${Math.floor(Math.random() * 900 + 100)}`;
-
   const newUser = {
     id:
       "jam_" +
       Date.now().toString(36) +
       "_" +
       Math.random().toString(36).slice(2),
-    nick: nick,
+    nick:
+      savedNick ||
+      `Tester ${Math.floor(Math.random() * 900 + 100)}`,
     role: "Listener",
     joinedAt: Date.now(),
     isInQueue: false,
@@ -166,7 +162,7 @@ function getOrCreateJamUser() {
   };
 
   localStorage.setItem(JAM_LOCAL_USER_KEY, JSON.stringify(newUser));
-  localStorage.setItem(JAM_LOCAL_NICK_KEY, nick);
+  localStorage.setItem(JAM_LOCAL_NICK_KEY, newUser.nick);
 
   return newUser;
 }
@@ -181,11 +177,7 @@ function saveJamUser() {
 function askForNick() {
   const currentNick = jamUser && jamUser.nick ? jamUser.nick : "";
 
-  const nick = prompt(
-    "Podaj nick do Jam Roomu:",
-    currentNick
-  );
-
+  const nick = prompt("Podaj nick do Jam Roomu:", currentNick);
   const cleanedNick = sanitizeText(nick, 24);
 
   if (!cleanedNick) {
@@ -278,10 +270,6 @@ function isCurrentUserPerformer() {
     jamCurrentPerformer &&
     jamCurrentPerformer.sessionId === JAM_SESSION_ID
   );
-}
-
-function isCurrentHostWithMic() {
-  return Boolean(isCurrentUserHost() && isCurrentUserPerformer());
 }
 
 function isHostSession(sessionId) {
@@ -852,8 +840,7 @@ function applySpamViolation(reason) {
 
   jamSpamState.lastViolationAt = now;
 
-  const hasPriorBlock =
-    jamSpamState.lastBlockEndedAt > 0;
+  const hasPriorBlock = jamSpamState.lastBlockEndedAt > 0;
 
   const isInsideEscalationWindow =
     hasPriorBlock &&
@@ -1905,7 +1892,7 @@ async function confirmMicrophoneRequest() {
   await addSelfToMicrophoneQueue();
 }
 
-async function returnToListening(shouldBroadcast = true) {
+async function leaveQueueCompletely(shouldBroadcast = true) {
   if (!jamUser) return;
 
   const wasPerformer = Boolean(jamUser.isPerformer);
@@ -1932,9 +1919,7 @@ async function returnToListening(shouldBroadcast = true) {
   await updateCurrentPresence();
 
   if (wasPerformer || wasInQueue || shouldBroadcast) {
-    showSystemInfo(
-      `${jamUser.nick} wrócił do słuchania.`
-    );
+    showSystemInfo(`${jamUser.nick} wrócił do słuchania.`);
   }
 
   if (shouldBroadcast) {
@@ -1952,6 +1937,37 @@ async function returnToListening(shouldBroadcast = true) {
       created_at: new Date().toISOString()
     });
   }
+}
+
+async function returnToListening(shouldBroadcast = true) {
+  if (!jamUser) return;
+
+  const currentUserHasMic = isCurrentUserPerformer();
+  const currentUserIsQueued = Boolean(jamUser.isInQueue);
+  const currentUserUsedHostTakeover = Boolean(jamHostMicTakeoverActive);
+
+  if (
+    shouldBroadcast &&
+    currentUserHasMic &&
+    currentUserIsQueued &&
+    !currentUserUsedHostTakeover
+  ) {
+    const nextUser = getQueueUserAfter(JAM_SESSION_ID);
+
+    if (nextUser) {
+      showSystemInfo(`${jamUser.nick} przekazuje mikrofon dalej.`);
+
+      await assignPerformer(nextUser, "Performer", {
+        addToQueue: true,
+        preserveQueue: true,
+        hostTakeover: false
+      });
+
+      return;
+    }
+  }
+
+  await leaveQueueCompletely(shouldBroadcast);
 }
 
 async function setSelfPerformerState(active, options = {}) {
@@ -2130,10 +2146,6 @@ async function hostReleaseMicrophone() {
   jamUser.isPerformer = false;
   jamHostMicTakeoverActive = false;
 
-  // Ważne:
-  // Nie ruszamy isInQueue ani queueJoinedAt.
-  // Jeśli Host wcześniej wszedł do kolejki przez "Poproś o mikrofon",
-  // zostaje w tym samym miejscu kolejki.
   jamMicRequested = Boolean(jamUser.isInQueue);
 
   saveJamUser();
@@ -2439,6 +2451,7 @@ function initJamRoom() {
   jamUser.isPerformer = false;
   jamUser.queueJoinedAt = 0;
   jamHostMicTakeoverActive = false;
+
   saveJamUser();
 
   initSupabaseClient();
