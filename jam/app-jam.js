@@ -1,5 +1,5 @@
 // =======================
-// ETAP 53A-3 — REMOVE QUEUE BUTTON + HOST VOICE REQUEST
+// ETAP 53A-4 — QUEUE PERSISTENCE + PRESENCE LEAVE DEBOUNCE
 // Spokultura Jam Room #1
 // =======================
 
@@ -18,6 +18,7 @@ const JAM_SESSION_ID =
   "_" +
   Math.random().toString(36).slice(2);
 
+const JAM_PRESENCE_LEAVE_DEBOUNCE_MS = 1600;
 const JAM_SPAM_ESCALATION_WINDOW_MS = 4 * 60 * 1000;
 
 const JAM_SPAM_BLOCK_LEVELS_MS = [
@@ -64,6 +65,7 @@ let jamSpamState = loadSpamState();
 let jamNotificationTimer = null;
 
 const jamSeenRealtimeMessageIds = new Set();
+const jamPendingLeaveTimers = new Map();
 
 // =======================
 // DOM HELPERS
@@ -269,6 +271,14 @@ function isCurrentUserPerformer() {
   );
 }
 
+function isHostSession(sessionId) {
+  if (!jamOnlineUsers.length) return false;
+
+  const host = jamOnlineUsers.find((user) => user.role === "Host");
+
+  return Boolean(host && host.sessionId === sessionId);
+}
+
 function getNextQueueUser(excludeSessionId = null) {
   const filteredQueue = jamQueue.filter((user) => {
     return user.sessionId !== excludeSessionId;
@@ -281,12 +291,50 @@ function getNextQueueUser(excludeSessionId = null) {
   return filteredQueue[0];
 }
 
-function isHostSession(sessionId) {
-  if (!jamOnlineUsers.length) return false;
+function sessionIsCurrentlyOnline(sessionId) {
+  return jamOnlineUsers.some((user) => user.sessionId === sessionId);
+}
 
-  const host = jamOnlineUsers.find((user) => user.role === "Host");
+function clearPendingLeaveNotice(sessionId) {
+  if (!sessionId) return;
 
-  return Boolean(host && host.sessionId === sessionId);
+  const existingTimer = jamPendingLeaveTimers.get(sessionId);
+
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    jamPendingLeaveTimers.delete(sessionId);
+  }
+}
+
+function schedulePresenceLeaveNotice(presence) {
+  if (!presence || !presence.session_id || presence.session_id === JAM_SESSION_ID) {
+    return;
+  }
+
+  const sessionId = presence.session_id;
+  const nick = presence.nick || "Użytkownik";
+
+  clearPendingLeaveNotice(sessionId);
+
+  const timer = setTimeout(() => {
+    jamPendingLeaveTimers.delete(sessionId);
+
+    if (sessionIsCurrentlyOnline(sessionId)) {
+      return;
+    }
+
+    showSystemInfo(`${nick} opuścił pokój.`);
+
+    if (
+      jamCurrentPerformer &&
+      jamCurrentPerformer.sessionId === sessionId
+    ) {
+      jamCurrentPerformer = null;
+      renderJamState();
+    }
+  }, JAM_PRESENCE_LEAVE_DEBOUNCE_MS);
+
+  jamPendingLeaveTimers.set(sessionId, timer);
 }
 
 // =======================
@@ -867,6 +915,8 @@ function flattenPresenceState(state) {
 
       const sessionId = presence.session_id;
 
+      clearPendingLeaveNotice(sessionId);
+
       usersBySession.set(sessionId, {
         id: sessionId,
         userId: presence.user_id || sessionId,
@@ -1043,11 +1093,14 @@ async function handleRealtimePerformerStatus(payload) {
   const active = Boolean(payload.active);
   const isHostRequest = Boolean(payload.is_host_request);
 
-  if (payload.clear_all && jamUser && jamUser.isPerformer) {
+  if (payload.clear_all && jamUser && jamUser.isPerformer && targetSessionId !== JAM_SESSION_ID) {
     jamUser.isPerformer = false;
-    jamUser.isInQueue = false;
-    jamUser.queueJoinedAt = 0;
     jamMicRequested = false;
+
+    // Ważne:
+    // Nie czyścimy tutaj isInQueue ani queueJoinedAt.
+    // Dzięki temu poprzedni performer/host nie wypada z kolejki,
+    // kiedy ktoś inny prosi o mikrofon.
     saveJamUser();
     await updateCurrentPresence();
   }
@@ -1062,13 +1115,6 @@ async function handleRealtimePerformerStatus(payload) {
       }
 
       jamMicRequested = true;
-      saveJamUser();
-      await updateCurrentPresence();
-    } else if (jamUser && jamUser.isPerformer) {
-      jamUser.isPerformer = false;
-      jamUser.isInQueue = false;
-      jamUser.queueJoinedAt = 0;
-      jamMicRequested = false;
       saveJamUser();
       await updateCurrentPresence();
     }
@@ -1141,6 +1187,7 @@ function connectPresence() {
             presence.nick &&
             presence.session_id !== JAM_SESSION_ID
           ) {
+            clearPendingLeaveNotice(presence.session_id);
             showSystemInfo(`${presence.nick} dołączył do pokoju.`, "success");
           }
         });
@@ -1149,20 +1196,7 @@ function connectPresence() {
     .on("presence", { event: "leave" }, ({ leftPresences }) => {
       if (Array.isArray(leftPresences)) {
         leftPresences.forEach((presence) => {
-          if (
-            presence &&
-            presence.nick &&
-            presence.session_id !== JAM_SESSION_ID
-          ) {
-            showSystemInfo(`${presence.nick} opuścił pokój.`);
-
-            if (
-              jamCurrentPerformer &&
-              jamCurrentPerformer.sessionId === presence.session_id
-            ) {
-              jamCurrentPerformer = null;
-            }
-          }
+          schedulePresenceLeaveNotice(presence);
         });
       }
 
@@ -1851,18 +1885,6 @@ async function toggleJamActive() {
 // =======================
 // HOST PLACEHOLDERS
 // =======================
-
-function getNextQueueUser(excludeSessionId = null) {
-  const filteredQueue = jamQueue.filter((user) => {
-    return user.sessionId !== excludeSessionId;
-  });
-
-  if (!filteredQueue.length) {
-    return null;
-  }
-
-  return filteredQueue[0];
-}
 
 function hostPlaceholder(action) {
   if (!jamJoined) {
