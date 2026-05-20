@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55A-4C — ANTI-BUG RESYNC + CURRENT PERFORMER BRIDGE
+// ETAP 55A-4F — HOST/ONLINE SAFEGUARD + PERSISTENT CHAT
 // Spokultura Jam Room #1
 // =======================
 
@@ -32,6 +32,11 @@ const JAM_ROOM_STATE_FOCUS_RESYNC_COOLDOWN_MS = 1200;
 const JAM_PRESENCE_HEARTBEAT_MS = 2500;
 const JAM_PRESENCE_FOCUS_RETRACK_COOLDOWN_MS = 1200;
 
+const JAM_BROADCAST_ROSTER_PING_MS = 2000;
+const JAM_BROADCAST_ROSTER_TTL_MS = 9000;
+const JAM_HOST_CLAIM_COOLDOWN_MS = 2200;
+const JAM_CHAT_MAX_MESSAGES = 80;
+
 const JAM_SPAM_BLOCK_LEVELS_MS = [
   60 * 1000,
   2 * 60 * 1000,
@@ -61,8 +66,13 @@ let jamRoomStateResyncTimer = null;
 let jamLastRoomStateFocusResyncAt = 0;
 
 let jamPresenceHeartbeatTimer = null;
+let jamBroadcastRosterTimer = null;
 let jamLastPresenceFocusRetrackAt = 0;
 let jamPresenceFocusListenersBound = false;
+
+let jamBroadcastRoster = new Map();
+let jamHostClaimInProgress = false;
+let jamLastHostClaimAt = 0;
 
 let jamUser = null;
 let jamJoined = false;
@@ -84,6 +94,9 @@ let jamLastActionAt = 0;
 
 let jamLastChatText = "";
 let jamLastChatAt = 0;
+let jamChatMessages = [];
+let jamChatKnownMessageIds = new Set();
+
 let jamLastReactionText = "";
 let jamLastReactionAt = 0;
 
@@ -274,6 +287,7 @@ const queueList = queueCard ? queueCard.querySelector(".jam-list") : null;
 const chatFeed = qs(".jam-chat-feed");
 const chatInput = qs(".jam-chat-form input");
 const chatSendBtn = qs(".jam-chat-form button");
+let clearChatBtn = null;
 
 const joinRoomBtn = findButtonByText("DOŁĄCZ DO POKOJU");
 const requestMicBtn = qs("#openHeadphonesModalBtn");
@@ -318,24 +332,47 @@ function getCurrentPresenceUser() {
   }) || null;
 }
 
-function isCurrentUserHost() {
+function isSessionOnline(sessionId) {
+  if (!sessionId) return false;
+
+  return jamOnlineUsers.some((user) => {
+    return user.sessionId === sessionId;
+  });
+}
+
+function getEffectiveHostSessionId(users = jamOnlineUsers) {
   const roomStateHostSessionId = getRoomStateHostSessionId();
 
-  if (roomStateHostSessionId) {
-    return roomStateHostSessionId === JAM_SESSION_ID;
+  if (
+    roomStateHostSessionId &&
+    users.some((user) => user.sessionId === roomStateHostSessionId)
+  ) {
+    return roomStateHostSessionId;
   }
 
-  const currentPresenceUser = getCurrentPresenceUser();
+  if (users.length) {
+    const sortedUsers = [...users].sort((a, b) => {
+      return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
+    });
 
-  if (currentPresenceUser && currentPresenceUser.role === "Host") {
-    return true;
+    return sortedUsers[0].sessionId;
   }
 
-  if (!jamOnlineUsers.length && jamJoined) {
-    return true;
+  if (jamJoined && jamUser) {
+    return JAM_SESSION_ID;
   }
 
-  return false;
+  return null;
+}
+
+function isCurrentUserHost() {
+  const effectiveHostSessionId = getEffectiveHostSessionId();
+
+  if (effectiveHostSessionId) {
+    return effectiveHostSessionId === JAM_SESSION_ID;
+  }
+
+  return Boolean(jamJoined && jamUser);
 }
 
 function isCurrentUserPerformer() {
@@ -362,17 +399,13 @@ function isCurrentHostNormalPerformer() {
 }
 
 function isHostSession(sessionId) {
-  const roomStateHostSessionId = getRoomStateHostSessionId();
+  const effectiveHostSessionId = getEffectiveHostSessionId();
 
-  if (roomStateHostSessionId) {
-    return roomStateHostSessionId === sessionId;
+  if (effectiveHostSessionId) {
+    return effectiveHostSessionId === sessionId;
   }
 
-  if (!jamOnlineUsers.length) return false;
-
-  const host = jamOnlineUsers.find((user) => user.role === "Host");
-
-  return Boolean(host && host.sessionId === sessionId);
+  return false;
 }
 
 function getFirstQueueUser() {
@@ -559,6 +592,8 @@ function applyRoomStateToLocalState(nextRoomState, options = {}) {
     }
   }
 
+  applyChatMessagesFromRoomState(nextRoomState.chat_json);
+
   console.log("[JAM ROOM_STATE] applied:", {
     source,
     silent,
@@ -721,6 +756,91 @@ function resyncJamRoomStateAfterFocus(reason) {
   });
 }
 
+async function saveHostToRoomStateFromCurrentUser(reason = "host claim") {
+  if (!jamSupabaseClient || !jamUser || !jamJoined) {
+    return false;
+  }
+
+  try {
+    const updatePayload = {
+      host_session_id: JAM_SESSION_ID,
+      host_user_id: jamUser.id,
+      host_nick: jamUser.nick,
+
+      updated_by_session_id: JAM_SESSION_ID,
+      updated_by_nick: jamUser.nick,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(updatePayload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM ROOM_STATE] host claim error:", error);
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: reason
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM ROOM_STATE] host claim exception:", error);
+    return false;
+  }
+}
+
+async function maybeClaimHostFromOnlineUsers(reason = "presence") {
+  if (!jamJoined || !jamUser || !jamSupabaseClient || !jamOnlineUsers.length) {
+    return;
+  }
+
+  const now = Date.now();
+
+  if (
+    jamHostClaimInProgress ||
+    now - jamLastHostClaimAt < JAM_HOST_CLAIM_COOLDOWN_MS
+  ) {
+    return;
+  }
+
+  const roomStateHostSessionId = getRoomStateHostSessionId();
+  const savedHostIsOnline =
+    roomStateHostSessionId &&
+    jamOnlineUsers.some((user) => user.sessionId === roomStateHostSessionId);
+
+  const sortedUsers = [...jamOnlineUsers].sort((a, b) => {
+    return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
+  });
+
+  const firstOnlineUser = sortedUsers[0];
+  const currentUserIsFirstOnline =
+    firstOnlineUser && firstOnlineUser.sessionId === JAM_SESSION_ID;
+
+  if (savedHostIsOnline || !currentUserIsFirstOnline) {
+    return;
+  }
+
+  jamHostClaimInProgress = true;
+  jamLastHostClaimAt = now;
+
+  try {
+    const claimed = await saveHostToRoomStateFromCurrentUser(`host reclaim ${reason}`);
+
+    if (claimed) {
+      showSystemInfo(`${jamUser.nick} przejął rolę Hosta.`, "success");
+    }
+  } finally {
+    jamHostClaimInProgress = false;
+  }
+}
+
 async function saveJamActiveToRoomState(nextJamActive) {
   if (!jamSupabaseClient) {
     showSystemInfo("room_state: brak połączenia Supabase.", "warn");
@@ -870,6 +990,225 @@ async function clearCurrentPerformerInRoomState() {
     showSystemInfo("room_state: błąd czyszczenia performera.", "warn");
     return false;
   }
+}
+
+// =======================
+// ROOM_STATE CHAT
+// =======================
+
+function normalizeChatMessage(rawMessage) {
+  if (!rawMessage) return null;
+
+  const id = sanitizeText(rawMessage.id || rawMessage.message_id || createMessageId(), 80);
+  const author = sanitizeText(rawMessage.author || rawMessage.nick || "Anon", 28);
+  const message = sanitizeText(rawMessage.message || rawMessage.text || "", 180);
+  const sessionId = sanitizeText(rawMessage.session_id || rawMessage.sessionId || "", 80);
+  const userId = sanitizeText(rawMessage.user_id || rawMessage.userId || "", 80);
+  const createdAt = rawMessage.created_at || rawMessage.createdAt || new Date().toISOString();
+
+  if (!message) {
+    return null;
+  }
+
+  return {
+    id,
+    session_id: sessionId,
+    user_id: userId,
+    author,
+    message,
+    created_at: createdAt
+  };
+}
+
+function normalizeChatMessages(rawMessages) {
+  if (!Array.isArray(rawMessages)) {
+    return [];
+  }
+
+  return rawMessages
+    .map((message) => normalizeChatMessage(message))
+    .filter(Boolean)
+    .slice(-JAM_CHAT_MAX_MESSAGES);
+}
+
+function applyChatMessagesFromRoomState(rawMessages) {
+  const normalizedMessages = normalizeChatMessages(rawMessages);
+
+  const currentSignature = JSON.stringify(
+    jamChatMessages.map((message) => message.id)
+  );
+  const nextSignature = JSON.stringify(
+    normalizedMessages.map((message) => message.id)
+  );
+
+  if (currentSignature === nextSignature) {
+    return;
+  }
+
+  jamChatMessages = normalizedMessages;
+  jamChatKnownMessageIds = new Set(
+    jamChatMessages.map((message) => message.id)
+  );
+
+  renderChatMessages();
+}
+
+function renderChatMessages() {
+  if (!chatFeed) return;
+
+  chatFeed.innerHTML = "";
+
+  if (!jamChatMessages.length) {
+    const row = createElement("div", "jam-chat-row");
+    row.innerHTML = "<strong>System:</strong> Chat jest pusty.";
+    chatFeed.appendChild(row);
+    return;
+  }
+
+  jamChatMessages.forEach((message) => {
+    appendChatMessageToFeed(message, false);
+  });
+
+  chatFeed.scrollTop = chatFeed.scrollHeight;
+}
+
+function appendChatMessageToFeed(message, shouldScroll = true) {
+  if (!chatFeed || !message) return;
+
+  const cleanAuthor = sanitizeText(message.author || "Anon", 28) || "Anon";
+  const cleanMessage = sanitizeText(message.message || "", 180);
+
+  if (!cleanMessage) return;
+
+  const row = createElement("div", "jam-chat-row");
+  row.innerHTML = `<strong>${cleanAuthor}:</strong> ${cleanMessage}`;
+
+  chatFeed.appendChild(row);
+
+  if (shouldScroll) {
+    chatFeed.scrollTop = chatFeed.scrollHeight;
+  }
+}
+
+async function saveChatMessagesToRoomState(messages) {
+  if (!jamSupabaseClient) {
+    showSystemInfo("Chat: brak połączenia Supabase.", "warn");
+    return false;
+  }
+
+  try {
+    const updatePayload = {
+      chat_json: normalizeChatMessages(messages),
+      updated_by_session_id: JAM_SESSION_ID,
+      updated_by_nick: jamUser ? jamUser.nick : null,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(updatePayload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM ROOM_STATE] chat update error:", error);
+      showSystemInfo("Chat: brak kolumny chat_json albo błąd zapisu.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "chat write"
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM ROOM_STATE] chat update exception:", error);
+    showSystemInfo("Chat: błąd zapisu wiadomości.", "warn");
+    return false;
+  }
+}
+
+async function appendChatMessageToRoomState(messageObject) {
+  const normalizedMessage = normalizeChatMessage(messageObject);
+
+  if (!normalizedMessage) {
+    return false;
+  }
+
+  const existingMessages = normalizeChatMessages(
+    jamRoomState && Array.isArray(jamRoomState.chat_json)
+      ? jamRoomState.chat_json
+      : jamChatMessages
+  );
+
+  const withoutDuplicate = existingMessages.filter((message) => {
+    return message.id !== normalizedMessage.id;
+  });
+
+  const nextMessages = [
+    ...withoutDuplicate,
+    normalizedMessage
+  ].slice(-JAM_CHAT_MAX_MESSAGES);
+
+  jamChatMessages = nextMessages;
+  jamChatKnownMessageIds = new Set(
+    jamChatMessages.map((message) => message.id)
+  );
+  renderChatMessages();
+
+  return saveChatMessagesToRoomState(nextMessages);
+}
+
+async function clearChatInRoomState() {
+  const confirmed = confirm("Wyczyścić chat dla wszystkich w Jam Roomie?");
+
+  if (!confirmed) {
+    return;
+  }
+
+  const saved = await saveChatMessagesToRoomState([]);
+
+  if (saved) {
+    jamChatMessages = [];
+    jamChatKnownMessageIds = new Set();
+    renderChatMessages();
+    showSystemInfo("Chat wyczyszczony.", "success");
+
+    const messageId = createMessageId();
+    jamSeenRealtimeMessageIds.add(messageId);
+
+    await sendRealtimeBroadcast("chat_clear", {
+      message_id: messageId,
+      session_id: JAM_SESSION_ID,
+      user_id: jamUser ? jamUser.id : null,
+      nick: jamUser ? jamUser.nick : "System",
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+function ensureClearChatButton() {
+  if (clearChatBtn) {
+    return clearChatBtn;
+  }
+
+  const chatForm = qs(".jam-chat-form");
+
+  if (!chatForm) {
+    return null;
+  }
+
+  clearChatBtn = document.createElement("button");
+  clearChatBtn.id = "clearJamChatBtn";
+  clearChatBtn.className = "jam-btn jam-btn-danger";
+  clearChatBtn.type = "button";
+  clearChatBtn.innerText = "WYCZYŚĆ CHAT";
+
+  chatForm.appendChild(clearChatBtn);
+
+  return clearChatBtn;
 }
 
 // =======================
@@ -1593,45 +1932,117 @@ function getPresencePayload() {
   };
 }
 
-function flattenPresenceState(state) {
-  const usersBySession = new Map();
+function normalizeRosterPayload(payload) {
+  if (!payload || !payload.session_id) {
+    return null;
+  }
 
-  Object.keys(state).forEach((presenceKey) => {
-    const presences = state[presenceKey];
+  return {
+    id: payload.session_id,
+    userId: payload.user_id || payload.session_id,
+    sessionId: payload.session_id,
+    nick: payload.nick || "Anon",
+    role: "Listener",
+    joinedAt: Number(payload.joined_at || Date.now()),
+    onlineAt: payload.online_at || new Date().toISOString(),
+    isInQueue: Boolean(payload.is_in_queue),
+    queueJoinedAt: Number(payload.queue_joined_at || 0),
+    isPerformer: Boolean(payload.is_performer),
+    lastSeenAt: Date.now()
+  };
+}
 
-    presences.forEach((presence) => {
-      if (!presence || !presence.session_id) return;
+function rememberBroadcastRosterUser(payload) {
+  const user = normalizeRosterPayload(payload);
 
-      const sessionId = presence.session_id;
+  if (!user || user.sessionId === JAM_SESSION_ID) {
+    return;
+  }
 
-      clearPendingLeaveNotice(sessionId);
+  jamBroadcastRoster.set(user.sessionId, user);
+}
 
-      usersBySession.set(sessionId, {
-        id: sessionId,
-        userId: presence.user_id || sessionId,
-        sessionId: sessionId,
-        nick: presence.nick || "Anon",
-        role: "Listener",
-        joinedAt: Number(presence.joined_at || Date.now()),
-        onlineAt: presence.online_at || new Date().toISOString(),
-        isInQueue: Boolean(presence.is_in_queue),
-        queueJoinedAt: Number(presence.queue_joined_at || 0),
-        isPerformer: Boolean(presence.is_performer)
-      });
-    });
+function removeBroadcastRosterUser(sessionId) {
+  if (!sessionId) return;
+
+  jamBroadcastRoster.delete(sessionId);
+}
+
+function pruneBroadcastRoster() {
+  const now = Date.now();
+
+  Array.from(jamBroadcastRoster.entries()).forEach(([sessionId, user]) => {
+    if (now - Number(user.lastSeenAt || 0) > JAM_BROADCAST_ROSTER_TTL_MS) {
+      jamBroadcastRoster.delete(sessionId);
+    }
   });
+}
 
-  const users = Array.from(usersBySession.values());
+function getCurrentRosterPayload() {
+  if (!jamUser) return null;
 
+  return {
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    nick: jamUser.nick,
+    role: "Listener",
+    joined_at: Number(jamUser.joinedAt || Date.now()),
+    online_at: new Date().toISOString(),
+    is_in_queue: Boolean(jamUser.isInQueue),
+    queue_joined_at: Number(jamUser.queueJoinedAt || 0),
+    is_performer: Boolean(jamUser.isPerformer),
+    message_id: createMessageId()
+  };
+}
+
+async function sendBroadcastRosterPing() {
+  if (!jamPresenceChannel || !jamRealtimeReady || !jamJoined || !jamUser) {
+    return;
+  }
+
+  try {
+    await jamPresenceChannel.send({
+      type: "broadcast",
+      event: "online_roster",
+      payload: getCurrentRosterPayload()
+    });
+  } catch (error) {
+    console.error("[JAM ROSTER] ping error:", error);
+  }
+}
+
+async function sendBroadcastRosterLeave() {
+  if (!jamPresenceChannel || !jamJoined || !jamUser) {
+    return;
+  }
+
+  try {
+    await jamPresenceChannel.send({
+      type: "broadcast",
+      event: "online_leave",
+      payload: {
+        session_id: JAM_SESSION_ID,
+        user_id: jamUser.id,
+        nick: jamUser.nick,
+        message_id: createMessageId(),
+        created_at: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error("[JAM ROSTER] leave error:", error);
+  }
+}
+
+function assignRolesAndQueue(users) {
   users.sort((a, b) => {
     return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
   });
 
-  const roomStateHostSessionId = getRoomStateHostSessionId();
+  const effectiveHostSessionId = getEffectiveHostSessionId(users);
 
   users.forEach((user, index) => {
-    const isHost = roomStateHostSessionId
-      ? user.sessionId === roomStateHostSessionId
+    const isHost = effectiveHostSessionId
+      ? user.sessionId === effectiveHostSessionId
       : index === 0;
 
     if (isHost) {
@@ -1661,12 +2072,76 @@ function flattenPresenceState(state) {
         joinedAt: user.queueJoinedAt || user.joinedAt
       };
     });
+}
+
+function flattenPresenceState(state) {
+  const usersBySession = new Map();
+
+  Object.keys(state).forEach((presenceKey) => {
+    const presences = state[presenceKey];
+
+    presences.forEach((presence) => {
+      if (!presence || !presence.session_id) return;
+
+      const sessionId = presence.session_id;
+
+      clearPendingLeaveNotice(sessionId);
+
+      usersBySession.set(sessionId, {
+        id: sessionId,
+        userId: presence.user_id || sessionId,
+        sessionId: sessionId,
+        nick: presence.nick || "Anon",
+        role: "Listener",
+        joinedAt: Number(presence.joined_at || Date.now()),
+        onlineAt: presence.online_at || new Date().toISOString(),
+        isInQueue: Boolean(presence.is_in_queue),
+        queueJoinedAt: Number(presence.queue_joined_at || 0),
+        isPerformer: Boolean(presence.is_performer)
+      });
+    });
+  });
+
+  pruneBroadcastRoster();
+
+  jamBroadcastRoster.forEach((user, sessionId) => {
+    if (!usersBySession.has(sessionId)) {
+      usersBySession.set(sessionId, user);
+    }
+  });
+
+  if (jamJoined && jamUser && !usersBySession.has(JAM_SESSION_ID)) {
+    usersBySession.set(JAM_SESSION_ID, {
+      id: JAM_SESSION_ID,
+      userId: jamUser.id,
+      sessionId: JAM_SESSION_ID,
+      nick: jamUser.nick,
+      role: "Listener",
+      joinedAt: Number(jamUser.joinedAt || Date.now()),
+      onlineAt: new Date().toISOString(),
+      isInQueue: Boolean(jamUser.isInQueue),
+      queueJoinedAt: Number(jamUser.queueJoinedAt || 0),
+      isPerformer: Boolean(jamUser.isPerformer)
+    });
+  }
+
+  const users = Array.from(usersBySession.values());
+
+  assignRolesAndQueue(users);
 
   return users;
 }
 
 function updatePresenceStateFromChannel() {
-  if (!jamPresenceChannel) return;
+  if (!jamPresenceChannel) {
+    if (jamJoined && jamUser) {
+      jamOnlineUsers = flattenPresenceState({});
+      maybeClaimHostFromOnlineUsers("local-no-channel");
+      renderJamState();
+    }
+
+    return;
+  }
 
   const state = jamPresenceChannel.presenceState();
 
@@ -1687,6 +2162,7 @@ function updatePresenceStateFromChannel() {
     }
   }
 
+  maybeClaimHostFromOnlineUsers("presence-state");
   renderJamState();
 }
 
@@ -1696,6 +2172,11 @@ async function trackCurrentUserPresence() {
   saveJamUser();
 
   await jamPresenceChannel.track(getPresencePayload());
+  await sendBroadcastRosterPing();
+
+  setTimeout(() => {
+    updatePresenceStateFromChannel();
+  }, 220);
 }
 
 async function updateCurrentPresence() {
@@ -1704,6 +2185,7 @@ async function updateCurrentPresence() {
   saveJamUser();
 
   await jamPresenceChannel.track(getPresencePayload());
+  await sendBroadcastRosterPing();
 }
 
 function startJamPresenceHeartbeat() {
@@ -1721,6 +2203,8 @@ function startJamPresenceHeartbeat() {
       updatePresenceStateFromChannel();
     }, 180);
   }, JAM_PRESENCE_HEARTBEAT_MS);
+
+  startBroadcastRosterHeartbeat();
 
   if (!jamPresenceFocusListenersBound) {
     jamPresenceFocusListenersBound = true;
@@ -1742,6 +2226,30 @@ function stopJamPresenceHeartbeat() {
     clearInterval(jamPresenceHeartbeatTimer);
     jamPresenceHeartbeatTimer = null;
   }
+
+  stopBroadcastRosterHeartbeat();
+}
+
+function startBroadcastRosterHeartbeat() {
+  if (jamBroadcastRosterTimer) {
+    clearInterval(jamBroadcastRosterTimer);
+    jamBroadcastRosterTimer = null;
+  }
+
+  jamBroadcastRosterTimer = setInterval(() => {
+    sendBroadcastRosterPing();
+
+    setTimeout(() => {
+      updatePresenceStateFromChannel();
+    }, 160);
+  }, JAM_BROADCAST_ROSTER_PING_MS);
+}
+
+function stopBroadcastRosterHeartbeat() {
+  if (jamBroadcastRosterTimer) {
+    clearInterval(jamBroadcastRosterTimer);
+    jamBroadcastRosterTimer = null;
+  }
 }
 
 function forceRetrackPresenceAfterFocus(reason) {
@@ -1758,6 +2266,7 @@ function forceRetrackPresenceAfterFocus(reason) {
 
   if (jamJoined && jamPresenceChannel && jamUser) {
     updateCurrentPresence();
+    sendBroadcastRosterPing();
 
     setTimeout(() => {
       updatePresenceStateFromChannel();
@@ -1774,6 +2283,31 @@ function forceRetrackPresenceAfterFocus(reason) {
 // REALTIME HANDLERS
 // =======================
 
+function handleRealtimeOnlineRoster(payload) {
+  rememberBroadcastRosterUser(payload);
+  updatePresenceStateFromChannel();
+}
+
+function handleRealtimeOnlineLeave(payload) {
+  if (!payload || !payload.session_id) return;
+
+  removeBroadcastRosterUser(payload.session_id);
+
+  if (
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId === payload.session_id
+  ) {
+    jamCurrentPerformer = null;
+    jamMicSource = null;
+    fetchJamRoomState({
+      silent: true,
+      reason: "online-leave"
+    });
+  }
+
+  updatePresenceStateFromChannel();
+}
+
 function handleRealtimeChatMessage(payload) {
   if (!payload || !payload.message_id) return;
 
@@ -1783,11 +2317,25 @@ function handleRealtimeChatMessage(payload) {
 
   jamSeenRealtimeMessageIds.add(payload.message_id);
 
-  if (payload.session_id === JAM_SESSION_ID) {
+  fetchJamRoomState({
+    silent: true,
+    reason: "chat-message-broadcast"
+  });
+}
+
+function handleRealtimeChatClear(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
     return;
   }
 
-  addChatMessage(payload.nick || "Anon", payload.message || "");
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  fetchJamRoomState({
+    silent: true,
+    reason: "chat-clear-broadcast"
+  });
 }
 
 function handleRealtimeReaction(payload) {
@@ -1914,6 +2462,10 @@ function connectPresence() {
           }
         });
       }
+
+      setTimeout(() => {
+        updatePresenceStateFromChannel();
+      }, 180);
     })
     .on("presence", { event: "leave" }, ({ leftPresences }) => {
       if (Array.isArray(leftPresences)) {
@@ -1922,10 +2474,23 @@ function connectPresence() {
         });
       }
 
+      setTimeout(() => {
+        updatePresenceStateFromChannel();
+      }, 220);
+
       renderJamState();
+    })
+    .on("broadcast", { event: "online_roster" }, ({ payload }) => {
+      handleRealtimeOnlineRoster(payload);
+    })
+    .on("broadcast", { event: "online_leave" }, ({ payload }) => {
+      handleRealtimeOnlineLeave(payload);
     })
     .on("broadcast", { event: "chat_message" }, ({ payload }) => {
       handleRealtimeChatMessage(payload);
+    })
+    .on("broadcast", { event: "chat_clear" }, ({ payload }) => {
+      handleRealtimeChatClear(payload);
     })
     .on("broadcast", { event: "reaction" }, ({ payload }) => {
       handleRealtimeReaction(payload);
@@ -1951,6 +2516,13 @@ function connectPresence() {
           silent: true,
           reason: "presence-subscribed"
         });
+
+        updatePresenceStateFromChannel();
+
+        setTimeout(() => {
+          maybeClaimHostFromOnlineUsers("subscribed-delay");
+          renderJamState();
+        }, 450);
 
         showSystemInfo("Połączono z Jam Room realtime.", "success");
         renderJamState();
@@ -1988,6 +2560,12 @@ async function leavePresence() {
   if (!jamPresenceChannel) return;
 
   try {
+    await sendBroadcastRosterLeave();
+  } catch (error) {
+    console.error(error);
+  }
+
+  try {
     await jamPresenceChannel.untrack();
   } catch (error) {
     console.error(error);
@@ -2000,6 +2578,12 @@ async function disconnectPresence() {
   if (!jamSupabaseClient || !jamPresenceChannel) {
     jamPresenceChannel = null;
     return;
+  }
+
+  try {
+    await sendBroadcastRosterLeave();
+  } catch (error) {
+    console.error(error);
   }
 
   try {
@@ -2034,7 +2618,36 @@ function renderRolePanels() {
   }
 }
 
+function ensureOnlineCardLabels() {
+  if (!onlineCard) return;
+
+  let title = onlineCard.querySelector("h2");
+
+  if (!title) {
+    title = createElement("h2", "", "Online");
+    onlineCard.prepend(title);
+  } else if (!title.innerText.trim()) {
+    title.innerText = "Online";
+  }
+
+  let label = onlineCard.querySelector(".jam-small-label");
+
+  if (!label) {
+    label = createElement("p", "jam-small-label", "Uczestnicy");
+
+    if (title.nextSibling) {
+      onlineCard.insertBefore(label, title.nextSibling);
+    } else {
+      onlineCard.appendChild(label);
+    }
+  } else if (!label.innerText.trim()) {
+    label.innerText = "Uczestnicy";
+  }
+}
+
 function renderOnlineUsers() {
+  ensureOnlineCardLabels();
+
   if (!onlineList) return;
 
   onlineList.innerHTML = "";
@@ -2211,6 +2824,7 @@ function updateStatusPills() {
 }
 
 function renderJamState() {
+  updatePresenceStateFromChannelSafe();
   renderRolePanels();
   renderOnlineUsers();
   renderQueue();
@@ -2219,29 +2833,35 @@ function renderJamState() {
   updateStatusPills();
 }
 
+function updatePresenceStateFromChannelSafe() {
+  // intentionally lightweight guard: full sync happens in updatePresenceStateFromChannel()
+  if (!jamOnlineUsers.length && jamJoined && jamUser) {
+    jamOnlineUsers = flattenPresenceState({});
+  }
+}
+
 // =======================
 // CHAT / FEED
 // =======================
 
 function addChatMessage(author, message, type = "normal") {
-  if (!chatFeed) return;
-
   if (type === "system") {
     showSystemInfo(message || author || "Info");
     return;
   }
 
-  const cleanAuthor = sanitizeText(author, 28) || "Anon";
-  const cleanMessage = sanitizeText(message, 160);
+  const normalizedMessage = normalizeChatMessage({
+    id: createMessageId(),
+    session_id: "local",
+    user_id: "local",
+    author,
+    message,
+    created_at: new Date().toISOString()
+  });
 
-  if (!cleanMessage) return;
+  if (!normalizedMessage) return;
 
-  const row = createElement("div", "jam-chat-row");
-
-  row.innerHTML = `<strong>${cleanAuthor}:</strong> ${cleanMessage}`;
-
-  chatFeed.appendChild(row);
-  chatFeed.scrollTop = chatFeed.scrollHeight;
+  appendChatMessageToFeed(normalizedMessage);
 }
 
 async function sendLocalChatMessage() {
@@ -2263,11 +2883,21 @@ async function sendLocalChatMessage() {
   }
 
   const messageId = createMessageId();
+  const createdAt = new Date().toISOString();
+
+  const chatMessage = {
+    id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    author: jamUser.nick,
+    message: message,
+    created_at: createdAt
+  };
 
   jamSeenRealtimeMessageIds.add(messageId);
-
-  addChatMessage(jamUser.nick, message);
   chatInput.value = "";
+
+  const saved = await appendChatMessageToRoomState(chatMessage);
 
   await sendRealtimeBroadcast("chat_message", {
     message_id: messageId,
@@ -2275,7 +2905,8 @@ async function sendLocalChatMessage() {
     user_id: jamUser.id,
     nick: jamUser.nick,
     message: message,
-    created_at: new Date().toISOString()
+    created_at: createdAt,
+    saved: saved
   });
 }
 
@@ -2361,19 +2992,7 @@ function joinRoom() {
 
   saveJamUser();
 
-  jamOnlineUsers = [
-    {
-      id: JAM_SESSION_ID,
-      userId: jamUser.id,
-      sessionId: JAM_SESSION_ID,
-      nick: jamUser.nick,
-      role: "Listener",
-      joinedAt: jamUser.joinedAt,
-      isInQueue: false,
-      queueJoinedAt: 0,
-      isPerformer: false
-    }
-  ];
+  jamOnlineUsers = flattenPresenceState({});
 
   showSystemInfo(`${jamUser.nick} dołącza do pokoju...`);
 
@@ -2384,6 +3003,19 @@ function joinRoom() {
   }
 
   connectPresence();
+
+  setTimeout(() => {
+    updatePresenceStateFromChannel();
+    maybeClaimHostFromOnlineUsers("join-delay-1");
+    renderJamState();
+  }, 350);
+
+  setTimeout(() => {
+    updatePresenceStateFromChannel();
+    maybeClaimHostFromOnlineUsers("join-delay-2");
+    renderJamState();
+  }, 1200);
+
   renderJamState();
 }
 
@@ -3022,6 +3654,12 @@ function bindJamEvents() {
     });
   }
 
+  if (clearChatBtn) {
+    clearChatBtn.addEventListener("click", () => {
+      clearChatInRoomState();
+    });
+  }
+
   if (chatInput) {
     chatInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -3150,6 +3788,8 @@ function initJamRoom() {
   ensureSpamModal();
   ensureInfoNotification();
   ensureHostPickMicModal();
+  ensureClearChatButton();
+  renderChatMessages();
 
   showSystemInfo("Jam Room gotowy.");
 
