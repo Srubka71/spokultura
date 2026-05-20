@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55A-4F — HOST/ONLINE SAFEGUARD + PERSISTENT CHAT
+// ETAP 55B-1 — STABLE MEMBERS ENGINE
 // Spokultura Jam Room #1
 // =======================
 
@@ -10,9 +10,12 @@ const JAM_SPAM_STATE_KEY = "spokulturaJamSpamState";
 const SUPABASE_URL = "https://hlruehdtrwfrfagqoyve.supabase.co";
 const SUPABASE_ANON_KEY_STABLE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhscnVlaGR0cndmcmZhZ3FveXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2OTE3ODEsImV4cCI6MjA5NDI2Nzc4MX0.W3KbmBFpkAkI7y81HfDzUyUL8n8b85i33qENiXJYLDA";
 
+const JAM_ROOM_ID = "room_1";
+const JAM_ROOM_STATE_ID = "room_1";
+
 const JAM_ROOM_CHANNEL = "spokultura_jam_room_1";
 const JAM_ROOM_STATE_CHANNEL = "spokultura_jam_room_state_1";
-const JAM_ROOM_STATE_ID = "room_1";
+const JAM_ROOM_MEMBERS_CHANNEL = "spokultura_jam_room_members_1";
 
 const JAM_SESSION_ID =
   "session_" +
@@ -20,22 +23,16 @@ const JAM_SESSION_ID =
   "_" +
   Math.random().toString(36).slice(2);
 
-const JAM_PRESENCE_LEAVE_DEBOUNCE_MS = 1800;
-const JAM_SPAM_ESCALATION_WINDOW_MS = 4 * 60 * 1000;
-
 const JAM_ACTION_LOCK_MS = 850;
 const JAM_ACTION_MIN_INTERVAL_MS = 650;
 
 const JAM_ROOM_STATE_RESYNC_MS = 3500;
-const JAM_ROOM_STATE_FOCUS_RESYNC_COOLDOWN_MS = 1200;
+const JAM_MEMBERS_HEARTBEAT_MS = 2500;
+const JAM_MEMBERS_RESYNC_MS = 2500;
+const JAM_MEMBERS_STALE_MS = 9500;
 
-const JAM_PRESENCE_HEARTBEAT_MS = 2500;
-const JAM_PRESENCE_FOCUS_RETRACK_COOLDOWN_MS = 1200;
-
-const JAM_BROADCAST_ROSTER_PING_MS = 2000;
-const JAM_BROADCAST_ROSTER_TTL_MS = 9000;
-const JAM_HOST_CLAIM_COOLDOWN_MS = 2200;
 const JAM_CHAT_MAX_MESSAGES = 80;
+const JAM_SPAM_ESCALATION_WINDOW_MS = 4 * 60 * 1000;
 
 const JAM_SPAM_BLOCK_LEVELS_MS = [
   60 * 1000,
@@ -59,33 +56,26 @@ const JAM_SPAM_BLOCK_LEVELS_MS = [
 let jamSupabaseClient = null;
 let jamPresenceChannel = null;
 let jamRoomStateChannel = null;
+let jamMembersChannel = null;
 
 let jamRoomState = null;
 let jamRoomStateReady = false;
 let jamRoomStateResyncTimer = null;
-let jamLastRoomStateFocusResyncAt = 0;
 
-let jamPresenceHeartbeatTimer = null;
-let jamBroadcastRosterTimer = null;
-let jamLastPresenceFocusRetrackAt = 0;
-let jamPresenceFocusListenersBound = false;
-
-let jamBroadcastRoster = new Map();
-let jamHostClaimInProgress = false;
-let jamLastHostClaimAt = 0;
+let jamMembersHeartbeatTimer = null;
+let jamMembersResyncTimer = null;
 
 let jamUser = null;
 let jamJoined = false;
 let jamRealtimeReady = false;
+let jamMembersReady = false;
 let jamActive = false;
 
-let jamQueue = [];
 let jamOnlineUsers = [];
+let jamQueue = [];
 let jamCurrentPerformer = null;
-let jamMicRequested = false;
-
 let jamMicSource = null;
-// null | "queue" | "queue_pass" | "skip" | "host_pick" | "host_takeover"
+let jamMicRequested = false;
 
 let jamHostTakeoverPreviousPerformer = null;
 
@@ -106,7 +96,6 @@ let jamRecentReactionTimes = [];
 let jamSpamState = loadSpamState();
 
 const jamSeenRealtimeMessageIds = new Set();
-const jamPendingLeaveTimers = new Map();
 
 // =======================
 // DOM HELPERS
@@ -160,6 +149,14 @@ function createMessageId() {
   );
 }
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function getStaleCutoffIso() {
+  return new Date(Date.now() - JAM_MEMBERS_STALE_MS).toISOString();
+}
+
 async function runLockedAction(action, label = "akcję") {
   const now = Date.now();
   const sinceLastAction = now - jamLastActionAt;
@@ -183,7 +180,7 @@ async function runLockedAction(action, label = "akcję") {
     await action();
   } catch (error) {
     console.error(error);
-    showSystemInfo(`Nie udało się wykonać akcji: ${label}. Spróbuj ponownie.`, "warn");
+    showSystemInfo(`Nie udało się wykonać akcji: ${label}.`, "warn");
   } finally {
     setTimeout(() => {
       jamActionLocked = false;
@@ -315,64 +312,44 @@ const nowPlayingPerformerLine = qsa(".jam-track-meta p").find((paragraph) => {
 const statusPills = qsa(".jam-pill");
 
 // =======================
-// ROLE / QUEUE HELPERS
+// ROLES / MEMBERS
 // =======================
 
-function getRoomStateHostSessionId() {
-  return jamRoomState && jamRoomState.host_session_id
-    ? jamRoomState.host_session_id
-    : null;
-}
+function getSortedActiveMembers() {
+  return [...jamOnlineUsers].sort((a, b) => {
+    const aTime = new Date(a.joinedAt || a.joined_at || 0).getTime();
+    const bTime = new Date(b.joinedAt || b.joined_at || 0).getTime();
 
-function getCurrentPresenceUser() {
-  if (!jamUser) return null;
-
-  return jamOnlineUsers.find((user) => {
-    return user.sessionId === JAM_SESSION_ID;
-  }) || null;
-}
-
-function isSessionOnline(sessionId) {
-  if (!sessionId) return false;
-
-  return jamOnlineUsers.some((user) => {
-    return user.sessionId === sessionId;
+    return aTime - bTime;
   });
 }
 
-function getEffectiveHostSessionId(users = jamOnlineUsers) {
-  const roomStateHostSessionId = getRoomStateHostSessionId();
+function getEffectiveHost() {
+  const sortedMembers = getSortedActiveMembers();
 
-  if (
-    roomStateHostSessionId &&
-    users.some((user) => user.sessionId === roomStateHostSessionId)
-  ) {
-    return roomStateHostSessionId;
-  }
-
-  if (users.length) {
-    const sortedUsers = [...users].sort((a, b) => {
-      return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
-    });
-
-    return sortedUsers[0].sessionId;
+  if (sortedMembers.length) {
+    return sortedMembers[0];
   }
 
   if (jamJoined && jamUser) {
-    return JAM_SESSION_ID;
+    return {
+      sessionId: JAM_SESSION_ID,
+      userId: jamUser.id,
+      nick: jamUser.nick
+    };
   }
 
   return null;
 }
 
+function getEffectiveHostSessionId() {
+  const host = getEffectiveHost();
+
+  return host ? host.sessionId : null;
+}
+
 function isCurrentUserHost() {
-  const effectiveHostSessionId = getEffectiveHostSessionId();
-
-  if (effectiveHostSessionId) {
-    return effectiveHostSessionId === JAM_SESSION_ID;
-  }
-
-  return Boolean(jamJoined && jamUser);
+  return Boolean(jamJoined && getEffectiveHostSessionId() === JAM_SESSION_ID);
 }
 
 function isCurrentUserPerformer() {
@@ -399,27 +376,25 @@ function isCurrentHostNormalPerformer() {
 }
 
 function isHostSession(sessionId) {
-  const effectiveHostSessionId = getEffectiveHostSessionId();
+  return Boolean(sessionId && getEffectiveHostSessionId() === sessionId);
+}
 
-  if (effectiveHostSessionId) {
-    return effectiveHostSessionId === sessionId;
-  }
+function sessionIsCurrentlyOnline(sessionId) {
+  return jamOnlineUsers.some((user) => {
+    return user.sessionId === sessionId;
+  });
+}
 
-  return false;
+function getMemberBySessionId(sessionId) {
+  return jamOnlineUsers.find((user) => {
+    return user.sessionId === sessionId;
+  }) || null;
 }
 
 function getFirstQueueUser() {
   if (!jamQueue.length) return null;
 
   return jamQueue[0];
-}
-
-function getFirstQueueUserExcept(sessionId) {
-  if (!jamQueue.length) return null;
-
-  return jamQueue.find((user) => {
-    return user.sessionId !== sessionId;
-  }) || null;
 }
 
 function getQueueUserAfter(sessionId) {
@@ -446,10 +421,12 @@ function getQueueUserAfter(sessionId) {
   return jamQueue[nextIndex];
 }
 
-function sessionIsCurrentlyOnline(sessionId) {
-  return jamOnlineUsers.some((user) => {
-    return user.sessionId === sessionId;
-  });
+function getFirstQueueUserExcept(sessionId) {
+  if (!jamQueue.length) return null;
+
+  return jamQueue.find((user) => {
+    return user.sessionId !== sessionId;
+  }) || null;
 }
 
 function getRestorablePreviousPerformer() {
@@ -474,51 +451,344 @@ function getRestorablePreviousPerformer() {
   return jamHostTakeoverPreviousPerformer;
 }
 
-function clearPendingLeaveNotice(sessionId) {
-  if (!sessionId) return;
-
-  const existingTimer = jamPendingLeaveTimers.get(sessionId);
-
-  if (existingTimer) {
-    clearTimeout(existingTimer);
-    jamPendingLeaveTimers.delete(sessionId);
-  }
+function normalizeMemberRow(row) {
+  return {
+    id: row.user_id || row.session_id,
+    userId: row.user_id || row.session_id,
+    sessionId: row.session_id,
+    nick: row.nick || "Anon",
+    role: "Listener",
+    joinedAt: row.joined_at || nowIso(),
+    lastSeenAt: row.last_seen_at || nowIso(),
+    isInQueue: Boolean(row.is_in_queue),
+    queueJoinedAt: row.queue_joined_at || null,
+    isPerformer: Boolean(row.is_performer)
+  };
 }
 
-function schedulePresenceLeaveNotice(presence) {
-  if (!presence || !presence.session_id || presence.session_id === JAM_SESSION_ID) {
-    return;
-  }
+function assignRolesAndQueueFromMembers(members) {
+  const sortedMembers = [...members].sort((a, b) => {
+    return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+  });
 
-  const sessionId = presence.session_id;
-  const nick = presence.nick || "Użytkownik";
+  const hostSessionId =
+    sortedMembers.length > 0
+      ? sortedMembers[0].sessionId
+      : null;
 
-  clearPendingLeaveNotice(sessionId);
+  sortedMembers.forEach((member) => {
+    if (member.sessionId === hostSessionId) {
+      member.role = "Host";
+    } else if (
+      jamCurrentPerformer &&
+      jamCurrentPerformer.sessionId === member.sessionId
+    ) {
+      member.role = "Performer";
+    } else {
+      member.role = "Listener";
+    }
+  });
 
-  const timer = setTimeout(() => {
-    jamPendingLeaveTimers.delete(sessionId);
+  jamQueue = sortedMembers
+    .filter((member) => member.isInQueue)
+    .sort((a, b) => {
+      const aTime = a.queueJoinedAt
+        ? new Date(a.queueJoinedAt).getTime()
+        : new Date(a.joinedAt).getTime();
 
-    if (sessionIsCurrentlyOnline(sessionId)) {
+      const bTime = b.queueJoinedAt
+        ? new Date(b.queueJoinedAt).getTime()
+        : new Date(b.joinedAt).getTime();
+
+      return aTime - bTime;
+    })
+    .map((member) => {
+      return {
+        id: member.userId,
+        userId: member.userId,
+        sessionId: member.sessionId,
+        nick: member.nick,
+        joinedAt: member.queueJoinedAt || member.joinedAt
+      };
+    });
+
+  return sortedMembers;
+}
+
+function syncLocalUserFromMembers() {
+  if (!jamUser || !jamJoined) return;
+
+  const currentMember = jamOnlineUsers.find((member) => {
+    return member.sessionId === JAM_SESSION_ID;
+  });
+
+  if (!currentMember) return;
+
+  jamUser.role = currentMember.role || "Listener";
+  jamUser.isInQueue = Boolean(currentMember.isInQueue);
+  jamUser.queueJoinedAt = currentMember.queueJoinedAt
+    ? new Date(currentMember.queueJoinedAt).getTime()
+    : 0;
+
+  jamUser.isPerformer = isCurrentUserPerformer();
+  jamMicRequested = Boolean(jamUser.isInQueue || jamUser.isPerformer);
+
+  saveJamUser();
+}
+
+async function fetchJamMembers(options = {}) {
+  if (!jamSupabaseClient) return;
+
+  const silent = Boolean(options.silent);
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_members")
+      .select("*")
+      .eq("room_id", JAM_ROOM_ID)
+      .gt("last_seen_at", getStaleCutoffIso())
+      .order("joined_at", { ascending: true });
+
+    if (error) {
+      console.error("[JAM MEMBERS] fetch error:", error);
+
+      if (!silent) {
+        showSystemInfo("Members: błąd odczytu online.", "warn");
+      }
+
       return;
     }
 
-    showSystemInfo(`${nick} opuścił pokój.`);
+    jamMembersReady = true;
 
-    if (
-      jamCurrentPerformer &&
-      jamCurrentPerformer.sessionId === sessionId
-    ) {
-      jamCurrentPerformer = null;
-      jamMicSource = null;
-      renderJamState();
+    const members = (data || []).map((row) => normalizeMemberRow(row));
+
+    jamOnlineUsers = assignRolesAndQueueFromMembers(members);
+    syncLocalUserFromMembers();
+
+    await syncHostFieldsToRoomStateIfNeeded();
+
+    renderJamState();
+  } catch (error) {
+    console.error("[JAM MEMBERS] fetch exception:", error);
+
+    if (!silent) {
+      showSystemInfo("Members: błąd połączenia.", "warn");
     }
-  }, JAM_PRESENCE_LEAVE_DEBOUNCE_MS);
+  }
+}
 
-  jamPendingLeaveTimers.set(sessionId, timer);
+async function upsertCurrentMember(options = {}) {
+  if (!jamSupabaseClient || !jamUser || !jamJoined) return false;
+
+  const preserveJoinedAt = Boolean(options.preserveJoinedAt);
+  const joinedAtValue =
+    preserveJoinedAt && jamUser.joinedAt
+      ? new Date(jamUser.joinedAt).toISOString()
+      : new Date(jamUser.joinedAt || Date.now()).toISOString();
+
+  const payload = {
+    room_id: JAM_ROOM_ID,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    nick: jamUser.nick,
+    joined_at: joinedAtValue,
+    last_seen_at: nowIso(),
+    is_in_queue: Boolean(jamUser.isInQueue),
+    queue_joined_at: jamUser.isInQueue && jamUser.queueJoinedAt
+      ? new Date(jamUser.queueJoinedAt).toISOString()
+      : null,
+    is_performer: Boolean(isCurrentUserPerformer())
+  };
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_members")
+      .upsert(payload, {
+        onConflict: "room_id,session_id"
+      });
+
+    if (error) {
+      console.error("[JAM MEMBERS] upsert error:", error);
+      showSystemInfo("Members: nie udało się zapisać obecności.", "warn");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[JAM MEMBERS] upsert exception:", error);
+    showSystemInfo("Members: błąd zapisu obecności.", "warn");
+    return false;
+  }
+}
+
+async function updateCurrentMemberFields(fields = {}) {
+  if (!jamSupabaseClient || !jamUser || !jamJoined) return false;
+
+  const payload = {
+    ...fields,
+    last_seen_at: nowIso()
+  };
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_members")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("session_id", JAM_SESSION_ID);
+
+    if (error) {
+      console.error("[JAM MEMBERS] update self error:", error);
+      showSystemInfo("Members: nie udało się zmienić statusu.", "warn");
+      return false;
+    }
+
+    await fetchJamMembers({
+      silent: true
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM MEMBERS] update self exception:", error);
+    showSystemInfo("Members: błąd zmiany statusu.", "warn");
+    return false;
+  }
+}
+
+async function setAllMembersPerformerFalse() {
+  if (!jamSupabaseClient) return false;
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_members")
+      .update({
+        is_performer: false
+      })
+      .eq("room_id", JAM_ROOM_ID);
+
+    if (error) {
+      console.error("[JAM MEMBERS] clear performers error:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[JAM MEMBERS] clear performers exception:", error);
+    return false;
+  }
+}
+
+async function setMemberPerformer(targetUser, active) {
+  if (!jamSupabaseClient || !targetUser || !targetUser.sessionId) {
+    return false;
+  }
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_members")
+      .update({
+        is_performer: Boolean(active),
+        is_in_queue: active ? true : undefined,
+        last_seen_at: nowIso()
+      })
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("session_id", targetUser.sessionId);
+
+    if (error) {
+      console.error("[JAM MEMBERS] set performer error:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[JAM MEMBERS] set performer exception:", error);
+    return false;
+  }
+}
+
+async function deleteCurrentMember() {
+  if (!jamSupabaseClient || !jamUser) return;
+
+  try {
+    await jamSupabaseClient
+      .from("jam_room_members")
+      .delete()
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("session_id", JAM_SESSION_ID);
+  } catch (error) {
+    console.error("[JAM MEMBERS] delete self exception:", error);
+  }
+}
+
+function startMembersHeartbeat() {
+  stopMembersHeartbeat();
+
+  jamMembersHeartbeatTimer = setInterval(() => {
+    if (!jamJoined) return;
+
+    upsertCurrentMember({
+      preserveJoinedAt: true
+    });
+  }, JAM_MEMBERS_HEARTBEAT_MS);
+
+  jamMembersResyncTimer = setInterval(() => {
+    if (!jamJoined) return;
+
+    fetchJamMembers({
+      silent: true
+    });
+  }, JAM_MEMBERS_RESYNC_MS);
+}
+
+function stopMembersHeartbeat() {
+  if (jamMembersHeartbeatTimer) {
+    clearInterval(jamMembersHeartbeatTimer);
+    jamMembersHeartbeatTimer = null;
+  }
+
+  if (jamMembersResyncTimer) {
+    clearInterval(jamMembersResyncTimer);
+    jamMembersResyncTimer = null;
+  }
+}
+
+function subscribeJamMembers() {
+  if (!jamSupabaseClient) return;
+
+  if (jamMembersChannel) {
+    try {
+      jamSupabaseClient.removeChannel(jamMembersChannel);
+    } catch (error) {
+      console.error(error);
+    }
+
+    jamMembersChannel = null;
+  }
+
+  jamMembersChannel = jamSupabaseClient.channel(JAM_ROOM_MEMBERS_CHANNEL);
+
+  jamMembersChannel
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "jam_room_members",
+        filter: `room_id=eq.${JAM_ROOM_ID}`
+      },
+      () => {
+        fetchJamMembers({
+          silent: true
+        });
+      }
+    )
+    .subscribe((status) => {
+      console.log("[JAM MEMBERS] channel status:", status);
+    });
 }
 
 // =======================
-// ROOM_STATE APPLY
+// ROOM STATE
 // =======================
 
 function applyRoomStateToLocalState(nextRoomState, options = {}) {
@@ -541,12 +811,14 @@ function applyRoomStateToLocalState(nextRoomState, options = {}) {
   if (previousJamActive !== nextJamActive) {
     jamActive = nextJamActive;
 
-    showSystemInfo(
-      jamActive
-        ? `${source}: Jam LIVE.`
-        : `${source}: Jam STOP.`,
-      "success"
-    );
+    if (!silent) {
+      showSystemInfo(
+        jamActive
+          ? `${source}: Jam LIVE.`
+          : `${source}: Jam STOP.`,
+        "success"
+      );
+    }
   }
 
   const nextPerformerSessionId =
@@ -555,6 +827,7 @@ function applyRoomStateToLocalState(nextRoomState, options = {}) {
   if (nextPerformerSessionId) {
     jamCurrentPerformer = {
       id: nextRoomState.current_performer_user_id || nextPerformerSessionId,
+      userId: nextRoomState.current_performer_user_id || nextPerformerSessionId,
       sessionId: nextPerformerSessionId,
       nick: nextRoomState.current_performer_nick || "Performer",
       joinedAt: Date.now()
@@ -579,37 +852,11 @@ function applyRoomStateToLocalState(nextRoomState, options = {}) {
     }
   }
 
-  if (jamUser && jamJoined) {
-    const shouldBePerformer =
-      nextPerformerSessionId === JAM_SESSION_ID;
-
-    if (jamUser.isPerformer !== shouldBePerformer) {
-      jamUser.isPerformer = shouldBePerformer;
-      jamMicRequested = Boolean(jamUser.isPerformer || jamUser.isInQueue);
-      saveJamUser();
-
-      updateCurrentPresence();
-    }
-  }
-
   applyChatMessagesFromRoomState(nextRoomState.chat_json);
 
-  console.log("[JAM ROOM_STATE] applied:", {
-    source,
-    silent,
-    jam_active: jamRoomState.jam_active,
-    current_performer_nick: jamRoomState.current_performer_nick,
-    mic_source: jamRoomState.mic_source,
-    updated_at: jamRoomState.updated_at,
-    updated_by_nick: jamRoomState.updated_by_nick
-  });
-
+  syncLocalUserFromMembers();
   renderJamState();
 }
-
-// =======================
-// ROOM_STATE READ / WRITE
-// =======================
 
 async function fetchJamRoomState(options = {}) {
   if (!jamSupabaseClient) return;
@@ -702,18 +949,6 @@ function subscribeJamRoomState() {
     });
 }
 
-function initJamRoomStateReadOnly() {
-  if (!jamSupabaseClient) return;
-
-  fetchJamRoomState({
-    silent: false,
-    reason: "init"
-  });
-
-  subscribeJamRoomState();
-  startJamRoomStateAutoResync();
-}
-
 function startJamRoomStateAutoResync() {
   if (jamRoomStateResyncTimer) {
     clearInterval(jamRoomStateResyncTimer);
@@ -729,115 +964,84 @@ function startJamRoomStateAutoResync() {
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
-      resyncJamRoomStateAfterFocus("visibilitychange");
+      fetchJamRoomState({
+        silent: true,
+        reason: "visibilitychange"
+      });
+
+      if (jamJoined) {
+        upsertCurrentMember({
+          preserveJoinedAt: true
+        });
+
+        fetchJamMembers({
+          silent: true
+        });
+      }
     }
   });
 
   window.addEventListener("focus", () => {
-    resyncJamRoomStateAfterFocus("focus");
+    fetchJamRoomState({
+      silent: true,
+      reason: "focus"
+    });
+
+    if (jamJoined) {
+      upsertCurrentMember({
+        preserveJoinedAt: true
+      });
+
+      fetchJamMembers({
+        silent: true
+      });
+    }
   });
 }
 
-function resyncJamRoomStateAfterFocus(reason) {
-  const now = Date.now();
-
-  if (
-    now - jamLastRoomStateFocusResyncAt <
-    JAM_ROOM_STATE_FOCUS_RESYNC_COOLDOWN_MS
-  ) {
+async function syncHostFieldsToRoomStateIfNeeded() {
+  if (!jamSupabaseClient || !jamRoomState || !jamOnlineUsers.length) {
     return;
   }
 
-  jamLastRoomStateFocusResyncAt = now;
+  const host = getEffectiveHost();
 
-  fetchJamRoomState({
-    silent: true,
-    reason: reason
-  });
-}
+  if (!host) return;
 
-async function saveHostToRoomStateFromCurrentUser(reason = "host claim") {
-  if (!jamSupabaseClient || !jamUser || !jamJoined) {
-    return false;
+  const currentHostSessionId = jamRoomState.host_session_id || null;
+
+  if (currentHostSessionId === host.sessionId) {
+    return;
+  }
+
+  if (!isCurrentUserHost()) {
+    return;
   }
 
   try {
-    const updatePayload = {
-      host_session_id: JAM_SESSION_ID,
-      host_user_id: jamUser.id,
-      host_nick: jamUser.nick,
-
-      updated_by_session_id: JAM_SESSION_ID,
-      updated_by_nick: jamUser.nick,
-      updated_at: new Date().toISOString()
-    };
-
     const { data, error } = await jamSupabaseClient
       .from("jam_room_state")
-      .update(updatePayload)
+      .update({
+        host_session_id: host.sessionId,
+        host_user_id: host.userId || host.id,
+        host_nick: host.nick,
+        updated_by_session_id: JAM_SESSION_ID,
+        updated_by_nick: jamUser ? jamUser.nick : null,
+        updated_at: nowIso()
+      })
       .eq("room_id", JAM_ROOM_STATE_ID)
       .select()
       .single();
 
     if (error) {
-      console.error("[JAM ROOM_STATE] host claim error:", error);
-      return false;
+      console.error("[JAM ROOM_STATE] host sync error:", error);
+      return;
     }
 
-    applyRoomStateToLocalState(data, {
-      silent: true,
-      source: reason
-    });
-
-    return true;
+    jamRoomState = data;
+    jamRoomStateReady = true;
   } catch (error) {
-    console.error("[JAM ROOM_STATE] host claim exception:", error);
-    return false;
-  }
-}
-
-async function maybeClaimHostFromOnlineUsers(reason = "presence") {
-  if (!jamJoined || !jamUser || !jamSupabaseClient || !jamOnlineUsers.length) {
-    return;
-  }
-
-  const now = Date.now();
-
-  if (
-    jamHostClaimInProgress ||
-    now - jamLastHostClaimAt < JAM_HOST_CLAIM_COOLDOWN_MS
-  ) {
-    return;
-  }
-
-  const roomStateHostSessionId = getRoomStateHostSessionId();
-  const savedHostIsOnline =
-    roomStateHostSessionId &&
-    jamOnlineUsers.some((user) => user.sessionId === roomStateHostSessionId);
-
-  const sortedUsers = [...jamOnlineUsers].sort((a, b) => {
-    return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
-  });
-
-  const firstOnlineUser = sortedUsers[0];
-  const currentUserIsFirstOnline =
-    firstOnlineUser && firstOnlineUser.sessionId === JAM_SESSION_ID;
-
-  if (savedHostIsOnline || !currentUserIsFirstOnline) {
-    return;
-  }
-
-  jamHostClaimInProgress = true;
-  jamLastHostClaimAt = now;
-
-  try {
-    const claimed = await saveHostToRoomStateFromCurrentUser(`host reclaim ${reason}`);
-
-    if (claimed) {
-      showSystemInfo(`${jamUser.nick} przejął rolę Hosta.`, "success");
-    }
-  } finally {
-    jamHostClaimInProgress = false;
+    console.error("[JAM ROOM_STATE] host sync exception:", error);
   }
 }
 
@@ -852,25 +1056,19 @@ async function saveJamActiveToRoomState(nextJamActive) {
     return false;
   }
 
+  const host = getEffectiveHost();
+
   try {
     const updatePayload = {
       jam_active: Boolean(nextJamActive),
 
-      host_session_id: isCurrentUserHost()
-        ? JAM_SESSION_ID
-        : jamRoomState?.host_session_id || null,
-
-      host_user_id: isCurrentUserHost()
-        ? jamUser.id
-        : jamRoomState?.host_user_id || null,
-
-      host_nick: isCurrentUserHost()
-        ? jamUser.nick
-        : jamRoomState?.host_nick || null,
+      host_session_id: host ? host.sessionId : null,
+      host_user_id: host ? (host.userId || host.id) : null,
+      host_nick: host ? host.nick : null,
 
       updated_by_session_id: JAM_SESSION_ID,
       updated_by_nick: jamUser.nick,
-      updated_at: new Date().toISOString()
+      updated_at: nowIso()
     };
 
     const { data, error } = await jamSupabaseClient
@@ -893,8 +1091,8 @@ async function saveJamActiveToRoomState(nextJamActive) {
 
     showSystemInfo(
       nextJamActive
-        ? "room_state: jam_active zapisany jako TRUE."
-        : "room_state: jam_active zapisany jako FALSE.",
+        ? "Jam wystartowany."
+        : "Jam zakończony.",
       "success"
     );
 
@@ -920,7 +1118,7 @@ async function saveCurrentPerformerToRoomState(targetUser, micSource) {
 
       updated_by_session_id: JAM_SESSION_ID,
       updated_by_nick: jamUser ? jamUser.nick : null,
-      updated_at: new Date().toISOString()
+      updated_at: nowIso()
     };
 
     const { data, error } = await jamSupabaseClient
@@ -963,7 +1161,7 @@ async function clearCurrentPerformerInRoomState() {
 
       updated_by_session_id: JAM_SESSION_ID,
       updated_by_nick: jamUser ? jamUser.nick : null,
-      updated_at: new Date().toISOString()
+      updated_at: nowIso()
     };
 
     const { data, error } = await jamSupabaseClient
@@ -993,7 +1191,7 @@ async function clearCurrentPerformerInRoomState() {
 }
 
 // =======================
-// ROOM_STATE CHAT
+// CHAT
 // =======================
 
 function normalizeChatMessage(rawMessage) {
@@ -1004,7 +1202,7 @@ function normalizeChatMessage(rawMessage) {
   const message = sanitizeText(rawMessage.message || rawMessage.text || "", 180);
   const sessionId = sanitizeText(rawMessage.session_id || rawMessage.sessionId || "", 80);
   const userId = sanitizeText(rawMessage.user_id || rawMessage.userId || "", 80);
-  const createdAt = rawMessage.created_at || rawMessage.createdAt || new Date().toISOString();
+  const createdAt = rawMessage.created_at || rawMessage.createdAt || nowIso();
 
   if (!message) {
     return null;
@@ -1101,7 +1299,7 @@ async function saveChatMessagesToRoomState(messages) {
       chat_json: normalizeChatMessages(messages),
       updated_by_session_id: JAM_SESSION_ID,
       updated_by_nick: jamUser ? jamUser.nick : null,
-      updated_at: new Date().toISOString()
+      updated_at: nowIso()
     };
 
     const { data, error } = await jamSupabaseClient
@@ -1162,6 +1360,11 @@ async function appendChatMessageToRoomState(messageObject) {
 }
 
 async function clearChatInRoomState() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyczyścić chat.", "warn");
+    return;
+  }
+
   const confirmed = confirm("Wyczyścić chat dla wszystkich w Jam Roomie?");
 
   if (!confirmed) {
@@ -1184,7 +1387,7 @@ async function clearChatInRoomState() {
       session_id: JAM_SESSION_ID,
       user_id: jamUser ? jamUser.id : null,
       nick: jamUser ? jamUser.nick : "System",
-      created_at: new Date().toISOString()
+      created_at: nowIso()
     });
   }
 }
@@ -1234,49 +1437,37 @@ function ensureInfoNotification() {
       top: 16px;
       left: 50%;
       z-index: 1200;
-
       width: min(560px, calc(100% - 28px));
-
       display: flex;
       flex-direction: column;
       gap: 8px;
-
       transform: translateX(-50%);
-
       pointer-events: none;
     }
 
     .jam-info-notification {
       width: 100%;
       padding: 11px 15px;
-
       border-radius: 999px;
-
       background:
         linear-gradient(135deg, rgba(26,21,12,0.98), rgba(10,10,10,0.98));
-
       border:
         1px solid rgba(234,162,33,0.38);
-
       color:
         rgba(255,255,255,0.92);
-
       font-family: "Rajdhani", sans-serif;
       font-size: 14px;
       font-weight: 900;
       line-height: 1.2;
       letter-spacing: 0.7px;
       text-transform: uppercase;
-
       box-shadow:
         0 14px 38px rgba(0,0,0,0.48),
         0 0 26px rgba(234,162,33,0.12);
-
       opacity: 0;
       transform:
         translateY(-10px)
         scale(0.98);
-
       transition:
         opacity 0.22s ease,
         transform 0.22s ease;
@@ -1284,7 +1475,6 @@ function ensureInfoNotification() {
 
     .jam-info-notification.visible {
       opacity: 1;
-
       transform:
         translateY(0)
         scale(1);
@@ -1292,7 +1482,6 @@ function ensureInfoNotification() {
 
     .jam-info-notification.leaving {
       opacity: 0;
-
       transform:
         translateY(-8px)
         scale(0.98);
@@ -1306,7 +1495,6 @@ function ensureInfoNotification() {
     .jam-info-notification.warn {
       border-color:
         rgba(221,65,36,0.52);
-
       box-shadow:
         0 14px 38px rgba(0,0,0,0.48),
         0 0 26px rgba(221,65,36,0.16);
@@ -1315,54 +1503,18 @@ function ensureInfoNotification() {
     .jam-info-notification.success {
       border-color:
         rgba(124,255,0,0.36);
-
       box-shadow:
         0 14px 38px rgba(0,0,0,0.48),
         0 0 26px rgba(124,255,0,0.12);
     }
 
     @keyframes jamInfoShake {
-      0% {
-        transform:
-          translateX(0)
-          translateY(0)
-          scale(1);
-      }
-
-      18% {
-        transform:
-          translateX(-4px)
-          translateY(0)
-          scale(1.01);
-      }
-
-      36% {
-        transform:
-          translateX(4px)
-          translateY(0)
-          scale(1.01);
-      }
-
-      54% {
-        transform:
-          translateX(-3px)
-          translateY(0)
-          scale(1.005);
-      }
-
-      72% {
-        transform:
-          translateX(3px)
-          translateY(0)
-          scale(1.005);
-      }
-
-      100% {
-        transform:
-          translateX(0)
-          translateY(0)
-          scale(1);
-      }
+      0% { transform: translateX(0) translateY(0) scale(1); }
+      18% { transform: translateX(-4px) translateY(0) scale(1.01); }
+      36% { transform: translateX(4px) translateY(0) scale(1.01); }
+      54% { transform: translateX(-3px) translateY(0) scale(1.005); }
+      72% { transform: translateX(3px) translateY(0) scale(1.005); }
+      100% { transform: translateX(0) translateY(0) scale(1); }
     }
 
     @media (max-width: 620px) {
@@ -1374,7 +1526,6 @@ function ensureInfoNotification() {
 
       .jam-info-notification {
         border-radius: 16px;
-
         font-size: 12px;
         text-align: center;
       }
@@ -1442,7 +1593,7 @@ function showSystemInfo(message, type = "default") {
 }
 
 // =======================
-// HOST PICK MODAL
+// MODALS
 // =======================
 
 function ensureHostPickMicModal() {
@@ -1529,9 +1680,10 @@ function openHostPickMicModal() {
 
           await assignPerformer({
             id: user.userId,
+            userId: user.userId,
             sessionId: user.sessionId,
             nick: user.nick,
-            joinedAt: user.queueJoinedAt || Date.now()
+            joinedAt: user.queueJoinedAt || user.joinedAt || Date.now()
           }, "Host", {
             addToQueue: true,
             preserveQueue: true,
@@ -1554,10 +1706,6 @@ function closeHostPickMicModal() {
     modal.classList.add("hidden");
   }
 }
-
-// =======================
-// SPAM MODAL
-// =======================
 
 function ensureSpamModal() {
   let modal = qs("#jamSpamModal");
@@ -1623,6 +1771,18 @@ function closeSpamModal() {
 
   if (modal) {
     modal.classList.add("hidden");
+  }
+}
+
+function openHeadphonesModal() {
+  if (headphonesModal) {
+    headphonesModal.classList.remove("hidden");
+  }
+}
+
+function closeHeadphonesModal() {
+  if (headphonesModal) {
+    headphonesModal.classList.add("hidden");
   }
 }
 
@@ -1897,7 +2057,7 @@ function checkReactionSpam(reaction) {
 }
 
 // =======================
-// SUPABASE REALTIME / PRESENCE
+// SUPABASE / REALTIME
 // =======================
 
 function initSupabaseClient() {
@@ -1918,395 +2078,83 @@ function initSupabaseClient() {
   return true;
 }
 
-function getPresencePayload() {
-  return {
-    session_id: JAM_SESSION_ID,
-    user_id: jamUser.id,
-    nick: jamUser.nick,
-    role: "Listener",
-    joined_at: Number(jamUser.joinedAt || Date.now()),
-    online_at: new Date().toISOString(),
-    is_in_queue: Boolean(jamUser.isInQueue),
-    queue_joined_at: Number(jamUser.queueJoinedAt || 0),
-    is_performer: Boolean(jamUser.isPerformer)
-  };
-}
+function connectBroadcastChannel() {
+  if (!jamSupabaseClient || jamPresenceChannel) return;
 
-function normalizeRosterPayload(payload) {
-  if (!payload || !payload.session_id) {
-    return null;
-  }
-
-  return {
-    id: payload.session_id,
-    userId: payload.user_id || payload.session_id,
-    sessionId: payload.session_id,
-    nick: payload.nick || "Anon",
-    role: "Listener",
-    joinedAt: Number(payload.joined_at || Date.now()),
-    onlineAt: payload.online_at || new Date().toISOString(),
-    isInQueue: Boolean(payload.is_in_queue),
-    queueJoinedAt: Number(payload.queue_joined_at || 0),
-    isPerformer: Boolean(payload.is_performer),
-    lastSeenAt: Date.now()
-  };
-}
-
-function rememberBroadcastRosterUser(payload) {
-  const user = normalizeRosterPayload(payload);
-
-  if (!user || user.sessionId === JAM_SESSION_ID) {
-    return;
-  }
-
-  jamBroadcastRoster.set(user.sessionId, user);
-}
-
-function removeBroadcastRosterUser(sessionId) {
-  if (!sessionId) return;
-
-  jamBroadcastRoster.delete(sessionId);
-}
-
-function pruneBroadcastRoster() {
-  const now = Date.now();
-
-  Array.from(jamBroadcastRoster.entries()).forEach(([sessionId, user]) => {
-    if (now - Number(user.lastSeenAt || 0) > JAM_BROADCAST_ROSTER_TTL_MS) {
-      jamBroadcastRoster.delete(sessionId);
-    }
-  });
-}
-
-function getCurrentRosterPayload() {
-  if (!jamUser) return null;
-
-  return {
-    session_id: JAM_SESSION_ID,
-    user_id: jamUser.id,
-    nick: jamUser.nick,
-    role: "Listener",
-    joined_at: Number(jamUser.joinedAt || Date.now()),
-    online_at: new Date().toISOString(),
-    is_in_queue: Boolean(jamUser.isInQueue),
-    queue_joined_at: Number(jamUser.queueJoinedAt || 0),
-    is_performer: Boolean(jamUser.isPerformer),
-    message_id: createMessageId()
-  };
-}
-
-async function sendBroadcastRosterPing() {
-  if (!jamPresenceChannel || !jamRealtimeReady || !jamJoined || !jamUser) {
-    return;
-  }
-
-  try {
-    await jamPresenceChannel.send({
-      type: "broadcast",
-      event: "online_roster",
-      payload: getCurrentRosterPayload()
-    });
-  } catch (error) {
-    console.error("[JAM ROSTER] ping error:", error);
-  }
-}
-
-async function sendBroadcastRosterLeave() {
-  if (!jamPresenceChannel || !jamJoined || !jamUser) {
-    return;
-  }
-
-  try {
-    await jamPresenceChannel.send({
-      type: "broadcast",
-      event: "online_leave",
-      payload: {
-        session_id: JAM_SESSION_ID,
-        user_id: jamUser.id,
-        nick: jamUser.nick,
-        message_id: createMessageId(),
-        created_at: new Date().toISOString()
+  jamPresenceChannel = jamSupabaseClient.channel(JAM_ROOM_CHANNEL, {
+    config: {
+      broadcast: {
+        self: false
       }
-    });
-  } catch (error) {
-    console.error("[JAM ROSTER] leave error:", error);
-  }
-}
-
-function assignRolesAndQueue(users) {
-  users.sort((a, b) => {
-    return Number(a.joinedAt || 0) - Number(b.joinedAt || 0);
-  });
-
-  const effectiveHostSessionId = getEffectiveHostSessionId(users);
-
-  users.forEach((user, index) => {
-    const isHost = effectiveHostSessionId
-      ? user.sessionId === effectiveHostSessionId
-      : index === 0;
-
-    if (isHost) {
-      user.role = "Host";
-    } else if (
-      jamCurrentPerformer &&
-      jamCurrentPerformer.sessionId === user.sessionId
-    ) {
-      user.role = "Performer";
-    } else if (user.isPerformer) {
-      user.role = "Performer";
-    } else {
-      user.role = "Listener";
     }
   });
 
-  jamQueue = users
-    .filter((user) => user.isInQueue)
-    .sort((a, b) => {
-      return Number(a.queueJoinedAt || 0) - Number(b.queueJoinedAt || 0);
+  jamPresenceChannel
+    .on("broadcast", { event: "chat_message" }, ({ payload }) => {
+      handleRealtimeChatMessage(payload);
     })
-    .map((user) => {
-      return {
-        id: user.userId,
-        sessionId: user.sessionId,
-        nick: user.nick,
-        joinedAt: user.queueJoinedAt || user.joinedAt
-      };
-    });
-}
+    .on("broadcast", { event: "chat_clear" }, ({ payload }) => {
+      handleRealtimeChatClear(payload);
+    })
+    .on("broadcast", { event: "reaction" }, ({ payload }) => {
+      handleRealtimeReaction(payload);
+    })
+    .on("broadcast", { event: "queue_request" }, ({ payload }) => {
+      handleRealtimeQueueRequest(payload);
+    })
+    .on("broadcast", { event: "jam_status" }, ({ payload }) => {
+      handleRealtimeJamStatus(payload);
+    })
+    .on("broadcast", { event: "performer_status" }, ({ payload }) => {
+      handleRealtimePerformerStatus(payload);
+    })
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        jamRealtimeReady = true;
+        renderJamState();
+      }
 
-function flattenPresenceState(state) {
-  const usersBySession = new Map();
+      if (status === "CHANNEL_ERROR") {
+        jamRealtimeReady = false;
+        showSystemInfo("Błąd połączenia realtime.", "warn");
+        renderJamState();
+      }
 
-  Object.keys(state).forEach((presenceKey) => {
-    const presences = state[presenceKey];
-
-    presences.forEach((presence) => {
-      if (!presence || !presence.session_id) return;
-
-      const sessionId = presence.session_id;
-
-      clearPendingLeaveNotice(sessionId);
-
-      usersBySession.set(sessionId, {
-        id: sessionId,
-        userId: presence.user_id || sessionId,
-        sessionId: sessionId,
-        nick: presence.nick || "Anon",
-        role: "Listener",
-        joinedAt: Number(presence.joined_at || Date.now()),
-        onlineAt: presence.online_at || new Date().toISOString(),
-        isInQueue: Boolean(presence.is_in_queue),
-        queueJoinedAt: Number(presence.queue_joined_at || 0),
-        isPerformer: Boolean(presence.is_performer)
-      });
-    });
-  });
-
-  pruneBroadcastRoster();
-
-  jamBroadcastRoster.forEach((user, sessionId) => {
-    if (!usersBySession.has(sessionId)) {
-      usersBySession.set(sessionId, user);
-    }
-  });
-
-  if (jamJoined && jamUser && !usersBySession.has(JAM_SESSION_ID)) {
-    usersBySession.set(JAM_SESSION_ID, {
-      id: JAM_SESSION_ID,
-      userId: jamUser.id,
-      sessionId: JAM_SESSION_ID,
-      nick: jamUser.nick,
-      role: "Listener",
-      joinedAt: Number(jamUser.joinedAt || Date.now()),
-      onlineAt: new Date().toISOString(),
-      isInQueue: Boolean(jamUser.isInQueue),
-      queueJoinedAt: Number(jamUser.queueJoinedAt || 0),
-      isPerformer: Boolean(jamUser.isPerformer)
-    });
-  }
-
-  const users = Array.from(usersBySession.values());
-
-  assignRolesAndQueue(users);
-
-  return users;
-}
-
-function updatePresenceStateFromChannel() {
-  if (!jamPresenceChannel) {
-    if (jamJoined && jamUser) {
-      jamOnlineUsers = flattenPresenceState({});
-      maybeClaimHostFromOnlineUsers("local-no-channel");
-      renderJamState();
-    }
-
-    return;
-  }
-
-  const state = jamPresenceChannel.presenceState();
-
-  jamOnlineUsers = flattenPresenceState(state);
-
-  if (jamUser) {
-    const currentPresence = jamOnlineUsers.find((user) => {
-      return user.sessionId === JAM_SESSION_ID;
-    });
-
-    if (currentPresence) {
-      jamUser.role = currentPresence.role;
-      jamUser.isInQueue = Boolean(currentPresence.isInQueue);
-      jamUser.queueJoinedAt = Number(currentPresence.queueJoinedAt || 0);
-      jamMicRequested = Boolean(jamUser.isPerformer || jamUser.isInQueue);
-
-      saveJamUser();
-    }
-  }
-
-  maybeClaimHostFromOnlineUsers("presence-state");
-  renderJamState();
-}
-
-async function trackCurrentUserPresence() {
-  if (!jamPresenceChannel || !jamUser) return;
-
-  saveJamUser();
-
-  await jamPresenceChannel.track(getPresencePayload());
-  await sendBroadcastRosterPing();
-
-  setTimeout(() => {
-    updatePresenceStateFromChannel();
-  }, 220);
-}
-
-async function updateCurrentPresence() {
-  if (!jamPresenceChannel || !jamUser || !jamJoined) return;
-
-  saveJamUser();
-
-  await jamPresenceChannel.track(getPresencePayload());
-  await sendBroadcastRosterPing();
-}
-
-function startJamPresenceHeartbeat() {
-  if (jamPresenceHeartbeatTimer) {
-    clearInterval(jamPresenceHeartbeatTimer);
-    jamPresenceHeartbeatTimer = null;
-  }
-
-  jamPresenceHeartbeatTimer = setInterval(() => {
-    if (!jamJoined || !jamPresenceChannel || !jamUser) return;
-
-    updateCurrentPresence();
-
-    setTimeout(() => {
-      updatePresenceStateFromChannel();
-    }, 180);
-  }, JAM_PRESENCE_HEARTBEAT_MS);
-
-  startBroadcastRosterHeartbeat();
-
-  if (!jamPresenceFocusListenersBound) {
-    jamPresenceFocusListenersBound = true;
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        forceRetrackPresenceAfterFocus("visibilitychange");
+      if (status === "TIMED_OUT") {
+        jamRealtimeReady = false;
+        showSystemInfo("Realtime timeout — stan naprawi auto-resync.", "warn");
+        renderJamState();
       }
     });
-
-    window.addEventListener("focus", () => {
-      forceRetrackPresenceAfterFocus("focus");
-    });
-  }
 }
 
-function stopJamPresenceHeartbeat() {
-  if (jamPresenceHeartbeatTimer) {
-    clearInterval(jamPresenceHeartbeatTimer);
-    jamPresenceHeartbeatTimer = null;
-  }
-
-  stopBroadcastRosterHeartbeat();
-}
-
-function startBroadcastRosterHeartbeat() {
-  if (jamBroadcastRosterTimer) {
-    clearInterval(jamBroadcastRosterTimer);
-    jamBroadcastRosterTimer = null;
-  }
-
-  jamBroadcastRosterTimer = setInterval(() => {
-    sendBroadcastRosterPing();
-
-    setTimeout(() => {
-      updatePresenceStateFromChannel();
-    }, 160);
-  }, JAM_BROADCAST_ROSTER_PING_MS);
-}
-
-function stopBroadcastRosterHeartbeat() {
-  if (jamBroadcastRosterTimer) {
-    clearInterval(jamBroadcastRosterTimer);
-    jamBroadcastRosterTimer = null;
-  }
-}
-
-function forceRetrackPresenceAfterFocus(reason) {
-  const now = Date.now();
-
-  if (
-    now - jamLastPresenceFocusRetrackAt <
-    JAM_PRESENCE_FOCUS_RETRACK_COOLDOWN_MS
-  ) {
+async function sendRealtimeBroadcast(eventName, payload) {
+  if (!jamPresenceChannel || !jamRealtimeReady) {
     return;
   }
 
-  jamLastPresenceFocusRetrackAt = now;
-
-  if (jamJoined && jamPresenceChannel && jamUser) {
-    updateCurrentPresence();
-    sendBroadcastRosterPing();
-
-    setTimeout(() => {
-      updatePresenceStateFromChannel();
-    }, 200);
+  try {
+    await jamPresenceChannel.send({
+      type: "broadcast",
+      event: eventName,
+      payload: payload
+    });
+  } catch (error) {
+    console.error("[JAM BROADCAST] error:", error);
   }
+}
 
-  fetchJamRoomState({
-    silent: true,
-    reason: `presence-${reason}`
-  });
+function initRealtime() {
+  if (!jamSupabaseClient) return;
+
+  connectBroadcastChannel();
+  subscribeJamRoomState();
+  subscribeJamMembers();
 }
 
 // =======================
 // REALTIME HANDLERS
 // =======================
-
-function handleRealtimeOnlineRoster(payload) {
-  rememberBroadcastRosterUser(payload);
-  updatePresenceStateFromChannel();
-}
-
-function handleRealtimeOnlineLeave(payload) {
-  if (!payload || !payload.session_id) return;
-
-  removeBroadcastRosterUser(payload.session_id);
-
-  if (
-    jamCurrentPerformer &&
-    jamCurrentPerformer.sessionId === payload.session_id
-  ) {
-    jamCurrentPerformer = null;
-    jamMicSource = null;
-    fetchJamRoomState({
-      silent: true,
-      reason: "online-leave"
-    });
-  }
-
-  updatePresenceStateFromChannel();
-}
 
 function handleRealtimeChatMessage(payload) {
   if (!payload || !payload.message_id) return;
@@ -2319,7 +2167,7 @@ function handleRealtimeChatMessage(payload) {
 
   fetchJamRoomState({
     silent: true,
-    reason: "chat-message-broadcast"
+    reason: "chat broadcast"
   });
 }
 
@@ -2334,7 +2182,7 @@ function handleRealtimeChatClear(payload) {
 
   fetchJamRoomState({
     silent: true,
-    reason: "chat-clear-broadcast"
+    reason: "chat clear broadcast"
   });
 }
 
@@ -2363,23 +2211,9 @@ function handleRealtimeQueueRequest(payload) {
 
   jamSeenRealtimeMessageIds.add(payload.message_id);
 
-  if (payload.session_id === JAM_SESSION_ID) {
-    return;
-  }
-
-  if (payload.is_host_request) {
-    showSystemInfo(`${payload.nick || "Host"} prosi o głos.`, "success");
-  } else {
-    showSystemInfo(`${payload.nick || "Użytkownik"} dołączył do kolejki mikrofonu.`, "success");
-  }
-
-  updatePresenceStateFromChannel();
-  fetchJamRoomState({
-    silent: true,
-    reason: "queue-request"
+  fetchJamMembers({
+    silent: true
   });
-
-  renderJamState();
 }
 
 function handleRealtimeJamStatus(payload) {
@@ -2393,14 +2227,11 @@ function handleRealtimeJamStatus(payload) {
 
   fetchJamRoomState({
     silent: true,
-    reason: "jam-status-broadcast"
+    reason: "jam status broadcast"
   });
-
-  updatePresenceStateFromChannel();
-  renderJamState();
 }
 
-async function handleRealtimePerformerStatus(payload) {
+function handleRealtimePerformerStatus(payload) {
   if (!payload || !payload.message_id) return;
 
   if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
@@ -2411,194 +2242,12 @@ async function handleRealtimePerformerStatus(payload) {
 
   fetchJamRoomState({
     silent: true,
-    reason: "performer-status-broadcast"
+    reason: "performer status broadcast"
   });
 
-  updatePresenceStateFromChannel();
-  renderJamState();
-}
-
-function connectPresence() {
-  if (!jamSupabaseClient || !jamUser) return;
-
-  if (jamPresenceChannel) {
-    jamSupabaseClient.removeChannel(jamPresenceChannel);
-    jamPresenceChannel = null;
-  }
-
-  jamPresenceChannel = jamSupabaseClient.channel(JAM_ROOM_CHANNEL, {
-    config: {
-      presence: {
-        key: JAM_SESSION_ID
-      },
-      broadcast: {
-        self: false
-      }
-    }
+  fetchJamMembers({
+    silent: true
   });
-
-  jamPresenceChannel
-    .on("presence", { event: "sync" }, () => {
-      jamRealtimeReady = true;
-      updatePresenceStateFromChannel();
-    })
-    .on("presence", { event: "join" }, ({ newPresences }) => {
-      if (Array.isArray(newPresences)) {
-        newPresences.forEach((presence) => {
-          if (
-            presence &&
-            presence.nick &&
-            presence.session_id !== JAM_SESSION_ID
-          ) {
-            const hadPendingLeave = jamPendingLeaveTimers.has(presence.session_id);
-
-            clearPendingLeaveNotice(presence.session_id);
-
-            if (hadPendingLeave || sessionIsCurrentlyOnline(presence.session_id)) {
-              return;
-            }
-
-            showSystemInfo(`${presence.nick} dołączył do pokoju.`, "success");
-          }
-        });
-      }
-
-      setTimeout(() => {
-        updatePresenceStateFromChannel();
-      }, 180);
-    })
-    .on("presence", { event: "leave" }, ({ leftPresences }) => {
-      if (Array.isArray(leftPresences)) {
-        leftPresences.forEach((presence) => {
-          schedulePresenceLeaveNotice(presence);
-        });
-      }
-
-      setTimeout(() => {
-        updatePresenceStateFromChannel();
-      }, 220);
-
-      renderJamState();
-    })
-    .on("broadcast", { event: "online_roster" }, ({ payload }) => {
-      handleRealtimeOnlineRoster(payload);
-    })
-    .on("broadcast", { event: "online_leave" }, ({ payload }) => {
-      handleRealtimeOnlineLeave(payload);
-    })
-    .on("broadcast", { event: "chat_message" }, ({ payload }) => {
-      handleRealtimeChatMessage(payload);
-    })
-    .on("broadcast", { event: "chat_clear" }, ({ payload }) => {
-      handleRealtimeChatClear(payload);
-    })
-    .on("broadcast", { event: "reaction" }, ({ payload }) => {
-      handleRealtimeReaction(payload);
-    })
-    .on("broadcast", { event: "queue_request" }, ({ payload }) => {
-      handleRealtimeQueueRequest(payload);
-    })
-    .on("broadcast", { event: "jam_status" }, ({ payload }) => {
-      handleRealtimeJamStatus(payload);
-    })
-    .on("broadcast", { event: "performer_status" }, ({ payload }) => {
-      handleRealtimePerformerStatus(payload);
-    })
-    .subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await trackCurrentUserPresence();
-
-        jamRealtimeReady = true;
-
-        startJamPresenceHeartbeat();
-
-        fetchJamRoomState({
-          silent: true,
-          reason: "presence-subscribed"
-        });
-
-        updatePresenceStateFromChannel();
-
-        setTimeout(() => {
-          maybeClaimHostFromOnlineUsers("subscribed-delay");
-          renderJamState();
-        }, 450);
-
-        showSystemInfo("Połączono z Jam Room realtime.", "success");
-        renderJamState();
-      }
-
-      if (status === "CHANNEL_ERROR") {
-        showSystemInfo("Błąd połączenia realtime.", "warn");
-      }
-
-      if (status === "TIMED_OUT") {
-        showSystemInfo("Realtime timeout — spróbuj odświeżyć stronę.", "warn");
-      }
-    });
-}
-
-async function sendRealtimeBroadcast(eventName, payload) {
-  if (!jamPresenceChannel || !jamRealtimeReady) {
-    showSystemInfo("Realtime jeszcze nie jest gotowy.", "warn");
-    return;
-  }
-
-  try {
-    await jamPresenceChannel.send({
-      type: "broadcast",
-      event: eventName,
-      payload: payload
-    });
-  } catch (error) {
-    console.error(error);
-    showSystemInfo("Nie udało się wysłać realtime.", "warn");
-  }
-}
-
-async function leavePresence() {
-  if (!jamPresenceChannel) return;
-
-  try {
-    await sendBroadcastRosterLeave();
-  } catch (error) {
-    console.error(error);
-  }
-
-  try {
-    await jamPresenceChannel.untrack();
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-async function disconnectPresence() {
-  stopJamPresenceHeartbeat();
-
-  if (!jamSupabaseClient || !jamPresenceChannel) {
-    jamPresenceChannel = null;
-    return;
-  }
-
-  try {
-    await sendBroadcastRosterLeave();
-  } catch (error) {
-    console.error(error);
-  }
-
-  try {
-    await jamPresenceChannel.untrack();
-  } catch (error) {
-    console.error(error);
-  }
-
-  try {
-    jamSupabaseClient.removeChannel(jamPresenceChannel);
-  } catch (error) {
-    console.error(error);
-  }
-
-  jamPresenceChannel = null;
 }
 
 // =======================
@@ -2787,6 +2436,14 @@ function updateButtons() {
     setButtonBusyState(hostTakeMicBtn, disabled);
   }
 
+  if (clearChatBtn) {
+    clearChatBtn.style.display = isCurrentUserHost()
+      ? ""
+      : "none";
+
+    setButtonBusyState(clearChatBtn, disabled || !isCurrentUserHost());
+  }
+
   setButtonBusyState(hostPassMicBtn, disabled);
   setButtonBusyState(skipPerformerBtn, disabled);
   setButtonBusyState(performerPassNextBtn, disabled);
@@ -2799,14 +2456,14 @@ function updateStatusPills() {
   const roomStatePill = statusPills[2];
 
   if (statusPill) {
-    if (jamActionLocked) {
-      statusPill.innerHTML = "Status: <strong>Synchronizacja</strong>";
-    } else if (jamJoined && jamRealtimeReady) {
-      statusPill.innerHTML = "Status: <strong>Realtime</strong>";
-    } else if (jamJoined) {
-      statusPill.innerHTML = "Status: <strong>Łączenie</strong>";
-    } else {
+    if (!jamJoined) {
       statusPill.innerHTML = "Status: <strong>Poza pokojem</strong>";
+    } else if (jamActionLocked) {
+      statusPill.innerHTML = "Status: <strong>Synchronizacja</strong>";
+    } else if (jamMembersReady && jamRoomStateReady) {
+      statusPill.innerHTML = "Status: <strong>Online</strong>";
+    } else {
+      statusPill.innerHTML = "Status: <strong>Łączenie</strong>";
     }
   }
 
@@ -2824,7 +2481,6 @@ function updateStatusPills() {
 }
 
 function renderJamState() {
-  updatePresenceStateFromChannelSafe();
   renderRolePanels();
   renderOnlineUsers();
   renderQueue();
@@ -2833,15 +2489,8 @@ function renderJamState() {
   updateStatusPills();
 }
 
-function updatePresenceStateFromChannelSafe() {
-  // intentionally lightweight guard: full sync happens in updatePresenceStateFromChannel()
-  if (!jamOnlineUsers.length && jamJoined && jamUser) {
-    jamOnlineUsers = flattenPresenceState({});
-  }
-}
-
 // =======================
-// CHAT / FEED
+// CHAT / REACTIONS
 // =======================
 
 function addChatMessage(author, message, type = "normal") {
@@ -2856,7 +2505,7 @@ function addChatMessage(author, message, type = "normal") {
     user_id: "local",
     author,
     message,
-    created_at: new Date().toISOString()
+    created_at: nowIso()
   });
 
   if (!normalizedMessage) return;
@@ -2883,7 +2532,7 @@ async function sendLocalChatMessage() {
   }
 
   const messageId = createMessageId();
-  const createdAt = new Date().toISOString();
+  const createdAt = nowIso();
 
   const chatMessage = {
     id: messageId,
@@ -2938,7 +2587,7 @@ async function addReaction(reaction) {
     user_id: jamUser.id,
     nick: jamUser.nick,
     reaction: cleanReaction,
-    created_at: new Date().toISOString()
+    created_at: nowIso()
   });
 }
 
@@ -2951,7 +2600,7 @@ function resetLocalRoomState() {
   jamOnlineUsers = [];
   jamCurrentPerformer = null;
   jamMicRequested = false;
-  jamRealtimeReady = false;
+  jamMembersReady = false;
   jamMicSource = null;
   jamHostTakeoverPreviousPerformer = null;
 
@@ -2963,7 +2612,7 @@ function resetLocalRoomState() {
   }
 }
 
-function joinRoom() {
+async function joinRoom() {
   if (jamJoined) {
     return;
   }
@@ -2980,7 +2629,6 @@ function joinRoom() {
   }
 
   jamJoined = true;
-  jamRealtimeReady = false;
   jamMicSource = null;
   jamHostTakeoverPreviousPerformer = null;
 
@@ -2992,29 +2640,28 @@ function joinRoom() {
 
   saveJamUser();
 
-  jamOnlineUsers = flattenPresenceState({});
-
   showSystemInfo(`${jamUser.nick} dołącza do pokoju...`);
 
   if (!jamSupabaseClient) {
-    showSystemInfo("Realtime niedostępny — tryb lokalny.", "warn");
+    showSystemInfo("Supabase niedostępny.", "warn");
     renderJamState();
     return;
   }
 
-  connectPresence();
+  await upsertCurrentMember({
+    preserveJoinedAt: true
+  });
 
-  setTimeout(() => {
-    updatePresenceStateFromChannel();
-    maybeClaimHostFromOnlineUsers("join-delay-1");
-    renderJamState();
-  }, 350);
+  await fetchJamRoomState({
+    silent: true,
+    reason: "join"
+  });
 
-  setTimeout(() => {
-    updatePresenceStateFromChannel();
-    maybeClaimHostFromOnlineUsers("join-delay-2");
-    renderJamState();
-  }, 1200);
+  await fetchJamMembers({
+    silent: true
+  });
+
+  startMembersHeartbeat();
 
   renderJamState();
 }
@@ -3025,16 +2672,22 @@ async function leaveRoom() {
   }
 
   const leavingNick = jamUser && jamUser.nick ? jamUser.nick : "Użytkownik";
+  const wasPerformer = isCurrentUserPerformer();
 
-  if (jamUser && jamUser.isPerformer) {
-    await leaveQueueCompletely(false);
+  if (wasPerformer) {
+    await clearCurrentPerformerInRoomState();
   }
 
-  await disconnectPresence();
+  await deleteCurrentMember();
 
   jamJoined = false;
 
+  stopMembersHeartbeat();
   resetLocalRoomState();
+
+  await fetchJamMembers({
+    silent: true
+  });
 
   showSystemInfo(`${leavingNick} opuścił pokój.`);
 
@@ -3046,7 +2699,7 @@ function toggleRoom() {
     if (jamJoined) {
       await leaveRoom();
     } else {
-      joinRoom();
+      await joinRoom();
     }
   }, "dołącz / opuść pokój");
 }
@@ -3070,36 +2723,20 @@ function requestMicrophone() {
 async function addSelfToMicrophoneQueue() {
   if (!jamUser || !jamJoined) return;
 
-  const currentUserIsHost = isCurrentUserHost();
-
   jamUser.isInQueue = true;
   jamUser.isPerformer = false;
-
-  if (!jamUser.queueJoinedAt) {
-    jamUser.queueJoinedAt = Date.now();
-  }
-
+  jamUser.queueJoinedAt = Date.now();
   jamMicRequested = true;
 
-  if (
-    jamCurrentPerformer &&
-    jamCurrentPerformer.sessionId === JAM_SESSION_ID
-  ) {
-    jamCurrentPerformer = null;
-    jamMicSource = null;
-    await clearCurrentPerformerInRoomState();
-  }
-
   saveJamUser();
-  renderJamState();
 
-  await updateCurrentPresence();
+  await updateCurrentMemberFields({
+    is_in_queue: true,
+    queue_joined_at: new Date(jamUser.queueJoinedAt).toISOString(),
+    is_performer: false
+  });
 
-  if (currentUserIsHost) {
-    showSystemInfo(`${jamUser.nick} prosi o głos.`, "success");
-  } else {
-    showSystemInfo(`${jamUser.nick} dołączył do kolejki mikrofonu.`, "success");
-  }
+  showSystemInfo(`${jamUser.nick} dołączył do kolejki mikrofonu.`, "success");
 
   const messageId = createMessageId();
 
@@ -3110,8 +2747,7 @@ async function addSelfToMicrophoneQueue() {
     session_id: JAM_SESSION_ID,
     user_id: jamUser.id,
     nick: jamUser.nick,
-    is_host_request: currentUserIsHost,
-    created_at: new Date().toISOString()
+    created_at: nowIso()
   });
 }
 
@@ -3125,11 +2761,8 @@ function confirmMicrophoneRequest() {
 async function leaveQueueCompletely(shouldBroadcast = true) {
   if (!jamUser) return;
 
-  const wasPerformer = Boolean(jamUser.isPerformer);
+  const wasPerformer = isCurrentUserPerformer();
   const wasInQueue = Boolean(jamUser.isInQueue);
-  const wasRoomStatePerformer =
-    jamCurrentPerformer &&
-    jamCurrentPerformer.sessionId === JAM_SESSION_ID;
 
   jamMicRequested = false;
 
@@ -3139,19 +2772,18 @@ async function leaveQueueCompletely(shouldBroadcast = true) {
 
   saveJamUser();
 
-  if (wasRoomStatePerformer) {
-    jamCurrentPerformer = null;
-    jamMicSource = null;
+  await updateCurrentMemberFields({
+    is_in_queue: false,
+    queue_joined_at: null,
+    is_performer: false
+  });
 
+  if (wasPerformer) {
     await clearCurrentPerformerInRoomState();
   }
 
-  renderJamState();
-
-  await updateCurrentPresence();
-
   if (wasPerformer || wasInQueue || shouldBroadcast) {
-    showSystemInfo(`${jamUser.nick} wyszedł z kolejki.`);
+    showSystemInfo(`${jamUser.nick} wrócił do słuchania.`);
   }
 
   if (shouldBroadcast) {
@@ -3167,7 +2799,7 @@ async function leaveQueueCompletely(shouldBroadcast = true) {
       session_id: JAM_SESSION_ID,
       user_id: jamUser.id,
       nick: jamUser.nick,
-      created_at: new Date().toISOString()
+      created_at: nowIso()
     });
   }
 }
@@ -3192,8 +2824,13 @@ async function returnToListening(shouldBroadcast = true) {
 
   await leaveQueueCompletely(shouldBroadcast);
 
+  await fetchJamMembers({
+    silent: true
+  });
+
   if (
     shouldBroadcast &&
+    jamActive &&
     nextUser &&
     nextUser.sessionId !== JAM_SESSION_ID &&
     sessionIsCurrentlyOnline(nextUser.sessionId)
@@ -3245,19 +2882,17 @@ async function setSelfPerformerState(active, options = {}) {
     }
 
     jamMicRequested = Boolean(jamUser.isInQueue);
-
-    if (
-      jamCurrentPerformer &&
-      jamCurrentPerformer.sessionId === JAM_SESSION_ID
-    ) {
-      jamMicSource = null;
-    }
   }
 
   saveJamUser();
-  renderJamState();
 
-  await updateCurrentPresence();
+  await updateCurrentMemberFields({
+    is_in_queue: Boolean(jamUser.isInQueue),
+    queue_joined_at: jamUser.isInQueue && jamUser.queueJoinedAt
+      ? new Date(jamUser.queueJoinedAt).toISOString()
+      : null,
+    is_performer: Boolean(active)
+  });
 }
 
 async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
@@ -3280,6 +2915,8 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
 
   const targetIsHost = isHostSession(targetUser.sessionId);
 
+  await setAllMembersPerformerFalse();
+
   if (targetUser.sessionId === JAM_SESSION_ID) {
     await setSelfPerformerState(true, {
       addToQueue: addToQueue,
@@ -3293,10 +2930,13 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
     });
   }
 
+  await setMemberPerformer(targetUser, true);
+
   jamMicSource = micSource;
 
   jamCurrentPerformer = {
     id: targetUser.id || targetUser.userId,
+    userId: targetUser.id || targetUser.userId,
     sessionId: targetUser.sessionId,
     nick: targetUser.nick,
     joinedAt: targetUser.joinedAt || Date.now()
@@ -3311,6 +2951,10 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
   } else {
     showSystemInfo(`${sourceLabel}: mikrofon przechodzi do ${targetUser.nick}.`, "success");
   }
+
+  await fetchJamMembers({
+    silent: true
+  });
 
   renderJamState();
 
@@ -3328,7 +2972,7 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
     session_id: targetUser.sessionId,
     user_id: targetUser.id || targetUser.userId,
     nick: targetUser.nick,
-    created_at: new Date().toISOString()
+    created_at: nowIso()
   });
 }
 
@@ -3383,6 +3027,7 @@ async function hostTakeMicrophone() {
     jamCurrentPerformer.sessionId !== JAM_SESSION_ID
       ? {
           id: jamCurrentPerformer.id,
+          userId: jamCurrentPerformer.userId,
           sessionId: jamCurrentPerformer.sessionId,
           nick: jamCurrentPerformer.nick,
           joinedAt: jamCurrentPerformer.joinedAt || Date.now()
@@ -3391,6 +3036,7 @@ async function hostTakeMicrophone() {
 
   await assignPerformer({
     id: jamUser.id,
+    userId: jamUser.id,
     sessionId: JAM_SESSION_ID,
     nick: jamUser.nick,
     joinedAt: Date.now()
@@ -3405,50 +3051,26 @@ async function hostReleaseMicrophone() {
   if (!jamUser || !jamJoined) return;
 
   if (!isCurrentHostTakeoverActive()) {
-    showSystemInfo("To nie jest awaryjne przejęcie mikrofonu. Użyj panelu performera.", "warn");
+    showSystemInfo("To nie jest awaryjne przejęcie mikrofonu.", "warn");
     return;
   }
 
   const restoreTarget = getRestorablePreviousPerformer();
 
   jamUser.isPerformer = false;
-
   jamMicRequested = Boolean(jamUser.isInQueue);
 
   saveJamUser();
 
-  if (
-    jamCurrentPerformer &&
-    jamCurrentPerformer.sessionId === JAM_SESSION_ID
-  ) {
-    jamCurrentPerformer = null;
-    jamMicSource = null;
-  }
+  await updateCurrentMemberFields({
+    is_performer: false
+  });
 
   await clearCurrentPerformerInRoomState();
 
-  renderJamState();
-
-  await updateCurrentPresence();
-
   showSystemInfo("Host wyłączył mikrofon.");
 
-  const messageId = createMessageId();
-
-  jamSeenRealtimeMessageIds.add(messageId);
-
-  await sendRealtimeBroadcast("performer_status", {
-    message_id: messageId,
-    active: false,
-    preserve_queue: true,
-    mic_source: null,
-    session_id: JAM_SESSION_ID,
-    user_id: jamUser.id,
-    nick: jamUser.nick,
-    created_at: new Date().toISOString()
-  });
-
-  if (restoreTarget) {
+  if (jamActive && restoreTarget) {
     showSystemInfo(`Mikrofon wraca do ${restoreTarget.nick}.`, "success");
 
     await assignPerformer(restoreTarget, "Host", {
@@ -3461,14 +3083,16 @@ async function hostReleaseMicrophone() {
     return;
   }
 
-  const fallbackUser = getFirstQueueUserExcept(JAM_SESSION_ID);
+  if (jamActive) {
+    const fallbackUser = getFirstQueueUserExcept(JAM_SESSION_ID);
 
-  if (fallbackUser && sessionIsCurrentlyOnline(fallbackUser.sessionId)) {
-    await assignPerformer(fallbackUser, "Host", {
-      addToQueue: true,
-      preserveQueue: true,
-      micSource: "queue"
-    });
+    if (fallbackUser && sessionIsCurrentlyOnline(fallbackUser.sessionId)) {
+      await assignPerformer(fallbackUser, "Host", {
+        addToQueue: true,
+        preserveQueue: true,
+        micSource: "queue"
+      });
+    }
   }
 
   jamHostTakeoverPreviousPerformer = null;
@@ -3511,8 +3135,6 @@ async function toggleJamActive() {
   jamActive = nextJamActive;
 
   if (jamActive) {
-    showSystemInfo(`${jamUser.nick} wystartował jam.`, "success");
-
     if (!jamCurrentPerformer) {
       const firstUser = getFirstQueueUser();
 
@@ -3525,7 +3147,7 @@ async function toggleJamActive() {
       }
     }
   } else {
-    showSystemInfo(`${jamUser.nick} zakończył jam.`);
+    await setAllMembersPerformerFalse();
     await clearCurrentPerformerInRoomState();
   }
 
@@ -3541,7 +3163,7 @@ async function toggleJamActive() {
     session_id: JAM_SESSION_ID,
     user_id: jamUser.id,
     nick: jamUser.nick,
-    created_at: new Date().toISOString()
+    created_at: nowIso()
   });
 }
 
@@ -3597,22 +3219,6 @@ async function skipPerformerPlaceholder() {
     preserveQueue: true,
     micSource: "skip"
   });
-}
-
-// =======================
-// MODAL
-// =======================
-
-function openHeadphonesModal() {
-  if (headphonesModal) {
-    headphonesModal.classList.remove("hidden");
-  }
-}
-
-function closeHeadphonesModal() {
-  if (headphonesModal) {
-    headphonesModal.classList.add("hidden");
-  }
 }
 
 // =======================
@@ -3760,7 +3366,9 @@ function bindJamEvents() {
   });
 
   window.addEventListener("beforeunload", () => {
-    leavePresence();
+    if (jamJoined) {
+      deleteCurrentMember();
+    }
   });
 }
 
@@ -3783,7 +3391,18 @@ function initJamRoom() {
   saveJamUser();
 
   initSupabaseClient();
-  initJamRoomStateReadOnly();
+  initRealtime();
+
+  fetchJamRoomState({
+    silent: false,
+    reason: "init"
+  });
+
+  fetchJamMembers({
+    silent: true
+  });
+
+  startJamRoomStateAutoResync();
 
   ensureSpamModal();
   ensureInfoNotification();
