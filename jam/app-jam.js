@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55B-1 — STABLE MEMBERS ENGINE
+// ETAP 55B-2 — QUEUE + MICROPHONE STABILIZATION
 // Spokultura Jam Room #1
 // =======================
 
@@ -54,7 +54,7 @@ const JAM_SPAM_BLOCK_LEVELS_MS = [
 ];
 
 let jamSupabaseClient = null;
-let jamPresenceChannel = null;
+let jamBroadcastChannel = null;
 let jamRoomStateChannel = null;
 let jamMembersChannel = null;
 
@@ -333,8 +333,9 @@ function getEffectiveHost() {
 
   if (jamJoined && jamUser) {
     return {
-      sessionId: JAM_SESSION_ID,
+      id: jamUser.id,
       userId: jamUser.id,
+      sessionId: JAM_SESSION_ID,
       nick: jamUser.nick
     };
   }
@@ -536,6 +537,10 @@ function syncLocalUserFromMembers() {
   saveJamUser();
 }
 
+// =======================
+// MEMBERS TABLE
+// =======================
+
 async function fetchJamMembers(options = {}) {
   if (!jamSupabaseClient) return;
 
@@ -655,6 +660,33 @@ async function updateCurrentMemberFields(fields = {}) {
   }
 }
 
+async function updateMemberFieldsBySession(sessionId, fields = {}) {
+  if (!jamSupabaseClient || !sessionId) return false;
+
+  const payload = {
+    ...fields,
+    last_seen_at: nowIso()
+  };
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_members")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("session_id", sessionId);
+
+    if (error) {
+      console.error("[JAM MEMBERS] update member error:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[JAM MEMBERS] update member exception:", error);
+    return false;
+  }
+}
+
 async function setAllMembersPerformerFalse() {
   if (!jamSupabaseClient) return false;
 
@@ -678,19 +710,48 @@ async function setAllMembersPerformerFalse() {
   }
 }
 
-async function setMemberPerformer(targetUser, active) {
+async function setMemberPerformer(targetUser, active, options = {}) {
   if (!jamSupabaseClient || !targetUser || !targetUser.sessionId) {
     return false;
+  }
+
+  const addToQueue =
+    options.addToQueue !== undefined
+      ? Boolean(options.addToQueue)
+      : true;
+
+  const preserveQueue =
+    options.preserveQueue !== undefined
+      ? Boolean(options.preserveQueue)
+      : true;
+
+  const existingMember = getMemberBySessionId(targetUser.sessionId);
+
+  const payload = {
+    is_performer: Boolean(active),
+    last_seen_at: nowIso()
+  };
+
+  if (active) {
+    if (addToQueue) {
+      payload.is_in_queue = true;
+      payload.queue_joined_at =
+        existingMember && existingMember.queueJoinedAt
+          ? existingMember.queueJoinedAt
+          : nowIso();
+    } else if (!preserveQueue) {
+      payload.is_in_queue = false;
+      payload.queue_joined_at = null;
+    }
+  } else if (!preserveQueue) {
+    payload.is_in_queue = false;
+    payload.queue_joined_at = null;
   }
 
   try {
     const { error } = await jamSupabaseClient
       .from("jam_room_members")
-      .update({
-        is_performer: Boolean(active),
-        is_in_queue: active ? true : undefined,
-        last_seen_at: nowIso()
-      })
+      .update(payload)
       .eq("room_id", JAM_ROOM_ID)
       .eq("session_id", targetUser.sessionId);
 
@@ -2079,9 +2140,9 @@ function initSupabaseClient() {
 }
 
 function connectBroadcastChannel() {
-  if (!jamSupabaseClient || jamPresenceChannel) return;
+  if (!jamSupabaseClient || jamBroadcastChannel) return;
 
-  jamPresenceChannel = jamSupabaseClient.channel(JAM_ROOM_CHANNEL, {
+  jamBroadcastChannel = jamSupabaseClient.channel(JAM_ROOM_CHANNEL, {
     config: {
       broadcast: {
         self: false
@@ -2089,7 +2150,7 @@ function connectBroadcastChannel() {
     }
   });
 
-  jamPresenceChannel
+  jamBroadcastChannel
     .on("broadcast", { event: "chat_message" }, ({ payload }) => {
       handleRealtimeChatMessage(payload);
     })
@@ -2129,12 +2190,12 @@ function connectBroadcastChannel() {
 }
 
 async function sendRealtimeBroadcast(eventName, payload) {
-  if (!jamPresenceChannel || !jamRealtimeReady) {
+  if (!jamBroadcastChannel || !jamRealtimeReady) {
     return;
   }
 
   try {
-    await jamPresenceChannel.send({
+    await jamBroadcastChannel.send({
       type: "broadcast",
       event: eventName,
       payload: payload
@@ -2425,7 +2486,7 @@ function updateButtons() {
       ? "ZAKOŃCZ JAM"
       : "START JAM";
 
-    setButtonBusyState(startJamBtn, disabled);
+    setButtonBusyState(startJamBtn, disabled || !isCurrentUserHost());
   }
 
   if (hostTakeMicBtn) {
@@ -2433,7 +2494,7 @@ function updateButtons() {
       ? "WYŁĄCZ MIKROFON"
       : "PRZEJMIJ MIKROFON";
 
-    setButtonBusyState(hostTakeMicBtn, disabled);
+    setButtonBusyState(hostTakeMicBtn, disabled || !isCurrentUserHost());
   }
 
   if (clearChatBtn) {
@@ -2444,10 +2505,10 @@ function updateButtons() {
     setButtonBusyState(clearChatBtn, disabled || !isCurrentUserHost());
   }
 
-  setButtonBusyState(hostPassMicBtn, disabled);
-  setButtonBusyState(skipPerformerBtn, disabled);
-  setButtonBusyState(performerPassNextBtn, disabled);
-  setButtonBusyState(performerBackToListeningBtn, disabled);
+  setButtonBusyState(hostPassMicBtn, disabled || !isCurrentUserHost());
+  setButtonBusyState(skipPerformerBtn, disabled || !isCurrentUserHost());
+  setButtonBusyState(performerPassNextBtn, disabled || !isCurrentUserPerformer());
+  setButtonBusyState(performerBackToListeningBtn, disabled || !isCurrentUserPerformer());
 }
 
 function updateStatusPills() {
@@ -2736,7 +2797,23 @@ async function addSelfToMicrophoneQueue() {
     is_performer: false
   });
 
+  await fetchJamMembers({
+    silent: true
+  });
+
   showSystemInfo(`${jamUser.nick} dołączył do kolejki mikrofonu.`, "success");
+
+  if (jamActive && !jamCurrentPerformer) {
+    const firstUser = getFirstQueueUser();
+
+    if (firstUser) {
+      await assignPerformer(firstUser, "Kolejka", {
+        addToQueue: true,
+        preserveQueue: true,
+        micSource: "queue"
+      });
+    }
+  }
 
   const messageId = createMessageId();
 
@@ -2930,7 +3007,10 @@ async function assignPerformer(targetUser, sourceLabel = "Host", options = {}) {
     });
   }
 
-  await setMemberPerformer(targetUser, true);
+  await setMemberPerformer(targetUser, true, {
+    addToQueue: addToQueue,
+    preserveQueue: preserveQueue
+  });
 
   jamMicSource = micSource;
 
@@ -3136,6 +3216,10 @@ async function toggleJamActive() {
 
   if (jamActive) {
     if (!jamCurrentPerformer) {
+      await fetchJamMembers({
+        silent: true
+      });
+
       const firstUser = getFirstQueueUser();
 
       if (firstUser) {
