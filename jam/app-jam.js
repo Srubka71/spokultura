@@ -3902,3 +3902,304 @@ window.addEventListener("load", () => {
     updateHostDebugVisibility();
   }, 600);
 });
+
+// =======================
+// ETAP 55B-5 — TRANSFER HOST
+// Ręczne przekazanie roli Hosta
+// =======================
+
+let jamTransferHostModal = null;
+let jamTransferHostList = null;
+let jamTransferHostBtnSafe = null;
+
+const originalGetEffectiveHost55B5 = getEffectiveHost;
+
+getEffectiveHost = function getEffectiveHostWithManualTransfer() {
+  if (
+    jamRoomState &&
+    jamRoomState.host_session_id &&
+    Array.isArray(jamOnlineUsers)
+  ) {
+    const roomStateHost = jamOnlineUsers.find((user) => {
+      return user.sessionId === jamRoomState.host_session_id;
+    });
+
+    if (roomStateHost) {
+      return roomStateHost;
+    }
+  }
+
+  return originalGetEffectiveHost55B5();
+};
+
+function ensureTransferHostModal() {
+  if (jamTransferHostModal) {
+    return jamTransferHostModal;
+  }
+
+  jamTransferHostModal = document.createElement("div");
+  jamTransferHostModal.id = "jamTransferHostModal";
+  jamTransferHostModal.className = "jam-modal hidden";
+
+  jamTransferHostModal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Przekaż Hosta</h2>
+
+      <p>
+        Wybierz osobę, która ma przejąć rolę Hosta. Po przekazaniu panel hosta
+        pojawi się u wybranej osoby.
+      </p>
+
+      <div id="jamTransferHostList" class="jam-list"></div>
+
+      <div class="jam-modal-actions">
+        <button id="closeTransferHostModalBtn" class="jam-btn" type="button">
+          ANULUJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamTransferHostModal);
+
+  jamTransferHostList = jamTransferHostModal.querySelector("#jamTransferHostList");
+
+  const closeBtn = jamTransferHostModal.querySelector("#closeTransferHostModalBtn");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeTransferHostModal();
+    });
+  }
+
+  jamTransferHostModal.addEventListener("click", (event) => {
+    if (event.target === jamTransferHostModal) {
+      closeTransferHostModal();
+    }
+  });
+
+  return jamTransferHostModal;
+}
+
+function openTransferHostModal() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
+
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może przekazać rolę Hosta.", "warn");
+    return;
+  }
+
+  ensureTransferHostModal();
+  renderTransferHostList();
+
+  jamTransferHostModal.classList.remove("hidden");
+}
+
+function closeTransferHostModal() {
+  if (jamTransferHostModal) {
+    jamTransferHostModal.classList.add("hidden");
+  }
+}
+
+function renderTransferHostList() {
+  ensureTransferHostModal();
+
+  if (!jamTransferHostList) {
+    return;
+  }
+
+  jamTransferHostList.innerHTML = "";
+
+  const candidates = jamOnlineUsers.filter((user) => {
+    return user.sessionId !== JAM_SESSION_ID;
+  });
+
+  if (!candidates.length) {
+    const emptyRow = createElement(
+      "div",
+      "jam-user-row",
+      "Brak innych osób online"
+    );
+
+    jamTransferHostList.appendChild(emptyRow);
+    return;
+  }
+
+  candidates.forEach((user) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "jam-btn";
+    row.style.width = "100%";
+    row.style.justifyContent = "space-between";
+    row.style.marginBottom = "8px";
+
+    const performerLabel =
+      jamCurrentPerformer && jamCurrentPerformer.sessionId === user.sessionId
+        ? " — aktualnie performer"
+        : "";
+
+    row.innerText = `${user.nick} — ${user.role || "Listener"}${performerLabel}`;
+
+    row.addEventListener("click", () => {
+      runLockedAction(async () => {
+        await transferHostToUser(user);
+      }, "przekaż hosta", "host_placeholder");
+    });
+
+    jamTransferHostList.appendChild(row);
+  });
+}
+
+async function transferHostToUser(targetUser) {
+  if (!jamSupabaseClient || !targetUser) {
+    showSystemInfo("Nie można przekazać Hosta — brak danych użytkownika.", "warn");
+    return;
+  }
+
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może przekazać rolę Hosta.", "warn");
+    return;
+  }
+
+  if (targetUser.sessionId === JAM_SESSION_ID) {
+    showSystemInfo("Już jesteś Hostem.", "warn");
+    return;
+  }
+
+  const targetStillOnline = jamOnlineUsers.some((user) => {
+    return user.sessionId === targetUser.sessionId;
+  });
+
+  if (!targetStillOnline) {
+    showSystemInfo("Ta osoba nie jest już online.", "warn");
+    await fetchJamMembers({ silent: true });
+    renderTransferHostList();
+    return;
+  }
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update({
+        host_session_id: targetUser.sessionId,
+        host_user_id: targetUser.userId || targetUser.id || null,
+        host_nick: targetUser.nick || "Host",
+        updated_by_session_id: JAM_SESSION_ID,
+        updated_by_nick: jamUser ? jamUser.nick : null,
+        updated_at: nowIso()
+      })
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM TRANSFER HOST] error:", error);
+      showSystemInfo("Nie udało się przekazać Hosta.", "warn");
+      return;
+    }
+
+    closeTransferHostModal();
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "transfer host"
+    });
+
+    await fetchJamMembers({
+      silent: true
+    });
+
+    showSystemInfo(`Host przekazany: ${targetUser.nick}.`, "success");
+
+    const messageId = createMessageId();
+    jamSeenRealtimeMessageIds.add(messageId);
+
+    await sendRealtimeBroadcast("jam_status", {
+      message_id: messageId,
+      type: "host_transfer",
+      host_session_id: targetUser.sessionId,
+      host_user_id: targetUser.userId || targetUser.id || null,
+      host_nick: targetUser.nick || "Host",
+      session_id: JAM_SESSION_ID,
+      user_id: jamUser ? jamUser.id : null,
+      nick: jamUser ? jamUser.nick : "Host",
+      created_at: nowIso()
+    });
+
+    renderJamState();
+  } catch (error) {
+    console.error("[JAM TRANSFER HOST] exception:", error);
+    showSystemInfo("Błąd przekazania Hosta.", "warn");
+  }
+}
+
+function bindTransferHostButtonSafe() {
+  const button =
+    document.querySelector("#transferHostBtn") ||
+    Array.from(document.querySelectorAll("button")).find((btn) => {
+      return btn.innerText.trim().toLowerCase() === "przekaż hosta";
+    });
+
+  if (!button) {
+    return;
+  }
+
+  if (jamTransferHostBtnSafe) {
+    return;
+  }
+
+  const clonedButton = button.cloneNode(true);
+  button.parentNode.replaceChild(clonedButton, button);
+
+  jamTransferHostBtnSafe = clonedButton;
+
+  jamTransferHostBtnSafe.addEventListener("click", () => {
+    runLockedAction(async () => {
+      openTransferHostModal();
+    }, "przekaż hosta", "host_placeholder");
+  });
+}
+
+const originalRenderJamState55B5 = renderJamState;
+
+renderJamState = function renderJamStateWithTransferHost() {
+  originalRenderJamState55B5();
+
+  bindTransferHostButtonSafe();
+
+  if (jamTransferHostBtnSafe) {
+    jamTransferHostBtnSafe.style.display = isCurrentUserHost() ? "" : "none";
+    jamTransferHostBtnSafe.disabled =
+      isActionDisabled("host_placeholder") || !isCurrentUserHost();
+
+    if (jamTransferHostBtnSafe.disabled) {
+      jamTransferHostBtnSafe.classList.add("jam-btn-muted");
+    } else {
+      jamTransferHostBtnSafe.classList.remove("jam-btn-muted");
+    }
+  }
+
+  if (
+    jamTransferHostModal &&
+    !jamTransferHostModal.classList.contains("hidden")
+  ) {
+    renderTransferHostList();
+  }
+};
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeTransferHostModal();
+  }
+});
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    ensureTransferHostModal();
+    bindTransferHostButtonSafe();
+    renderJamState();
+  }, 900);
+});
