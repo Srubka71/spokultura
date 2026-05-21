@@ -5537,3 +5537,493 @@ window.addEventListener("load", () => {
     renderJamState();
   }, 1200);
 });
+
+// =======================
+// ETAP 55B-6C — KICK ENFORCEMENT FIX
+// Kick blokuje natychmiastowy powrót do pokoju
+// =======================
+
+const JAM_LOCAL_RESTRICTIONS_KEY = "spokulturaJamLocalRestrictions";
+
+function loadLocalRestrictions55B6C() {
+  const raw = localStorage.getItem(JAM_LOCAL_RESTRICTIONS_KEY);
+
+  if (!raw) {
+    return {
+      kicked_until: null,
+      muted_until: null,
+      last_reason: null
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    return {
+      kicked_until: parsed.kicked_until || null,
+      muted_until: parsed.muted_until || null,
+      last_reason: parsed.last_reason || null
+    };
+  } catch (error) {
+    return {
+      kicked_until: null,
+      muted_until: null,
+      last_reason: null
+    };
+  }
+}
+
+function saveLocalRestrictions55B6C(nextState) {
+  localStorage.setItem(
+    JAM_LOCAL_RESTRICTIONS_KEY,
+    JSON.stringify({
+      kicked_until: nextState.kicked_until || null,
+      muted_until: nextState.muted_until || null,
+      last_reason: nextState.last_reason || null
+    })
+  );
+}
+
+function setLocalKick55B6C(untilIso, reason = "kick") {
+  const current = loadLocalRestrictions55B6C();
+
+  current.kicked_until = untilIso;
+  current.last_reason = reason;
+
+  saveLocalRestrictions55B6C(current);
+}
+
+function setLocalMute55B6C(untilIso, reason = "mute") {
+  const current = loadLocalRestrictions55B6C();
+
+  current.muted_until = untilIso;
+  current.last_reason = reason;
+
+  saveLocalRestrictions55B6C(current);
+}
+
+function clearExpiredLocalRestrictions55B6C() {
+  const current = loadLocalRestrictions55B6C();
+  let changed = false;
+
+  if (
+    current.kicked_until &&
+    new Date(current.kicked_until).getTime() <= Date.now()
+  ) {
+    current.kicked_until = null;
+    changed = true;
+  }
+
+  if (
+    current.muted_until &&
+    new Date(current.muted_until).getTime() <= Date.now()
+  ) {
+    current.muted_until = null;
+    changed = true;
+  }
+
+  if (changed) {
+    saveLocalRestrictions55B6C(current);
+  }
+
+  return current;
+}
+
+function isCurrentUserLocallyKicked55B6C() {
+  const current = clearExpiredLocalRestrictions55B6C();
+
+  if (!current.kicked_until) {
+    return false;
+  }
+
+  return new Date(current.kicked_until).getTime() > Date.now();
+}
+
+function isCurrentUserLocallyMuted55B6C() {
+  const current = clearExpiredLocalRestrictions55B6C();
+
+  if (!current.muted_until) {
+    return false;
+  }
+
+  return new Date(current.muted_until).getTime() > Date.now();
+}
+
+function getLocalKickRemainingText55B6C() {
+  const current = clearExpiredLocalRestrictions55B6C();
+
+  if (!current.kicked_until) {
+    return "";
+  }
+
+  return jamFormatRestrictionTime(current.kicked_until);
+}
+
+function getLocalMuteRemainingText55B6C() {
+  const current = clearExpiredLocalRestrictions55B6C();
+
+  if (!current.muted_until) {
+    return "";
+  }
+
+  return jamFormatRestrictionTime(current.muted_until);
+}
+
+function targetMatchesCurrentUser55B6C(payload) {
+  if (!payload || !jamUser) {
+    return false;
+  }
+
+  const targetUserId = payload.target_user_id || null;
+  const targetSessionId = payload.target_session_id || null;
+
+  return Boolean(
+    targetUserId === jamUser.id ||
+    targetSessionId === JAM_SESSION_ID
+  );
+}
+
+async function forceLeaveBecauseKicked55B6C(message) {
+  showSystemInfo(message, "warn");
+
+  if (jamJoined) {
+    try {
+      await deleteCurrentMember();
+    } catch (error) {
+      console.error("[JAM KICK FIX] delete member error:", error);
+    }
+
+    jamJoined = false;
+
+    stopMembersHeartbeat();
+    resetLocalRoomState();
+
+    renderJamState();
+  }
+}
+
+// Nadpisujemy obsługę realtime statusu, żeby KICK/MUTE działały natychmiast u targetu.
+const originalHandleRealtimeJamStatus55B6C = handleRealtimeJamStatus;
+
+handleRealtimeJamStatus = function handleRealtimeJamStatusWithKickFix(payload) {
+  if (!payload || !payload.message_id) {
+    return;
+  }
+
+  if (payload.type === "kick" && targetMatchesCurrentUser55B6C(payload)) {
+    const kickedUntil =
+      payload.kicked_until ||
+      new Date(Date.now() + JAM_DEFAULT_KICK_MS).toISOString();
+
+    setLocalKick55B6C(kickedUntil, "kick");
+
+    forceLeaveBecauseKicked55B6C(
+      `Zostałeś wyrzucony z pokoju. Możesz wrócić za: ${jamFormatRestrictionTime(kickedUntil)}.`
+    );
+
+    return;
+  }
+
+  if (payload.type === "mute" && targetMatchesCurrentUser55B6C(payload)) {
+    const mutedUntil =
+      payload.muted_until ||
+      new Date(Date.now() + JAM_DEFAULT_MUTE_MS).toISOString();
+
+    setLocalMute55B6C(mutedUntil, "mute");
+
+    showSystemInfo(
+      `Masz MUTE. Nie możesz pisać, reagować ani prosić o mikrofon. Pozostało: ${jamFormatRestrictionTime(mutedUntil)}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  originalHandleRealtimeJamStatus55B6C(payload);
+};
+
+// Nadpisujemy KICK, żeby broadcast wysyłał dokładny kicked_until.
+const originalKickUser55B6C = kickUser;
+
+kickUser = async function kickUserWithStrongBroadcast(targetUser) {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyrzucać z pokoju.", "warn");
+    return;
+  }
+
+  if (!targetUser || targetUser.sessionId === JAM_SESSION_ID) {
+    showSystemInfo("Nie możesz wyrzucić samego siebie.", "warn");
+    return;
+  }
+
+  const confirmed = confirm(`Wyrzucić ${targetUser.nick} z pokoju na 5 minut?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  const kickedUntil = new Date(Date.now() + JAM_DEFAULT_KICK_MS).toISOString();
+
+  const saved = await setUserRestriction(targetUser, {
+    kicked_until: kickedUntil
+  });
+
+  if (!saved) {
+    return;
+  }
+
+  if (
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId === targetUser.sessionId
+  ) {
+    await clearCurrentPerformerInRoomState();
+  }
+
+  await updateMemberFieldsBySession(targetUser.sessionId, {
+    is_in_queue: false,
+    queue_joined_at: null,
+    is_performer: false
+  });
+
+  try {
+    await jamSupabaseClient
+      .from("jam_room_members")
+      .delete()
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("session_id", targetUser.sessionId);
+  } catch (error) {
+    console.error("[JAM KICK FIX] member delete error:", error);
+  }
+
+  closeKickModal();
+
+  await fetchJamMembers({
+    silent: true
+  });
+
+  showSystemInfo(`${targetUser.nick} został wyrzucony na 5 minut.`, "success");
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("jam_status", {
+    message_id: messageId,
+    type: "kick",
+    kicked_until: kickedUntil,
+    target_user_id: targetUser.userId || targetUser.id,
+    target_session_id: targetUser.sessionId,
+    target_nick: targetUser.nick,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "Host",
+    created_at: nowIso()
+  });
+
+  renderJamState();
+};
+
+// Nadpisujemy MUTE, żeby też miał dokładny muted_until po stronie targetu.
+const originalMuteUser55B6C = muteUser;
+
+muteUser = async function muteUserWithStrongBroadcast(targetUser) {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może dawać MUTE.", "warn");
+    return;
+  }
+
+  if (!targetUser || targetUser.sessionId === JAM_SESSION_ID) {
+    showSystemInfo("Nie możesz zmutować samego siebie.", "warn");
+    return;
+  }
+
+  const confirmed = confirm(`Dać MUTE użytkownikowi ${targetUser.nick} na 5 minut?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  const mutedUntil = new Date(Date.now() + JAM_DEFAULT_MUTE_MS).toISOString();
+
+  const saved = await setUserRestriction(targetUser, {
+    is_muted: true,
+    muted_until: mutedUntil
+  });
+
+  if (!saved) {
+    return;
+  }
+
+  if (
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId === targetUser.sessionId
+  ) {
+    await clearCurrentPerformerInRoomState();
+  }
+
+  await updateMemberFieldsBySession(targetUser.sessionId, {
+    is_in_queue: false,
+    queue_joined_at: null,
+    is_performer: false
+  });
+
+  closeMuteModal();
+
+  await fetchJamMembers({
+    silent: true
+  });
+
+  showSystemInfo(`${targetUser.nick} dostał MUTE na 5 minut.`, "success");
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("jam_status", {
+    message_id: messageId,
+    type: "mute",
+    muted_until: mutedUntil,
+    target_user_id: targetUser.userId || targetUser.id,
+    target_session_id: targetUser.sessionId,
+    target_nick: targetUser.nick,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "Host",
+    created_at: nowIso()
+  });
+
+  renderJamState();
+};
+
+// Mocniejszy joinRoom: sprawdza Supabase + lokalną blokadę z broadcastu.
+const originalJoinRoom55B6C = joinRoom;
+
+joinRoom = async function joinRoomWithStrongKickCheck() {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  if (isCurrentUserKicked() || isCurrentUserLocallyKicked55B6C()) {
+    const dbRemaining = getCurrentUserKickRemainingText();
+    const localRemaining = getLocalKickRemainingText55B6C();
+
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Nie możesz wejść do pokoju. KICK aktywny jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalJoinRoom55B6C();
+};
+
+// Mocniejszy chat check.
+const originalSendLocalChatMessage55B6C = sendLocalChatMessage;
+
+sendLocalChatMessage = async function sendLocalChatMessageWithStrongMuteCheck() {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Chat zablokowany jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalSendLocalChatMessage55B6C();
+};
+
+// Mocniejszy reaction check.
+const originalAddReaction55B6C = addReaction;
+
+addReaction = async function addReactionWithStrongMuteCheck(reaction) {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Reakcje zablokowane jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalAddReaction55B6C(reaction);
+};
+
+// Mocniejszy microphone request check.
+const originalRequestMicrophone55B6C = requestMicrophone;
+
+requestMicrophone = function requestMicrophoneWithStrongMuteCheck() {
+  runLockedAction(async () => {
+    await fetchJamRestrictions({
+      silent: true
+    });
+
+    if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+      const dbRemaining = getCurrentUserMuteRemainingText();
+      const localRemaining = getLocalMuteRemainingText55B6C();
+
+      const remaining = dbRemaining || localRemaining || "chwilę";
+
+      showSystemInfo(
+        `Masz MUTE. Mikrofon zablokowany jeszcze: ${remaining}.`,
+        "warn"
+      );
+
+      return;
+    }
+
+    if (!jamJoined) {
+      showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+      return;
+    }
+
+    if (isCurrentUserPerformer() || (jamUser && jamUser.isInQueue)) {
+      await returnToListening(true);
+      return;
+    }
+
+    openHeadphonesModal();
+  }, "prośba o mikrofon", "request_mic");
+};
+
+// Cofnięcie blokady ma też czyścić lokalny zapis, jeśli target to aktualna karta.
+const originalClearUserRestriction55B6C = clearUserRestriction;
+
+clearUserRestriction = async function clearUserRestrictionWithLocalClean(userId, type = "all") {
+  const result = await originalClearUserRestriction55B6C(userId, type);
+
+  if (result && jamUser && userId === jamUser.id) {
+    const current = loadLocalRestrictions55B6C();
+
+    if (type === "kick" || type === "all") {
+      current.kicked_until = null;
+    }
+
+    if (type === "mute" || type === "all") {
+      current.muted_until = null;
+    }
+
+    saveLocalRestrictions55B6C(current);
+  }
+
+  return result;
+};
