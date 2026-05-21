@@ -4203,3 +4203,100 @@ window.addEventListener("load", () => {
     renderJamState();
   }, 900);
 });
+
+// =======================
+// ETAP 55B-5B — ONLINE ROLE LABEL FIX AFTER HOST TRANSFER
+// Online ma pokazywać Hosta z room_state.host_session_id
+// =======================
+
+assignRolesAndQueueFromMembers = function assignRolesAndQueueFromMembersWithManualHost(members) {
+  const sortedMembers = [...members].sort((a, b) => {
+    return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+  });
+
+  const roomStateHostSessionId =
+    jamRoomState && jamRoomState.host_session_id
+      ? jamRoomState.host_session_id
+      : null;
+
+  const roomStateHostIsOnline =
+    roomStateHostSessionId &&
+    sortedMembers.some((member) => {
+      return member.sessionId === roomStateHostSessionId;
+    });
+
+  const hostSessionId =
+    roomStateHostIsOnline
+      ? roomStateHostSessionId
+      : sortedMembers.length > 0
+        ? sortedMembers[0].sessionId
+        : null;
+
+  sortedMembers.forEach((member) => {
+    if (member.sessionId === hostSessionId) {
+      member.role = "Host";
+    } else if (
+      jamCurrentPerformer &&
+      jamCurrentPerformer.sessionId === member.sessionId
+    ) {
+      member.role = "Performer";
+    } else {
+      member.role = "Listener";
+    }
+  });
+
+  jamQueue = sortedMembers
+    .filter((member) => member.isInQueue)
+    .sort((a, b) => {
+      const aTime = memberQueueTime(a);
+      const bTime = memberQueueTime(b);
+
+      return aTime - bTime;
+    })
+    .map((member) => {
+      return {
+        id: member.userId,
+        userId: member.userId,
+        sessionId: member.sessionId,
+        nick: member.nick,
+        joinedAt: member.queueJoinedAt || member.joinedAt
+      };
+    });
+
+  return sortedMembers;
+};
+
+function memberQueueTime(member) {
+  if (member && member.queueJoinedAt) {
+    return new Date(member.queueJoinedAt).getTime();
+  }
+
+  if (member && member.joinedAt) {
+    return new Date(member.joinedAt).getTime();
+  }
+
+  return Date.now();
+}
+
+async function forceHostTransferRoleRefresh() {
+  if (!jamJoined) {
+    return;
+  }
+
+  await fetchJamRoomState({
+    silent: true,
+    reason: "host-transfer-role-refresh"
+  });
+
+  await fetchJamMembers({
+    silent: true
+  });
+
+  renderJamState();
+}
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    forceHostTransferRoleRefresh();
+  }, 1200);
+});
