@@ -1,5 +1,5 @@
 // =======================
-// ETAP 55B-2 — QUEUE + MICROPHONE STABILIZATION
+// ETAP 55B-3 — ACTION COOLDOWN + ANTI-CHAOS LOCK
 // Spokultura Jam Room #1
 // =======================
 
@@ -23,8 +23,22 @@ const JAM_SESSION_ID =
   "_" +
   Math.random().toString(36).slice(2);
 
-const JAM_ACTION_LOCK_MS = 850;
-const JAM_ACTION_MIN_INTERVAL_MS = 650;
+const JAM_ACTION_LOCK_MS = 950;
+const JAM_ACTION_MIN_INTERVAL_MS = 700;
+
+const JAM_ACTION_COOLDOWNS = {
+  join_leave: 1400,
+  request_mic: 1600,
+  confirm_mic: 1600,
+  start_stop: 2200,
+  pass_next: 1600,
+  return_listening: 1700,
+  host_takeover: 2200,
+  host_pass_mic: 1600,
+  skip: 2200,
+  chat_clear: 2500,
+  host_placeholder: 900
+};
 
 const JAM_ROOM_STATE_RESYNC_MS = 3500;
 const JAM_MEMBERS_HEARTBEAT_MS = 2500;
@@ -81,6 +95,8 @@ let jamHostTakeoverPreviousPerformer = null;
 
 let jamActionLocked = false;
 let jamLastActionAt = 0;
+let jamActionCooldownUntil = {};
+let jamReconcileInProgress = false;
 
 let jamLastChatText = "";
 let jamLastChatAt = 0;
@@ -157,12 +173,34 @@ function getStaleCutoffIso() {
   return new Date(Date.now() - JAM_MEMBERS_STALE_MS).toISOString();
 }
 
-async function runLockedAction(action, label = "akcję") {
+function getActionCooldownRemaining(actionKey) {
+  if (!actionKey) return 0;
+
+  const until = Number(jamActionCooldownUntil[actionKey] || 0);
+
+  return Math.max(0, until - Date.now());
+}
+
+function isActionCooling(actionKey) {
+  return getActionCooldownRemaining(actionKey) > 0;
+}
+
+function isActionDisabled(actionKey) {
+  return Boolean(jamActionLocked || isActionCooling(actionKey));
+}
+
+async function runLockedAction(action, label = "akcję", actionKey = "global") {
   const now = Date.now();
   const sinceLastAction = now - jamLastActionAt;
+  const cooldownRemaining = getActionCooldownRemaining(actionKey);
 
   if (jamActionLocked) {
     showSystemInfo("Poczekaj chwilę — poprzednia akcja jeszcze się synchronizuje.", "warn");
+    return;
+  }
+
+  if (cooldownRemaining > 0) {
+    showSystemInfo("Poczekaj moment — stan pokoju jeszcze się wyrównuje.", "warn");
     return;
   }
 
@@ -182,10 +220,19 @@ async function runLockedAction(action, label = "akcję") {
     console.error(error);
     showSystemInfo(`Nie udało się wykonać akcji: ${label}.`, "warn");
   } finally {
+    const cooldownMs =
+      JAM_ACTION_COOLDOWNS[actionKey] || JAM_ACTION_MIN_INTERVAL_MS;
+
+    jamActionCooldownUntil[actionKey] = Date.now() + cooldownMs;
+
     setTimeout(() => {
       jamActionLocked = false;
       renderJamState();
     }, JAM_ACTION_LOCK_MS);
+
+    setTimeout(() => {
+      renderJamState();
+    }, cooldownMs + 80);
   }
 }
 
@@ -574,6 +621,8 @@ async function fetchJamMembers(options = {}) {
     await syncHostFieldsToRoomStateIfNeeded();
 
     renderJamState();
+
+    await reconcileRoomStateAfterMembersChange();
   } catch (error) {
     console.error("[JAM MEMBERS] fetch exception:", error);
 
@@ -1103,6 +1152,73 @@ async function syncHostFieldsToRoomStateIfNeeded() {
     jamRoomStateReady = true;
   } catch (error) {
     console.error("[JAM ROOM_STATE] host sync exception:", error);
+  }
+}
+
+async function reconcileRoomStateAfterMembersChange() {
+  if (
+    jamReconcileInProgress ||
+    !jamJoined ||
+    !jamRoomStateReady ||
+    !isCurrentUserHost()
+  ) {
+    return;
+  }
+
+  jamReconcileInProgress = true;
+
+  try {
+    if (jamCurrentPerformer && !sessionIsCurrentlyOnline(jamCurrentPerformer.sessionId)) {
+      await setAllMembersPerformerFalse();
+      await clearCurrentPerformerInRoomState();
+
+      if (jamActive) {
+        await fetchJamMembers({
+          silent: true
+        });
+
+        const nextUser = getFirstQueueUser();
+
+        if (nextUser) {
+          await assignPerformer(nextUser, "Auto", {
+            addToQueue: true,
+            preserveQueue: true,
+            micSource: "queue"
+          });
+        }
+      }
+
+      return;
+    }
+
+    if (
+      jamActive &&
+      jamCurrentPerformer &&
+      jamMicSource !== "host_takeover"
+    ) {
+      const performerMember = getMemberBySessionId(jamCurrentPerformer.sessionId);
+
+      if (!performerMember || !performerMember.isInQueue) {
+        await setAllMembersPerformerFalse();
+        await clearCurrentPerformerInRoomState();
+
+        const nextUser =
+          getFirstQueueUserExcept(jamCurrentPerformer.sessionId) ||
+          getFirstQueueUser();
+
+        if (nextUser && sessionIsCurrentlyOnline(nextUser.sessionId)) {
+          await assignPerformer(nextUser, "Auto", {
+            addToQueue: true,
+            preserveQueue: true,
+            micSource: "queue"
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[JAM RECONCILE] error:", error);
+  } finally {
+    jamReconcileInProgress = false;
   }
 }
 
@@ -1750,7 +1866,7 @@ function openHostPickMicModal() {
             preserveQueue: true,
             micSource: "host_pick"
           });
-        }, "przekaż mikrofon");
+        }, "przekaż mikrofon", "host_pass_mic");
       });
 
       list.appendChild(row);
@@ -2461,14 +2577,12 @@ function setButtonBusyState(button, disabled) {
 }
 
 function updateButtons() {
-  const disabled = jamActionLocked;
-
   if (joinRoomBtn) {
     joinRoomBtn.innerText = jamJoined
       ? "OPUŚĆ POKÓJ"
       : "DOŁĄCZ DO POKOJU";
 
-    setButtonBusyState(joinRoomBtn, disabled);
+    setButtonBusyState(joinRoomBtn, isActionDisabled("join_leave"));
   }
 
   if (requestMicBtn) {
@@ -2478,7 +2592,12 @@ function updateButtons() {
       requestMicBtn.innerText = "POPROŚ O MIKROFON";
     }
 
-    setButtonBusyState(requestMicBtn, disabled);
+    const key =
+      isCurrentUserPerformer() || (jamUser && jamUser.isInQueue)
+        ? "return_listening"
+        : "request_mic";
+
+    setButtonBusyState(requestMicBtn, isActionDisabled(key));
   }
 
   if (startJamBtn) {
@@ -2486,7 +2605,7 @@ function updateButtons() {
       ? "ZAKOŃCZ JAM"
       : "START JAM";
 
-    setButtonBusyState(startJamBtn, disabled || !isCurrentUserHost());
+    setButtonBusyState(startJamBtn, isActionDisabled("start_stop") || !isCurrentUserHost());
   }
 
   if (hostTakeMicBtn) {
@@ -2494,7 +2613,7 @@ function updateButtons() {
       ? "WYŁĄCZ MIKROFON"
       : "PRZEJMIJ MIKROFON";
 
-    setButtonBusyState(hostTakeMicBtn, disabled || !isCurrentUserHost());
+    setButtonBusyState(hostTakeMicBtn, isActionDisabled("host_takeover") || !isCurrentUserHost());
   }
 
   if (clearChatBtn) {
@@ -2502,13 +2621,13 @@ function updateButtons() {
       ? ""
       : "none";
 
-    setButtonBusyState(clearChatBtn, disabled || !isCurrentUserHost());
+    setButtonBusyState(clearChatBtn, isActionDisabled("chat_clear") || !isCurrentUserHost());
   }
 
-  setButtonBusyState(hostPassMicBtn, disabled || !isCurrentUserHost());
-  setButtonBusyState(skipPerformerBtn, disabled || !isCurrentUserHost());
-  setButtonBusyState(performerPassNextBtn, disabled || !isCurrentUserPerformer());
-  setButtonBusyState(performerBackToListeningBtn, disabled || !isCurrentUserPerformer());
+  setButtonBusyState(hostPassMicBtn, isActionDisabled("host_pass_mic") || !isCurrentUserHost());
+  setButtonBusyState(skipPerformerBtn, isActionDisabled("skip") || !isCurrentUserHost());
+  setButtonBusyState(performerPassNextBtn, isActionDisabled("pass_next") || !isCurrentUserPerformer());
+  setButtonBusyState(performerBackToListeningBtn, isActionDisabled("return_listening") || !isCurrentUserPerformer());
 }
 
 function updateStatusPills() {
@@ -2762,7 +2881,7 @@ function toggleRoom() {
     } else {
       await joinRoom();
     }
-  }, "dołącz / opuść pokój");
+  }, "dołącz / opuść pokój", "join_leave");
 }
 
 function requestMicrophone() {
@@ -2778,7 +2897,7 @@ function requestMicrophone() {
     }
 
     openHeadphonesModal();
-  }, "prośba o mikrofon");
+  }, "prośba o mikrofon", "request_mic");
 }
 
 async function addSelfToMicrophoneQueue() {
@@ -2832,7 +2951,7 @@ function confirmMicrophoneRequest() {
   runLockedAction(async () => {
     closeHeadphonesModal();
     await addSelfToMicrophoneQueue();
-  }, "potwierdzenie mikrofonu");
+  }, "potwierdzenie mikrofonu", "confirm_mic");
 }
 
 async function leaveQueueCompletely(shouldBroadcast = true) {
@@ -3326,7 +3445,7 @@ function bindJamEvents() {
     performerPassNextBtn.addEventListener("click", () => {
       runLockedAction(async () => {
         await performerPassNext();
-      }, "przekaż dalej");
+      }, "przekaż dalej", "pass_next");
     });
   }
 
@@ -3334,7 +3453,7 @@ function bindJamEvents() {
     performerBackToListeningBtn.addEventListener("click", () => {
       runLockedAction(async () => {
         await returnToListening(true);
-      }, "wróć do słuchania");
+      }, "wróć do słuchania", "return_listening");
     });
   }
 
@@ -3346,7 +3465,9 @@ function bindJamEvents() {
 
   if (clearChatBtn) {
     clearChatBtn.addEventListener("click", () => {
-      clearChatInRoomState();
+      runLockedAction(async () => {
+        await clearChatInRoomState();
+      }, "wyczyść chat", "chat_clear");
     });
   }
 
@@ -3369,7 +3490,7 @@ function bindJamEvents() {
     startJamBtn.addEventListener("click", () => {
       runLockedAction(async () => {
         await toggleJamActive();
-      }, "start / zakończ jam");
+      }, "start / zakończ jam", "start_stop");
     });
   }
 
@@ -3377,7 +3498,7 @@ function bindJamEvents() {
     hostTakeMicBtn.addEventListener("click", () => {
       runLockedAction(async () => {
         await hostTakeMicrophone();
-      }, "przejmij / wyłącz mikrofon");
+      }, "przejmij / wyłącz mikrofon", "host_takeover");
     });
   }
 
@@ -3385,13 +3506,15 @@ function bindJamEvents() {
     hostPassMicBtn.addEventListener("click", () => {
       runLockedAction(async () => {
         await hostPassMicrophoneNext();
-      }, "przekaż mikrofon");
+      }, "przekaż mikrofon", "host_pass_mic");
     });
   }
 
   if (nextBeatBtn) {
     nextBeatBtn.addEventListener("click", () => {
-      hostPlaceholder("NEXT BEAT");
+      runLockedAction(async () => {
+        hostPlaceholder("NEXT BEAT");
+      }, "next beat", "host_placeholder");
     });
   }
 
@@ -3399,25 +3522,31 @@ function bindJamEvents() {
     skipPerformerBtn.addEventListener("click", () => {
       runLockedAction(async () => {
         await skipPerformerPlaceholder();
-      }, "skip performer");
+      }, "skip performer", "skip");
     });
   }
 
   if (transferHostBtn) {
     transferHostBtn.addEventListener("click", () => {
-      hostPlaceholder("PRZEKAŻ HOSTA");
+      runLockedAction(async () => {
+        hostPlaceholder("PRZEKAŻ HOSTA");
+      }, "przekaż hosta", "host_placeholder");
     });
   }
 
   if (kickBtn) {
     kickBtn.addEventListener("click", () => {
-      hostPlaceholder("KICK");
+      runLockedAction(async () => {
+        hostPlaceholder("KICK");
+      }, "kick", "host_placeholder");
     });
   }
 
   if (muteBtn) {
     muteBtn.addEventListener("click", () => {
-      hostPlaceholder("MUTE");
+      runLockedAction(async () => {
+        hostPlaceholder("MUTE");
+      }, "mute", "host_placeholder");
     });
   }
 
@@ -3471,6 +3600,8 @@ function initJamRoom() {
   jamHostTakeoverPreviousPerformer = null;
   jamActionLocked = false;
   jamLastActionAt = 0;
+  jamActionCooldownUntil = {};
+  jamReconcileInProgress = false;
 
   saveJamUser();
 
