@@ -6027,3 +6027,456 @@ clearUserRestriction = async function clearUserRestrictionWithLocalClean(userId,
 
   return result;
 };
+
+// =======================
+// ETAP 55B-6D — MUTED ROLE LABEL + UNKICK FIX
+// MUTED widoczny w Online + cofnięcie KICK czyści lokalną blokadę
+// =======================
+
+let jamRestrictionsRoleRefreshTimer55B6D = null;
+
+function getActiveRestrictionForUserId55B6D(userId) {
+  if (!userId || !Array.isArray(jamRestrictions)) {
+    return null;
+  }
+
+  return jamRestrictions.find((restriction) => {
+    return restriction.user_id === userId;
+  }) || null;
+}
+
+function isRestrictionMutedActive55B6D(restriction) {
+  if (!restriction) {
+    return false;
+  }
+
+  if (!restriction.is_muted) {
+    return false;
+  }
+
+  if (!restriction.muted_until) {
+    return true;
+  }
+
+  return jamRestrictionIsActiveUntil(restriction.muted_until);
+}
+
+function isRestrictionKickActive55B6D(restriction) {
+  if (!restriction || !restriction.kicked_until) {
+    return false;
+  }
+
+  return jamRestrictionIsActiveUntil(restriction.kicked_until);
+}
+
+function getMutedRoleLabel55B6D(restriction) {
+  if (!restriction) {
+    return "MUTED";
+  }
+
+  if (!restriction.muted_until) {
+    return "MUTED";
+  }
+
+  return `MUTED — ${jamFormatRestrictionTime(restriction.muted_until)}`;
+}
+
+// Nadpisujemy budowanie ról Online.
+// Teraz priorytet jest:
+// 1. Host
+// 2. Muted
+// 3. Performer
+// 4. Listener
+assignRolesAndQueueFromMembers = function assignRolesAndQueueFromMembersWithMutedRole(members) {
+  const sortedMembers = [...members].sort((a, b) => {
+    return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+  });
+
+  const roomStateHostSessionId =
+    jamRoomState && jamRoomState.host_session_id
+      ? jamRoomState.host_session_id
+      : null;
+
+  const roomStateHostIsOnline =
+    roomStateHostSessionId &&
+    sortedMembers.some((member) => {
+      return member.sessionId === roomStateHostSessionId;
+    });
+
+  const hostSessionId =
+    roomStateHostIsOnline
+      ? roomStateHostSessionId
+      : sortedMembers.length > 0
+        ? sortedMembers[0].sessionId
+        : null;
+
+  sortedMembers.forEach((member) => {
+    const restriction = getActiveRestrictionForUserId55B6D(member.userId || member.id);
+    const mutedActive = isRestrictionMutedActive55B6D(restriction);
+
+    if (member.sessionId === hostSessionId) {
+      member.role = "Host";
+    } else if (mutedActive) {
+      member.role = getMutedRoleLabel55B6D(restriction);
+    } else if (
+      jamCurrentPerformer &&
+      jamCurrentPerformer.sessionId === member.sessionId
+    ) {
+      member.role = "Performer";
+    } else {
+      member.role = "Listener";
+    }
+  });
+
+  jamQueue = sortedMembers
+    .filter((member) => {
+      const restriction = getActiveRestrictionForUserId55B6D(member.userId || member.id);
+      const mutedActive = isRestrictionMutedActive55B6D(restriction);
+      const kickedActive = isRestrictionKickActive55B6D(restriction);
+
+      return member.isInQueue && !mutedActive && !kickedActive;
+    })
+    .sort((a, b) => {
+      const aTime = memberQueueTime(a);
+      const bTime = memberQueueTime(b);
+
+      return aTime - bTime;
+    })
+    .map((member) => {
+      return {
+        id: member.userId,
+        userId: member.userId,
+        sessionId: member.sessionId,
+        nick: member.nick,
+        joinedAt: member.queueJoinedAt || member.joinedAt
+      };
+    });
+
+  return sortedMembers;
+};
+
+// Jeśli ktoś ma MUTE i dalej wisiałby jako performer/kolejka,
+// Host sprząta to automatycznie przy odświeżeniu restrykcji.
+async function reconcileMutedUsers55B6D() {
+  if (!jamJoined || !isCurrentUserHost()) {
+    return;
+  }
+
+  const activeMutedRestrictions = jamRestrictions.filter((restriction) => {
+    return isRestrictionMutedActive55B6D(restriction);
+  });
+
+  if (!activeMutedRestrictions.length) {
+    return;
+  }
+
+  for (const restriction of activeMutedRestrictions) {
+    const mutedMember = jamOnlineUsers.find((member) => {
+      return member.userId === restriction.user_id || member.id === restriction.user_id;
+    });
+
+    if (!mutedMember) {
+      continue;
+    }
+
+    if (mutedMember.isInQueue || mutedMember.isPerformer) {
+      await updateMemberFieldsBySession(mutedMember.sessionId, {
+        is_in_queue: false,
+        queue_joined_at: null,
+        is_performer: false
+      });
+    }
+
+    if (
+      jamCurrentPerformer &&
+      jamCurrentPerformer.sessionId === mutedMember.sessionId
+    ) {
+      await clearCurrentPerformerInRoomState();
+    }
+  }
+
+  await fetchJamMembers({
+    silent: true
+  });
+}
+
+// Nadpisujemy fetch restrictions tak, żeby po odczycie od razu odświeżyć role Online.
+const originalFetchJamRestrictions55B6D = fetchJamRestrictions;
+
+fetchJamRestrictions = async function fetchJamRestrictionsWithMutedRole(options = {}) {
+  await originalFetchJamRestrictions55B6D(options);
+
+  await reconcileMutedUsers55B6D();
+
+  if (jamJoined) {
+    await fetchJamMembers({
+      silent: true
+    });
+  }
+
+  renderJamState();
+};
+
+// Broadcast cofnięcia blokady do targetu.
+// To naprawia sytuację: Host cofa KICK, ale wyrzucona osoba dalej ma lokalną blokadę.
+const originalClearUserRestriction55B6D = clearUserRestriction;
+
+clearUserRestriction = async function clearUserRestrictionWithBroadcast55B6D(userId, type = "all") {
+  const result = await originalClearUserRestriction55B6D(userId, type);
+
+  if (!result) {
+    return result;
+  }
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("jam_status", {
+    message_id: messageId,
+    type: "restriction_clear",
+    clear_type: type,
+    target_user_id: userId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "Host",
+    created_at: nowIso()
+  });
+
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  return result;
+};
+
+// Obsługa broadcastu cofnięcia blokady po stronie targetu.
+const originalHandleRealtimeJamStatus55B6D = handleRealtimeJamStatus;
+
+handleRealtimeJamStatus = function handleRealtimeJamStatusWithRestrictionClear55B6D(payload) {
+  if (!payload || !payload.message_id) {
+    return;
+  }
+
+  if (
+    payload.type === "restriction_clear" &&
+    jamUser &&
+    payload.target_user_id === jamUser.id
+  ) {
+    const current = loadLocalRestrictions55B6C();
+
+    if (payload.clear_type === "kick" || payload.clear_type === "all") {
+      current.kicked_until = null;
+    }
+
+    if (payload.clear_type === "mute" || payload.clear_type === "all") {
+      current.muted_until = null;
+    }
+
+    saveLocalRestrictions55B6C(current);
+
+    fetchJamRestrictions({
+      silent: true
+    });
+
+    showSystemInfo("Twoja blokada została cofnięta przez Hosta.", "success");
+
+    return;
+  }
+
+  originalHandleRealtimeJamStatus55B6D(payload);
+};
+
+// Mocniejszy JOIN:
+// jeśli w Supabase nie ma już aktywnego KICK, czyścimy lokalną blokadę.
+// To naprawia sytuację po COFNIJ KICK.
+const originalJoinRoom55B6D = joinRoom;
+
+joinRoom = async function joinRoomWithUnkickFix55B6D() {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  const dbKickActive = isCurrentUserKicked();
+  const localKickActive = isCurrentUserLocallyKicked55B6C();
+
+  if (dbKickActive) {
+    const remaining = getCurrentUserKickRemainingText() || "chwilę";
+
+    showSystemInfo(
+      `Nie możesz wejść do pokoju. KICK aktywny jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  if (!dbKickActive && localKickActive) {
+    const current = loadLocalRestrictions55B6C();
+    current.kicked_until = null;
+    saveLocalRestrictions55B6C(current);
+  }
+
+  await originalJoinRoom55B6D();
+};
+
+// Mocniejszy MUTE check:
+// jeśli Supabase nie ma już MUTE, czyścimy lokalny mute.
+function clearLocalMuteIfDbMuteExpired55B6D() {
+  if (isCurrentUserMuted()) {
+    return;
+  }
+
+  if (!isCurrentUserLocallyMuted55B6C()) {
+    return;
+  }
+
+  const current = loadLocalRestrictions55B6C();
+  current.muted_until = null;
+  saveLocalRestrictions55B6C(current);
+}
+
+const originalSendLocalChatMessage55B6D = sendLocalChatMessage;
+
+sendLocalChatMessage = async function sendLocalChatMessageWithUnmuteFix55B6D() {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  clearLocalMuteIfDbMuteExpired55B6D();
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Chat zablokowany jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalSendLocalChatMessage55B6D();
+};
+
+const originalAddReaction55B6D = addReaction;
+
+addReaction = async function addReactionWithUnmuteFix55B6D(reaction) {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  clearLocalMuteIfDbMuteExpired55B6D();
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Reakcje zablokowane jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalAddReaction55B6D(reaction);
+};
+
+const originalRequestMicrophone55B6D = requestMicrophone;
+
+requestMicrophone = function requestMicrophoneWithUnmuteFix55B6D() {
+  runLockedAction(async () => {
+    await fetchJamRestrictions({
+      silent: true
+    });
+
+    clearLocalMuteIfDbMuteExpired55B6D();
+
+    if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+      const dbRemaining = getCurrentUserMuteRemainingText();
+      const localRemaining = getLocalMuteRemainingText55B6C();
+
+      const remaining = dbRemaining || localRemaining || "chwilę";
+
+      showSystemInfo(
+        `Masz MUTE. Mikrofon zablokowany jeszcze: ${remaining}.`,
+        "warn"
+      );
+
+      return;
+    }
+
+    if (!jamJoined) {
+      showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+      return;
+    }
+
+    if (isCurrentUserPerformer() || (jamUser && jamUser.isInQueue)) {
+      await returnToListening(true);
+      return;
+    }
+
+    openHeadphonesModal();
+  }, "prośba o mikrofon", "request_mic");
+};
+
+// Odświeżanie etykiety MUTED — czas kary ma maleć bez klikania.
+function startMutedRoleRefresh55B6D() {
+  if (jamRestrictionsRoleRefreshTimer55B6D) {
+    clearInterval(jamRestrictionsRoleRefreshTimer55B6D);
+  }
+
+  jamRestrictionsRoleRefreshTimer55B6D = setInterval(() => {
+    const hasActiveMute = jamRestrictions.some((restriction) => {
+      return isRestrictionMutedActive55B6D(restriction);
+    });
+
+    if (hasActiveMute) {
+      fetchJamRestrictions({
+        silent: true
+      });
+    } else {
+      renderJamState();
+    }
+  }, 10000);
+}
+
+// Dopinamy do Debuga, żeby widzieć blokady.
+if (typeof getHostDebugSnapshot === "function") {
+  const originalGetHostDebugSnapshot55B6D = getHostDebugSnapshot;
+
+  getHostDebugSnapshot = function getHostDebugSnapshotWithRestrictions55B6D() {
+    const snapshot = originalGetHostDebugSnapshot55B6D();
+
+    snapshot.restrictions = Array.isArray(jamRestrictions)
+      ? jamRestrictions.map((restriction) => ({
+          user_id: restriction.user_id,
+          nick: restriction.nick,
+          is_muted: restriction.is_muted,
+          muted_until: restriction.muted_until,
+          kicked_until: restriction.kicked_until,
+          mute_active: isRestrictionMutedActive55B6D(restriction),
+          kick_active: isRestrictionKickActive55B6D(restriction)
+        }))
+      : [];
+
+    return snapshot;
+  };
+}
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    fetchJamRestrictions({
+      silent: true
+    });
+
+    startMutedRoleRefresh55B6D();
+
+    renderJamState();
+  }, 1600);
+});
