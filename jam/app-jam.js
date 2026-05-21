@@ -4300,3 +4300,1240 @@ window.addEventListener("load", () => {
     forceHostTransferRoleRefresh();
   }, 1200);
 });
+
+// =======================
+// ETAP 55B-6B — KICK / MUTE + RESTRICTIONS MANAGER
+// Host może mute/kick oraz cofnąć blokady
+// =======================
+
+const JAM_RESTRICTIONS_CHANNEL = "spokultura_jam_room_restrictions_1";
+const JAM_DEFAULT_MUTE_MS = 5 * 60 * 1000;
+const JAM_DEFAULT_KICK_MS = 5 * 60 * 1000;
+
+let jamRestrictionsChannel = null;
+let jamRestrictions = [];
+let jamRestrictionsReady = false;
+
+let jamKickModal = null;
+let jamKickList = null;
+
+let jamMuteModal = null;
+let jamMuteList = null;
+
+let jamRestrictionsManagerBtn = null;
+let jamRestrictionsManagerModal = null;
+let jamRestrictionsManagerList = null;
+
+let jamKickBtnSafe = null;
+let jamMuteBtnSafe = null;
+
+// =======================
+// RESTRICTIONS HELPERS
+// =======================
+
+function jamRestrictionIsActiveUntil(value) {
+  if (!value) {
+    return false;
+  }
+
+  return new Date(value).getTime() > Date.now();
+}
+
+function jamFormatRestrictionTime(value) {
+  if (!value) {
+    return "brak limitu";
+  }
+
+  const diffMs = new Date(value).getTime() - Date.now();
+
+  if (diffMs <= 0) {
+    return "wygasło";
+  }
+
+  return formatRemainingTime(diffMs);
+}
+
+function getRestrictionForUserId(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  return jamRestrictions.find((restriction) => {
+    return restriction.user_id === userId;
+  }) || null;
+}
+
+function getCurrentUserRestriction() {
+  if (!jamUser) {
+    return null;
+  }
+
+  return getRestrictionForUserId(jamUser.id);
+}
+
+function isCurrentUserMuted() {
+  const restriction = getCurrentUserRestriction();
+
+  if (!restriction) {
+    return false;
+  }
+
+  if (restriction.is_muted && !restriction.muted_until) {
+    return true;
+  }
+
+  return Boolean(
+    restriction.is_muted &&
+    jamRestrictionIsActiveUntil(restriction.muted_until)
+  );
+}
+
+function isCurrentUserKicked() {
+  const restriction = getCurrentUserRestriction();
+
+  if (!restriction) {
+    return false;
+  }
+
+  return jamRestrictionIsActiveUntil(restriction.kicked_until);
+}
+
+function getCurrentUserKickRemainingText() {
+  const restriction = getCurrentUserRestriction();
+
+  if (!restriction || !restriction.kicked_until) {
+    return "";
+  }
+
+  return jamFormatRestrictionTime(restriction.kicked_until);
+}
+
+function getCurrentUserMuteRemainingText() {
+  const restriction = getCurrentUserRestriction();
+
+  if (!restriction || !restriction.muted_until) {
+    return "";
+  }
+
+  return jamFormatRestrictionTime(restriction.muted_until);
+}
+
+function normalizeRestrictionRow(row) {
+  return {
+    room_id: row.room_id,
+    user_id: row.user_id,
+    nick: row.nick || "Użytkownik",
+    is_muted: Boolean(row.is_muted),
+    muted_until: row.muted_until || null,
+    kicked_until: row.kicked_until || null,
+    updated_by_session_id: row.updated_by_session_id || null,
+    updated_by_nick: row.updated_by_nick || null,
+    updated_at: row.updated_at || null
+  };
+}
+
+function getActiveRestrictions() {
+  return jamRestrictions.filter((restriction) => {
+    const muteActive =
+      restriction.is_muted &&
+      (
+        !restriction.muted_until ||
+        jamRestrictionIsActiveUntil(restriction.muted_until)
+      );
+
+    const kickActive =
+      restriction.kicked_until &&
+      jamRestrictionIsActiveUntil(restriction.kicked_until);
+
+    return muteActive || kickActive;
+  });
+}
+
+async function fetchJamRestrictions(options = {}) {
+  if (!jamSupabaseClient) {
+    return;
+  }
+
+  const silent = Boolean(options.silent);
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_restrictions")
+      .select("*")
+      .eq("room_id", JAM_ROOM_ID);
+
+    if (error) {
+      console.error("[JAM RESTRICTIONS] fetch error:", error);
+
+      if (!silent) {
+        showSystemInfo("Restrictions: błąd odczytu.", "warn");
+      }
+
+      return;
+    }
+
+    jamRestrictions = (data || []).map((row) => {
+      return normalizeRestrictionRow(row);
+    });
+
+    jamRestrictionsReady = true;
+
+    await enforceCurrentUserRestriction();
+
+    renderJamState();
+
+    if (
+      jamRestrictionsManagerModal &&
+      !jamRestrictionsManagerModal.classList.contains("hidden")
+    ) {
+      renderRestrictionsManagerList();
+    }
+  } catch (error) {
+    console.error("[JAM RESTRICTIONS] fetch exception:", error);
+
+    if (!silent) {
+      showSystemInfo("Restrictions: błąd połączenia.", "warn");
+    }
+  }
+}
+
+function subscribeJamRestrictions() {
+  if (!jamSupabaseClient) {
+    return;
+  }
+
+  if (jamRestrictionsChannel) {
+    try {
+      jamSupabaseClient.removeChannel(jamRestrictionsChannel);
+    } catch (error) {
+      console.error(error);
+    }
+
+    jamRestrictionsChannel = null;
+  }
+
+  jamRestrictionsChannel = jamSupabaseClient.channel(JAM_RESTRICTIONS_CHANNEL);
+
+  jamRestrictionsChannel
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "jam_room_restrictions",
+        filter: `room_id=eq.${JAM_ROOM_ID}`
+      },
+      () => {
+        fetchJamRestrictions({
+          silent: true
+        });
+      }
+    )
+    .subscribe((status) => {
+      console.log("[JAM RESTRICTIONS] channel status:", status);
+    });
+}
+
+async function enforceCurrentUserRestriction() {
+  if (!jamUser) {
+    return;
+  }
+
+  if (isCurrentUserKicked()) {
+    const remaining = getCurrentUserKickRemainingText();
+
+    showSystemInfo(
+      `Zostałeś wyrzucony z pokoju. Możesz wrócić za: ${remaining}.`,
+      "warn"
+    );
+
+    if (jamJoined) {
+      await deleteCurrentMember();
+
+      jamJoined = false;
+
+      stopMembersHeartbeat();
+      resetLocalRoomState();
+
+      renderJamState();
+    }
+
+    return;
+  }
+
+  if (isCurrentUserMuted()) {
+    const remaining = getCurrentUserMuteRemainingText();
+
+    showSystemInfo(
+      `Masz MUTE. Nie możesz pisać, reagować ani prosić o mikrofon. Pozostało: ${remaining}.`,
+      "warn"
+    );
+  }
+}
+
+async function setUserRestriction(targetUser, patch) {
+  if (!jamSupabaseClient || !targetUser) {
+    showSystemInfo("Brak danych użytkownika.", "warn");
+    return false;
+  }
+
+  try {
+    const payload = {
+      room_id: JAM_ROOM_ID,
+      user_id: targetUser.userId || targetUser.id,
+      nick: targetUser.nick || "Użytkownik",
+
+      is_muted: Boolean(patch.is_muted),
+      muted_until: patch.muted_until || null,
+      kicked_until: patch.kicked_until || null,
+
+      updated_by_session_id: JAM_SESSION_ID,
+      updated_by_nick: jamUser ? jamUser.nick : null,
+      updated_at: nowIso()
+    };
+
+    const existing = getRestrictionForUserId(payload.user_id);
+
+    if (existing) {
+      payload.is_muted =
+        patch.is_muted !== undefined
+          ? Boolean(patch.is_muted)
+          : Boolean(existing.is_muted);
+
+      payload.muted_until =
+        patch.muted_until !== undefined
+          ? patch.muted_until
+          : existing.muted_until;
+
+      payload.kicked_until =
+        patch.kicked_until !== undefined
+          ? patch.kicked_until
+          : existing.kicked_until;
+    }
+
+    const { error } = await jamSupabaseClient
+      .from("jam_room_restrictions")
+      .upsert(payload, {
+        onConflict: "room_id,user_id"
+      });
+
+    if (error) {
+      console.error("[JAM RESTRICTIONS] upsert error:", error);
+      showSystemInfo("Nie udało się zapisać ograniczenia.", "warn");
+      return false;
+    }
+
+    await fetchJamRestrictions({
+      silent: true
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM RESTRICTIONS] upsert exception:", error);
+    showSystemInfo("Błąd zapisu ograniczenia.", "warn");
+    return false;
+  }
+}
+
+async function clearUserRestriction(userId, type = "all") {
+  if (!jamSupabaseClient || !userId) {
+    return false;
+  }
+
+  const existing = getRestrictionForUserId(userId);
+
+  if (!existing) {
+    showSystemInfo("Ta osoba nie ma aktywnej blokady.", "warn");
+    return false;
+  }
+
+  const payload = {
+    updated_by_session_id: JAM_SESSION_ID,
+    updated_by_nick: jamUser ? jamUser.nick : null,
+    updated_at: nowIso()
+  };
+
+  if (type === "mute") {
+    payload.is_muted = false;
+    payload.muted_until = null;
+  } else if (type === "kick") {
+    payload.kicked_until = null;
+  } else {
+    payload.is_muted = false;
+    payload.muted_until = null;
+    payload.kicked_until = null;
+  }
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_restrictions")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("[JAM RESTRICTIONS] clear error:", error);
+      showSystemInfo("Nie udało się cofnąć blokady.", "warn");
+      return false;
+    }
+
+    await fetchJamRestrictions({
+      silent: true
+    });
+
+    showSystemInfo("Blokada cofnięta.", "success");
+    return true;
+  } catch (error) {
+    console.error("[JAM RESTRICTIONS] clear exception:", error);
+    showSystemInfo("Błąd cofania blokady.", "warn");
+    return false;
+  }
+}
+
+async function kickUser(targetUser) {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyrzucać z pokoju.", "warn");
+    return;
+  }
+
+  if (!targetUser || targetUser.sessionId === JAM_SESSION_ID) {
+    showSystemInfo("Nie możesz wyrzucić samego siebie.", "warn");
+    return;
+  }
+
+  const confirmed = confirm(`Wyrzucić ${targetUser.nick} z pokoju na 5 minut?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  const kickedUntil = new Date(Date.now() + JAM_DEFAULT_KICK_MS).toISOString();
+
+  const saved = await setUserRestriction(targetUser, {
+    kicked_until: kickedUntil
+  });
+
+  if (!saved) {
+    return;
+  }
+
+  if (
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId === targetUser.sessionId
+  ) {
+    await clearCurrentPerformerInRoomState();
+  }
+
+  await updateMemberFieldsBySession(targetUser.sessionId, {
+    is_in_queue: false,
+    queue_joined_at: null,
+    is_performer: false
+  });
+
+  try {
+    await jamSupabaseClient
+      .from("jam_room_members")
+      .delete()
+      .eq("room_id", JAM_ROOM_ID)
+      .eq("session_id", targetUser.sessionId);
+  } catch (error) {
+    console.error("[JAM KICK] member delete error:", error);
+  }
+
+  closeKickModal();
+
+  await fetchJamMembers({
+    silent: true
+  });
+
+  showSystemInfo(`${targetUser.nick} został wyrzucony na 5 minut.`, "success");
+
+  await sendRealtimeBroadcast("jam_status", {
+    message_id: createMessageId(),
+    type: "kick",
+    target_user_id: targetUser.userId || targetUser.id,
+    target_session_id: targetUser.sessionId,
+    target_nick: targetUser.nick,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "Host",
+    created_at: nowIso()
+  });
+}
+
+async function muteUser(targetUser) {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może dawać MUTE.", "warn");
+    return;
+  }
+
+  if (!targetUser || targetUser.sessionId === JAM_SESSION_ID) {
+    showSystemInfo("Nie możesz zmutować samego siebie.", "warn");
+    return;
+  }
+
+  const confirmed = confirm(`Dać MUTE użytkownikowi ${targetUser.nick} na 5 minut?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  const mutedUntil = new Date(Date.now() + JAM_DEFAULT_MUTE_MS).toISOString();
+
+  const saved = await setUserRestriction(targetUser, {
+    is_muted: true,
+    muted_until: mutedUntil
+  });
+
+  if (!saved) {
+    return;
+  }
+
+  if (
+    jamCurrentPerformer &&
+    jamCurrentPerformer.sessionId === targetUser.sessionId
+  ) {
+    await clearCurrentPerformerInRoomState();
+  }
+
+  await updateMemberFieldsBySession(targetUser.sessionId, {
+    is_in_queue: false,
+    queue_joined_at: null,
+    is_performer: false
+  });
+
+  closeMuteModal();
+
+  await fetchJamMembers({
+    silent: true
+  });
+
+  showSystemInfo(`${targetUser.nick} dostał MUTE na 5 minut.`, "success");
+
+  await sendRealtimeBroadcast("jam_status", {
+    message_id: createMessageId(),
+    type: "mute",
+    target_user_id: targetUser.userId || targetUser.id,
+    target_session_id: targetUser.sessionId,
+    target_nick: targetUser.nick,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "Host",
+    created_at: nowIso()
+  });
+}
+
+// =======================
+// KICK MODAL
+// =======================
+
+function ensureKickModal() {
+  if (jamKickModal) {
+    return jamKickModal;
+  }
+
+  jamKickModal = document.createElement("div");
+  jamKickModal.id = "jamKickModal";
+  jamKickModal.className = "jam-modal hidden";
+
+  jamKickModal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Kick</h2>
+
+      <p>
+        Wybierz osobę, którą chcesz wyrzucić z pokoju na 5 minut.
+      </p>
+
+      <div id="jamKickList" class="jam-list"></div>
+
+      <div class="jam-modal-actions">
+        <button id="closeKickModalBtn" class="jam-btn" type="button">
+          ANULUJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamKickModal);
+
+  jamKickList = jamKickModal.querySelector("#jamKickList");
+
+  const closeBtn = jamKickModal.querySelector("#closeKickModalBtn");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeKickModal();
+    });
+  }
+
+  jamKickModal.addEventListener("click", (event) => {
+    if (event.target === jamKickModal) {
+      closeKickModal();
+    }
+  });
+
+  return jamKickModal;
+}
+
+function openKickModal() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyrzucać z pokoju.", "warn");
+    return;
+  }
+
+  ensureKickModal();
+  renderKickList();
+
+  jamKickModal.classList.remove("hidden");
+}
+
+function closeKickModal() {
+  if (jamKickModal) {
+    jamKickModal.classList.add("hidden");
+  }
+}
+
+function renderKickList() {
+  ensureKickModal();
+
+  if (!jamKickList) {
+    return;
+  }
+
+  jamKickList.innerHTML = "";
+
+  const candidates = jamOnlineUsers.filter((user) => {
+    return user.sessionId !== JAM_SESSION_ID;
+  });
+
+  if (!candidates.length) {
+    const emptyRow = createElement(
+      "div",
+      "jam-user-row",
+      "Brak innych osób online"
+    );
+
+    jamKickList.appendChild(emptyRow);
+    return;
+  }
+
+  candidates.forEach((user) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "jam-btn";
+    row.style.width = "100%";
+    row.style.justifyContent = "space-between";
+    row.style.marginBottom = "8px";
+    row.innerText = `${user.nick} — ${user.role || "Listener"}`;
+
+    row.addEventListener("click", () => {
+      runLockedAction(async () => {
+        await kickUser(user);
+      }, "kick", "host_placeholder");
+    });
+
+    jamKickList.appendChild(row);
+  });
+}
+
+// =======================
+// MUTE MODAL
+// =======================
+
+function ensureMuteModal() {
+  if (jamMuteModal) {
+    return jamMuteModal;
+  }
+
+  jamMuteModal = document.createElement("div");
+  jamMuteModal.id = "jamMuteModal";
+  jamMuteModal.className = "jam-modal hidden";
+
+  jamMuteModal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Mute</h2>
+
+      <p>
+        Wybierz osobę, która ma dostać MUTE na 5 minut.
+        MUTE blokuje chat, reakcje i prośbę o mikrofon.
+      </p>
+
+      <div id="jamMuteList" class="jam-list"></div>
+
+      <div class="jam-modal-actions">
+        <button id="closeMuteModalBtn" class="jam-btn" type="button">
+          ANULUJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamMuteModal);
+
+  jamMuteList = jamMuteModal.querySelector("#jamMuteList");
+
+  const closeBtn = jamMuteModal.querySelector("#closeMuteModalBtn");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeMuteModal();
+    });
+  }
+
+  jamMuteModal.addEventListener("click", (event) => {
+    if (event.target === jamMuteModal) {
+      closeMuteModal();
+    }
+  });
+
+  return jamMuteModal;
+}
+
+function openMuteModal() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może dawać MUTE.", "warn");
+    return;
+  }
+
+  ensureMuteModal();
+  renderMuteList();
+
+  jamMuteModal.classList.remove("hidden");
+}
+
+function closeMuteModal() {
+  if (jamMuteModal) {
+    jamMuteModal.classList.add("hidden");
+  }
+}
+
+function renderMuteList() {
+  ensureMuteModal();
+
+  if (!jamMuteList) {
+    return;
+  }
+
+  jamMuteList.innerHTML = "";
+
+  const candidates = jamOnlineUsers.filter((user) => {
+    return user.sessionId !== JAM_SESSION_ID;
+  });
+
+  if (!candidates.length) {
+    const emptyRow = createElement(
+      "div",
+      "jam-user-row",
+      "Brak innych osób online"
+    );
+
+    jamMuteList.appendChild(emptyRow);
+    return;
+  }
+
+  candidates.forEach((user) => {
+    const restriction = getRestrictionForUserId(user.userId || user.id);
+
+    const mutedLabel =
+      restriction &&
+      restriction.is_muted &&
+      (
+        !restriction.muted_until ||
+        jamRestrictionIsActiveUntil(restriction.muted_until)
+      )
+        ? ` — już mute: ${jamFormatRestrictionTime(restriction.muted_until)}`
+        : "";
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "jam-btn";
+    row.style.width = "100%";
+    row.style.justifyContent = "space-between";
+    row.style.marginBottom = "8px";
+    row.innerText = `${user.nick} — ${user.role || "Listener"}${mutedLabel}`;
+
+    row.addEventListener("click", () => {
+      runLockedAction(async () => {
+        await muteUser(user);
+      }, "mute", "host_placeholder");
+    });
+
+    jamMuteList.appendChild(row);
+  });
+}
+
+// =======================
+// RESTRICTIONS MANAGER MODAL
+// =======================
+
+function ensureRestrictionsManagerButton() {
+  if (jamRestrictionsManagerBtn) {
+    return jamRestrictionsManagerBtn;
+  }
+
+  const hostControls = document.querySelector(".jam-host-controls");
+
+  if (!hostControls) {
+    return null;
+  }
+
+  jamRestrictionsManagerBtn = document.createElement("button");
+  jamRestrictionsManagerBtn.id = "jamRestrictionsManagerBtn";
+  jamRestrictionsManagerBtn.className = "jam-btn";
+  jamRestrictionsManagerBtn.type = "button";
+  jamRestrictionsManagerBtn.innerText = "BLOKADY";
+
+  hostControls.appendChild(jamRestrictionsManagerBtn);
+
+  jamRestrictionsManagerBtn.addEventListener("click", () => {
+    openRestrictionsManagerModal();
+  });
+
+  return jamRestrictionsManagerBtn;
+}
+
+function ensureRestrictionsManagerModal() {
+  if (jamRestrictionsManagerModal) {
+    return jamRestrictionsManagerModal;
+  }
+
+  jamRestrictionsManagerModal = document.createElement("div");
+  jamRestrictionsManagerModal.id = "jamRestrictionsManagerModal";
+  jamRestrictionsManagerModal.className = "jam-modal hidden";
+
+  jamRestrictionsManagerModal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Blokady</h2>
+
+      <p>
+        Lista osób z aktywnym MUTE albo KICK. Host może cofnąć blokadę,
+        jeśli została nadana przez pomyłkę.
+      </p>
+
+      <div id="jamRestrictionsManagerList" class="jam-list"></div>
+
+      <div class="jam-modal-actions">
+        <button id="refreshRestrictionsManagerBtn" class="jam-btn jam-btn-primary" type="button">
+          ODŚWIEŻ
+        </button>
+
+        <button id="closeRestrictionsManagerBtn" class="jam-btn" type="button">
+          ZAMKNIJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamRestrictionsManagerModal);
+
+  jamRestrictionsManagerList =
+    jamRestrictionsManagerModal.querySelector("#jamRestrictionsManagerList");
+
+  const refreshBtn =
+    jamRestrictionsManagerModal.querySelector("#refreshRestrictionsManagerBtn");
+
+  const closeBtn =
+    jamRestrictionsManagerModal.querySelector("#closeRestrictionsManagerBtn");
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      fetchJamRestrictions({
+        silent: true
+      });
+      renderRestrictionsManagerList();
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeRestrictionsManagerModal();
+    });
+  }
+
+  jamRestrictionsManagerModal.addEventListener("click", (event) => {
+    if (event.target === jamRestrictionsManagerModal) {
+      closeRestrictionsManagerModal();
+    }
+  });
+
+  return jamRestrictionsManagerModal;
+}
+
+function openRestrictionsManagerModal() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może zarządzać blokadami.", "warn");
+    return;
+  }
+
+  ensureRestrictionsManagerModal();
+
+  fetchJamRestrictions({
+    silent: true
+  });
+
+  renderRestrictionsManagerList();
+
+  jamRestrictionsManagerModal.classList.remove("hidden");
+}
+
+function closeRestrictionsManagerModal() {
+  if (jamRestrictionsManagerModal) {
+    jamRestrictionsManagerModal.classList.add("hidden");
+  }
+}
+
+function renderRestrictionsManagerList() {
+  ensureRestrictionsManagerModal();
+
+  if (!jamRestrictionsManagerList) {
+    return;
+  }
+
+  jamRestrictionsManagerList.innerHTML = "";
+
+  const activeRestrictions = getActiveRestrictions();
+
+  if (!activeRestrictions.length) {
+    const emptyRow = createElement(
+      "div",
+      "jam-user-row",
+      "Brak aktywnych blokad"
+    );
+
+    jamRestrictionsManagerList.appendChild(emptyRow);
+    return;
+  }
+
+  activeRestrictions.forEach((restriction) => {
+    const card = document.createElement("div");
+    card.className = "jam-user-row";
+    card.style.flexDirection = "column";
+    card.style.alignItems = "stretch";
+    card.style.gap = "8px";
+
+    const title = document.createElement("strong");
+    title.innerText = restriction.nick || restriction.user_id;
+
+    const details = document.createElement("div");
+    details.style.fontSize = "13px";
+    details.style.opacity = "0.85";
+
+    const muteActive =
+      restriction.is_muted &&
+      (
+        !restriction.muted_until ||
+        jamRestrictionIsActiveUntil(restriction.muted_until)
+      );
+
+    const kickActive =
+      restriction.kicked_until &&
+      jamRestrictionIsActiveUntil(restriction.kicked_until);
+
+    const lines = [];
+
+    if (muteActive) {
+      lines.push(`MUTE: ${jamFormatRestrictionTime(restriction.muted_until)}`);
+    }
+
+    if (kickActive) {
+      lines.push(`KICK: ${jamFormatRestrictionTime(restriction.kicked_until)}`);
+    }
+
+    if (restriction.updated_by_nick) {
+      lines.push(`Nadał: ${restriction.updated_by_nick}`);
+    }
+
+    details.innerText = lines.join(" | ");
+
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.gap = "8px";
+    actions.style.flexWrap = "wrap";
+
+    if (muteActive) {
+      const unmuteBtn = document.createElement("button");
+      unmuteBtn.type = "button";
+      unmuteBtn.className = "jam-btn";
+      unmuteBtn.innerText = "COFNIJ MUTE";
+
+      unmuteBtn.addEventListener("click", () => {
+        runLockedAction(async () => {
+          await clearUserRestriction(restriction.user_id, "mute");
+          renderRestrictionsManagerList();
+        }, "cofnij mute", "host_placeholder");
+      });
+
+      actions.appendChild(unmuteBtn);
+    }
+
+    if (kickActive) {
+      const unkickBtn = document.createElement("button");
+      unkickBtn.type = "button";
+      unkickBtn.className = "jam-btn";
+      unkickBtn.innerText = "COFNIJ KICK";
+
+      unkickBtn.addEventListener("click", () => {
+        runLockedAction(async () => {
+          await clearUserRestriction(restriction.user_id, "kick");
+          renderRestrictionsManagerList();
+        }, "cofnij kick", "host_placeholder");
+      });
+
+      actions.appendChild(unkickBtn);
+    }
+
+    const clearAllBtn = document.createElement("button");
+    clearAllBtn.type = "button";
+    clearAllBtn.className = "jam-btn jam-btn-danger";
+    clearAllBtn.innerText = "COFNIJ WSZYSTKO";
+
+    clearAllBtn.addEventListener("click", () => {
+      runLockedAction(async () => {
+        await clearUserRestriction(restriction.user_id, "all");
+        renderRestrictionsManagerList();
+      }, "cofnij blokady", "host_placeholder");
+    });
+
+    actions.appendChild(clearAllBtn);
+
+    card.appendChild(title);
+    card.appendChild(details);
+    card.appendChild(actions);
+
+    jamRestrictionsManagerList.appendChild(card);
+  });
+}
+
+// =======================
+// OVERRIDES: MUTE / KICK ENFORCEMENT
+// =======================
+
+const originalJoinRoom55B6 = joinRoom;
+
+joinRoom = async function joinRoomWithKickCheck() {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  if (isCurrentUserKicked()) {
+    const remaining = getCurrentUserKickRemainingText();
+
+    showSystemInfo(
+      `Nie możesz wejść do pokoju. KICK aktywny jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalJoinRoom55B6();
+};
+
+const originalSendLocalChatMessage55B6 = sendLocalChatMessage;
+
+sendLocalChatMessage = async function sendLocalChatMessageWithMuteCheck() {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  if (isCurrentUserMuted()) {
+    const remaining = getCurrentUserMuteRemainingText();
+
+    showSystemInfo(
+      `Masz MUTE. Chat zablokowany jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalSendLocalChatMessage55B6();
+};
+
+const originalAddReaction55B6 = addReaction;
+
+addReaction = async function addReactionWithMuteCheck(reaction) {
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  if (isCurrentUserMuted()) {
+    const remaining = getCurrentUserMuteRemainingText();
+
+    showSystemInfo(
+      `Masz MUTE. Reakcje zablokowane jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  await originalAddReaction55B6(reaction);
+};
+
+const originalRequestMicrophone55B6 = requestMicrophone;
+
+requestMicrophone = function requestMicrophoneWithMuteCheck() {
+  runLockedAction(async () => {
+    await fetchJamRestrictions({
+      silent: true
+    });
+
+    if (isCurrentUserMuted()) {
+      const remaining = getCurrentUserMuteRemainingText();
+
+      showSystemInfo(
+        `Masz MUTE. Mikrofon zablokowany jeszcze: ${remaining}.`,
+        "warn"
+      );
+
+      return;
+    }
+
+    if (!jamJoined) {
+      showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+      return;
+    }
+
+    if (isCurrentUserPerformer() || (jamUser && jamUser.isInQueue)) {
+      await returnToListening(true);
+      return;
+    }
+
+    openHeadphonesModal();
+  }, "prośba o mikrofon", "request_mic");
+};
+
+// =======================
+// SAFE BUTTON REBIND: KICK / MUTE
+// =======================
+
+function bindKickMuteButtonsSafe() {
+  const kickButton =
+    document.querySelector("#kickBtn") ||
+    Array.from(document.querySelectorAll("button")).find((btn) => {
+      return btn.innerText.trim().toLowerCase() === "kick";
+    });
+
+  if (kickButton && !jamKickBtnSafe) {
+    const clonedKickButton = kickButton.cloneNode(true);
+    kickButton.parentNode.replaceChild(clonedKickButton, kickButton);
+
+    jamKickBtnSafe = clonedKickButton;
+
+    jamKickBtnSafe.addEventListener("click", () => {
+      runLockedAction(async () => {
+        openKickModal();
+      }, "kick", "host_placeholder");
+    });
+  }
+
+  const muteButton =
+    document.querySelector("#muteBtn") ||
+    Array.from(document.querySelectorAll("button")).find((btn) => {
+      return btn.innerText.trim().toLowerCase() === "mute";
+    });
+
+  if (muteButton && !jamMuteBtnSafe) {
+    const clonedMuteButton = muteButton.cloneNode(true);
+    muteButton.parentNode.replaceChild(clonedMuteButton, muteButton);
+
+    jamMuteBtnSafe = clonedMuteButton;
+
+    jamMuteBtnSafe.addEventListener("click", () => {
+      runLockedAction(async () => {
+        openMuteModal();
+      }, "mute", "host_placeholder");
+    });
+  }
+}
+
+const originalRenderJamState55B6 = renderJamState;
+
+renderJamState = function renderJamStateWithRestrictions() {
+  originalRenderJamState55B6();
+
+  bindKickMuteButtonsSafe();
+  ensureRestrictionsManagerButton();
+
+  const hostOnlyVisible = isCurrentUserHost();
+
+  if (jamKickBtnSafe) {
+    jamKickBtnSafe.style.display = hostOnlyVisible ? "" : "none";
+    jamKickBtnSafe.disabled =
+      isActionDisabled("host_placeholder") || !hostOnlyVisible;
+
+    jamKickBtnSafe.classList.toggle("jam-btn-muted", jamKickBtnSafe.disabled);
+  }
+
+  if (jamMuteBtnSafe) {
+    jamMuteBtnSafe.style.display = hostOnlyVisible ? "" : "none";
+    jamMuteBtnSafe.disabled =
+      isActionDisabled("host_placeholder") || !hostOnlyVisible;
+
+    jamMuteBtnSafe.classList.toggle("jam-btn-muted", jamMuteBtnSafe.disabled);
+  }
+
+  if (jamRestrictionsManagerBtn) {
+    jamRestrictionsManagerBtn.style.display = hostOnlyVisible ? "" : "none";
+    jamRestrictionsManagerBtn.disabled =
+      isActionDisabled("host_placeholder") || !hostOnlyVisible;
+
+    jamRestrictionsManagerBtn.classList.toggle(
+      "jam-btn-muted",
+      jamRestrictionsManagerBtn.disabled
+    );
+  }
+
+  if (
+    jamKickModal &&
+    !jamKickModal.classList.contains("hidden")
+  ) {
+    renderKickList();
+  }
+
+  if (
+    jamMuteModal &&
+    !jamMuteModal.classList.contains("hidden")
+  ) {
+    renderMuteList();
+  }
+
+  if (
+    jamRestrictionsManagerModal &&
+    !jamRestrictionsManagerModal.classList.contains("hidden")
+  ) {
+    renderRestrictionsManagerList();
+  }
+};
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeKickModal();
+    closeMuteModal();
+    closeRestrictionsManagerModal();
+  }
+});
+
+// =======================
+// INIT 55B-6B
+// =======================
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    subscribeJamRestrictions();
+
+    fetchJamRestrictions({
+      silent: true
+    });
+
+    ensureKickModal();
+    ensureMuteModal();
+    ensureRestrictionsManagerModal();
+    ensureRestrictionsManagerButton();
+
+    bindKickMuteButtonsSafe();
+
+    renderJamState();
+  }, 1200);
+});
