@@ -3634,3 +3634,271 @@ function initJamRoom() {
 window.addEventListener("load", () => {
   initJamRoom();
 });
+
+// =======================
+// ETAP 55B-4 — HOST DEBUG PANEL
+// Diagnostyka tylko dla Hosta
+// =======================
+
+let jamHostDebugBtn = null;
+let jamHostDebugModal = null;
+let jamHostDebugContent = null;
+let jamHostDebugRefreshTimer = null;
+
+function ensureHostDebugButton() {
+  if (jamHostDebugBtn) {
+    return jamHostDebugBtn;
+  }
+
+  const hostControls = document.querySelector(".jam-host-controls");
+
+  if (!hostControls) {
+    return null;
+  }
+
+  jamHostDebugBtn = document.createElement("button");
+  jamHostDebugBtn.id = "jamHostDebugBtn";
+  jamHostDebugBtn.className = "jam-btn";
+  jamHostDebugBtn.type = "button";
+  jamHostDebugBtn.innerText = "HOST DEBUG";
+
+  hostControls.appendChild(jamHostDebugBtn);
+
+  jamHostDebugBtn.addEventListener("click", () => {
+    openHostDebugModal();
+  });
+
+  return jamHostDebugBtn;
+}
+
+function ensureHostDebugModal() {
+  if (jamHostDebugModal) {
+    return jamHostDebugModal;
+  }
+
+  jamHostDebugModal = document.createElement("div");
+  jamHostDebugModal.id = "jamHostDebugModal";
+  jamHostDebugModal.className = "jam-modal hidden";
+
+  jamHostDebugModal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Host Debug</h2>
+
+      <p>
+        Panel diagnostyczny do testów Jam Roomu na kilku urządzeniach.
+        Nie zmienia stanu pokoju — tylko pokazuje aktualne dane lokalne.
+      </p>
+
+      <pre id="jamHostDebugContent" style="
+        white-space: pre-wrap;
+        word-break: break-word;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(0,0,0,0.36);
+        border: 1px solid rgba(234,162,33,0.22);
+        color: rgba(255,255,255,0.88);
+        font-family: monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        max-height: 46vh;
+        overflow-y: auto;
+      "></pre>
+
+      <div class="jam-modal-actions">
+        <button id="refreshHostDebugBtn" class="jam-btn jam-btn-primary" type="button">
+          ODŚWIEŻ
+        </button>
+
+        <button id="closeHostDebugBtn" class="jam-btn" type="button">
+          ZAMKNIJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamHostDebugModal);
+
+  jamHostDebugContent = jamHostDebugModal.querySelector("#jamHostDebugContent");
+
+  const refreshBtn = jamHostDebugModal.querySelector("#refreshHostDebugBtn");
+  const closeBtn = jamHostDebugModal.querySelector("#closeHostDebugBtn");
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      updateHostDebugContent();
+    });
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeHostDebugModal();
+    });
+  }
+
+  jamHostDebugModal.addEventListener("click", (event) => {
+    if (event.target === jamHostDebugModal) {
+      closeHostDebugModal();
+    }
+  });
+
+  return jamHostDebugModal;
+}
+
+function openHostDebugModal() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Host Debug jest dostępny tylko dla Hosta.", "warn");
+    return;
+  }
+
+  ensureHostDebugModal();
+  updateHostDebugContent();
+
+  jamHostDebugModal.classList.remove("hidden");
+
+  if (jamHostDebugRefreshTimer) {
+    clearInterval(jamHostDebugRefreshTimer);
+  }
+
+  jamHostDebugRefreshTimer = setInterval(() => {
+    updateHostDebugContent();
+  }, 1500);
+}
+
+function closeHostDebugModal() {
+  if (jamHostDebugModal) {
+    jamHostDebugModal.classList.add("hidden");
+  }
+
+  if (jamHostDebugRefreshTimer) {
+    clearInterval(jamHostDebugRefreshTimer);
+    jamHostDebugRefreshTimer = null;
+  }
+}
+
+function getHostDebugSnapshot() {
+  const effectiveHost = getEffectiveHost ? getEffectiveHost() : null;
+
+  return {
+    local: {
+      session_id: typeof JAM_SESSION_ID !== "undefined" ? JAM_SESSION_ID : null,
+      user_id: jamUser ? jamUser.id : null,
+      nick: jamUser ? jamUser.nick : null,
+      joined: Boolean(jamJoined),
+      is_host: typeof isCurrentUserHost === "function" ? isCurrentUserHost() : null,
+      is_performer: typeof isCurrentUserPerformer === "function" ? isCurrentUserPerformer() : null,
+      action_locked: Boolean(jamActionLocked)
+    },
+
+    room: {
+      jam_active: Boolean(jamActive),
+      room_state_ready: Boolean(jamRoomStateReady),
+      members_ready: Boolean(jamMembersReady),
+      realtime_ready: Boolean(jamRealtimeReady),
+      mic_source: jamMicSource || null
+    },
+
+    host: effectiveHost
+      ? {
+          session_id: effectiveHost.sessionId,
+          user_id: effectiveHost.userId || effectiveHost.id || null,
+          nick: effectiveHost.nick
+        }
+      : null,
+
+    performer: jamCurrentPerformer
+      ? {
+          session_id: jamCurrentPerformer.sessionId,
+          user_id: jamCurrentPerformer.userId || jamCurrentPerformer.id || null,
+          nick: jamCurrentPerformer.nick
+        }
+      : null,
+
+    online_count: Array.isArray(jamOnlineUsers) ? jamOnlineUsers.length : 0,
+    queue_count: Array.isArray(jamQueue) ? jamQueue.length : 0,
+
+    online: Array.isArray(jamOnlineUsers)
+      ? jamOnlineUsers.map((user) => ({
+          nick: user.nick,
+          role: user.role,
+          session_id: user.sessionId,
+          is_in_queue: Boolean(user.isInQueue),
+          is_performer: Boolean(user.isPerformer),
+          joined_at: user.joinedAt || null,
+          queue_joined_at: user.queueJoinedAt || null,
+          last_seen_at: user.lastSeenAt || null
+        }))
+      : [],
+
+    queue: Array.isArray(jamQueue)
+      ? jamQueue.map((user, index) => ({
+          index: index + 1,
+          nick: user.nick,
+          session_id: user.sessionId,
+          joined_at: user.joinedAt || null
+        }))
+      : [],
+
+    room_state_raw: jamRoomState
+      ? {
+          room_id: jamRoomState.room_id || null,
+          jam_active: jamRoomState.jam_active,
+          host_session_id: jamRoomState.host_session_id,
+          host_nick: jamRoomState.host_nick,
+          current_performer_session_id: jamRoomState.current_performer_session_id,
+          current_performer_nick: jamRoomState.current_performer_nick,
+          mic_source: jamRoomState.mic_source,
+          updated_by_nick: jamRoomState.updated_by_nick,
+          updated_at: jamRoomState.updated_at
+        }
+      : null,
+
+    generated_at: new Date().toISOString()
+  };
+}
+
+function updateHostDebugContent() {
+  if (!jamHostDebugContent) {
+    return;
+  }
+
+  const snapshot = getHostDebugSnapshot();
+
+  jamHostDebugContent.textContent = JSON.stringify(snapshot, null, 2);
+}
+
+function updateHostDebugVisibility() {
+  ensureHostDebugButton();
+
+  if (!jamHostDebugBtn) {
+    return;
+  }
+
+  jamHostDebugBtn.style.display = isCurrentUserHost() ? "" : "none";
+}
+
+const originalRenderJamStateForDebug = renderJamState;
+
+renderJamState = function renderJamStateWithDebug() {
+  originalRenderJamStateForDebug();
+  updateHostDebugVisibility();
+
+  if (
+    jamHostDebugModal &&
+    !jamHostDebugModal.classList.contains("hidden")
+  ) {
+    updateHostDebugContent();
+  }
+};
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeHostDebugModal();
+  }
+});
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    ensureHostDebugButton();
+    updateHostDebugVisibility();
+  }, 600);
+});
