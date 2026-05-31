@@ -8058,3 +8058,339 @@ window.addEventListener("load", () => {
     hideLegacyHostNextBeat55B9AFix();
   }, 3000);
 });
+
+// =======================
+// ETAP 55B-10 — LOCAL AUDIO START / STOP
+// Lokalny player audio w /jam dla aktualnego beatu
+// =======================
+
+let jamLocalAudioFinal = null;
+let jamLocalAudioUrlFinal = null;
+let jamLocalAudioPlayingFinal = false;
+let jamLocalAudioLoadingFinal = false;
+
+function ensureJamLocalAudioFinal() {
+  if (jamLocalAudioFinal) {
+    return jamLocalAudioFinal;
+  }
+
+  jamLocalAudioFinal = new Audio();
+  jamLocalAudioFinal.preload = "auto";
+
+  jamLocalAudioFinal.addEventListener("ended", () => {
+    jamLocalAudioPlayingFinal = false;
+    updateJamLocalAudioUiFinal();
+    showSystemInfo("Beat zakończony.");
+  });
+
+  jamLocalAudioFinal.addEventListener("error", () => {
+    jamLocalAudioPlayingFinal = false;
+    jamLocalAudioLoadingFinal = false;
+    updateJamLocalAudioUiFinal();
+    showSystemInfo("Nie udało się odtworzyć pliku audio.", "warn");
+  });
+
+  jamLocalAudioFinal.addEventListener("canplay", () => {
+    jamLocalAudioLoadingFinal = false;
+    updateJamLocalAudioUiFinal();
+  });
+
+  return jamLocalAudioFinal;
+}
+
+function getCurrentBeatAudioUrlForPlayerFinal() {
+  const beatState =
+    typeof getBeatStateFinal === "function"
+      ? getBeatStateFinal()
+      : null;
+
+  if (!beatState || !beatState.currentUrl) {
+    return "";
+  }
+
+  return beatState.currentUrl;
+}
+
+function getCurrentBeatLabelForPlayerFinal() {
+  const beatState =
+    typeof getBeatStateFinal === "function"
+      ? getBeatStateFinal()
+      : null;
+
+  if (!beatState) {
+    return "Beat";
+  }
+
+  return `#${beatState.currentIndex} — ${beatState.currentTitle}`;
+}
+
+function ensureJamAudioStatusFinal() {
+  const player = document.querySelector("#jamLooperPlayerFinal");
+
+  if (!player) {
+    return null;
+  }
+
+  let status = player.querySelector("#jamAudioStatusFinal");
+
+  if (status) {
+    return status;
+  }
+
+  status = document.createElement("div");
+  status.id = "jamAudioStatusFinal";
+  status.style.marginTop = "10px";
+  status.style.color = "rgba(255,255,255,0.62)";
+  status.style.fontSize = "12px";
+  status.style.fontWeight = "900";
+  status.style.letterSpacing = "0.5px";
+  status.style.textTransform = "uppercase";
+  status.innerText = "Audio: gotowe lokalnie";
+
+  const controls = player.querySelector("#jamLooperControlsFinal");
+
+  if (controls && controls.parentNode) {
+    controls.parentNode.insertBefore(status, controls.nextSibling);
+  } else {
+    player.appendChild(status);
+  }
+
+  return status;
+}
+
+function updateJamLocalAudioUiFinal() {
+  const startBtn = document.querySelector("#jamStartBeatFinal");
+  const stopBtn = document.querySelector("#jamStopBeatFinal");
+  const status = ensureJamAudioStatusFinal();
+
+  if (startBtn) {
+    startBtn.disabled = jamLocalAudioLoadingFinal;
+    startBtn.classList.toggle("jam-btn-muted", jamLocalAudioLoadingFinal);
+    startBtn.innerText = jamLocalAudioPlayingFinal
+      ? "PLAYING"
+      : jamLocalAudioLoadingFinal
+        ? "LOADING"
+        : "START";
+  }
+
+  if (stopBtn) {
+    stopBtn.disabled = !jamLocalAudioPlayingFinal && !jamLocalAudioLoadingFinal;
+    stopBtn.classList.toggle("jam-btn-muted", stopBtn.disabled);
+  }
+
+  if (status) {
+    if (jamLocalAudioLoadingFinal) {
+      status.innerText = "Audio: ładowanie...";
+    } else if (jamLocalAudioPlayingFinal) {
+      status.innerText = `Audio: gra lokalnie — ${getCurrentBeatLabelForPlayerFinal()}`;
+    } else if (jamLocalAudioUrlFinal) {
+      status.innerText = "Audio: zatrzymane lokalnie";
+    } else {
+      status.innerText = "Audio: gotowe lokalnie";
+    }
+  }
+}
+
+async function loadJamLocalAudioFinal(url) {
+  const audio = ensureJamLocalAudioFinal();
+
+  if (!url) {
+    showSystemInfo("Brak ścieżki audio dla aktualnego beatu.", "warn");
+    return false;
+  }
+
+  if (jamLocalAudioUrlFinal === url && audio.src) {
+    return true;
+  }
+
+  jamLocalAudioLoadingFinal = true;
+  updateJamLocalAudioUiFinal();
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+
+    jamLocalAudioUrlFinal = url;
+    audio.src = url;
+    audio.load();
+
+    return true;
+  } catch (error) {
+    console.error("[JAM LOCAL AUDIO] load error:", error);
+
+    jamLocalAudioLoadingFinal = false;
+    jamLocalAudioPlayingFinal = false;
+    updateJamLocalAudioUiFinal();
+
+    showSystemInfo("Nie udało się załadować audio.", "warn");
+    return false;
+  }
+}
+
+async function startJamLocalAudioFinal() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
+
+  if (!isCurrentUserHostFinal()) {
+    showSystemInfo("Tylko Host może uruchomić audio w panelu.", "warn");
+    return;
+  }
+
+  const audio = ensureJamLocalAudioFinal();
+  const url = getCurrentBeatAudioUrlForPlayerFinal();
+
+  const loaded = await loadJamLocalAudioFinal(url);
+
+  if (!loaded) {
+    return;
+  }
+
+  try {
+    jamLocalAudioLoadingFinal = false;
+
+    await audio.play();
+
+    jamLocalAudioPlayingFinal = true;
+    updateJamLocalAudioUiFinal();
+
+    showSystemInfo(`START: ${getCurrentBeatLabelForPlayerFinal()}`, "success");
+  } catch (error) {
+    console.error("[JAM LOCAL AUDIO] play error:", error);
+
+    jamLocalAudioPlayingFinal = false;
+    jamLocalAudioLoadingFinal = false;
+    updateJamLocalAudioUiFinal();
+
+    showSystemInfo(
+      "Przeglądarka zablokowała start audio. Kliknij START jeszcze raz.",
+      "warn"
+    );
+  }
+}
+
+function stopJamLocalAudioFinal(showMessage = true) {
+  const audio = ensureJamLocalAudioFinal();
+
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+  } catch (error) {
+    console.error("[JAM LOCAL AUDIO] stop error:", error);
+  }
+
+  jamLocalAudioPlayingFinal = false;
+  jamLocalAudioLoadingFinal = false;
+
+  updateJamLocalAudioUiFinal();
+
+  if (showMessage) {
+    showSystemInfo("STOP audio.", "success");
+  }
+}
+
+async function restartJamLocalAudioAfterBeatChangeFinal() {
+  if (!jamLocalAudioPlayingFinal) {
+    return;
+  }
+
+  const nextUrl = getCurrentBeatAudioUrlForPlayerFinal();
+
+  if (!nextUrl) {
+    stopJamLocalAudioFinal(false);
+    return;
+  }
+
+  if (nextUrl === jamLocalAudioUrlFinal) {
+    return;
+  }
+
+  stopJamLocalAudioFinal(false);
+
+  await loadJamLocalAudioFinal(nextUrl);
+
+  try {
+    await jamLocalAudioFinal.play();
+
+    jamLocalAudioPlayingFinal = true;
+    jamLocalAudioLoadingFinal = false;
+    updateJamLocalAudioUiFinal();
+
+    showSystemInfo(`Audio przełączone: ${getCurrentBeatLabelForPlayerFinal()}`, "success");
+  } catch (error) {
+    console.error("[JAM LOCAL AUDIO] restart after beat change error:", error);
+
+    jamLocalAudioPlayingFinal = false;
+    jamLocalAudioLoadingFinal = false;
+    updateJamLocalAudioUiFinal();
+
+    showSystemInfo("Beat zmieniony, ale audio nie wystartowało automatycznie.", "warn");
+  }
+}
+
+function bindJamLocalAudioButtonsFinal() {
+  const startBtn = document.querySelector("#jamStartBeatFinal");
+  const stopBtn = document.querySelector("#jamStopBeatFinal");
+
+  if (startBtn && startBtn.dataset.audioBoundFinal !== "true") {
+    startBtn.dataset.audioBoundFinal = "true";
+
+    startBtn.onclick = () => {
+      startJamLocalAudioFinal();
+    };
+  }
+
+  if (stopBtn && stopBtn.dataset.audioBoundFinal !== "true") {
+    stopBtn.dataset.audioBoundFinal = "true";
+
+    stopBtn.onclick = () => {
+      stopJamLocalAudioFinal(true);
+    };
+  }
+
+  updateJamLocalAudioUiFinal();
+}
+
+const previousRenderJamLooperPlayerFinal55B10 = renderJamLooperPlayerFinal;
+
+renderJamLooperPlayerFinal = function renderJamLooperPlayerWithAudioFinal55B10() {
+  previousRenderJamLooperPlayerFinal55B10();
+
+  bindJamLocalAudioButtonsFinal();
+  updateJamLocalAudioUiFinal();
+};
+
+const previousApplyRoomStateToLocalState55B10 = applyRoomStateToLocalState;
+
+applyRoomStateToLocalState = function applyRoomStateWithLocalAudio55B10(nextRoomState, options = {}) {
+  const previousUrl = getCurrentBeatAudioUrlForPlayerFinal();
+
+  previousApplyRoomStateToLocalState55B10(nextRoomState, options);
+
+  const nextUrl = getCurrentBeatAudioUrlForPlayerFinal();
+
+  if (previousUrl && nextUrl && previousUrl !== nextUrl) {
+    setTimeout(() => {
+      restartJamLocalAudioAfterBeatChangeFinal();
+    }, 80);
+  }
+
+  setTimeout(() => {
+    bindJamLocalAudioButtonsFinal();
+    updateJamLocalAudioUiFinal();
+  }, 120);
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    ensureJamLocalAudioFinal();
+    bindJamLocalAudioButtonsFinal();
+    updateJamLocalAudioUiFinal();
+  }, 1600);
+
+  setTimeout(() => {
+    bindJamLocalAudioButtonsFinal();
+    updateJamLocalAudioUiFinal();
+  }, 3600);
+});
