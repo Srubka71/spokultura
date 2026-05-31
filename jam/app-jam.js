@@ -6750,3 +6750,589 @@ window.addEventListener("load", () => {
     renderBeatPanel55B8B();
   }, 2200);
 });
+
+// =======================
+// ETAP 55B-8B2 — INTEGRATED LOOPER PANEL
+// Łączy Aktualny Beat + Funkcje Loopera w jeden panel
+// =======================
+
+const JAM_BEAT_COUNT_55B8B2 = 36;
+
+let jamIntegratedLooperPanel55B8B2 = null;
+let jamBeatPickerModal55B8B2 = null;
+let jamBeatPickerGrid55B8B2 = null;
+let jamBeatNumberButton55B8B2 = null;
+
+function getBeatAudioUrl55B8B2(index) {
+  return `/looper/assets/audio/beat${Number(index)}.mp3`;
+}
+
+function getBeatTitle55B8B2(index) {
+  return `Beat ${String(Number(index)).padStart(2, "0")}`;
+}
+
+function getBeatState55B8B2() {
+  const state = jamRoomState || {};
+
+  const currentIndex = Number(state.current_beat_index || 1);
+  const nextIndex =
+    currentIndex >= JAM_BEAT_COUNT_55B8B2
+      ? 1
+      : currentIndex + 1;
+
+  return {
+    currentIndex,
+    currentTitle:
+      state.current_beat_title ||
+      getBeatTitle55B8B2(currentIndex),
+    currentUrl:
+      state.current_beat_url ||
+      getBeatAudioUrl55B8B2(currentIndex),
+
+    nextIndex: Number(state.next_beat_index || nextIndex),
+    nextTitle:
+      state.next_beat_title ||
+      getBeatTitle55B8B2(state.next_beat_index || nextIndex),
+    nextUrl:
+      state.next_beat_url ||
+      getBeatAudioUrl55B8B2(state.next_beat_index || nextIndex),
+
+    updatedBy: state.beat_updated_by_nick || "System",
+    updatedAt: state.beat_updated_at || null
+  };
+}
+
+function findCurrentBeatCard55B8B2() {
+  if (nowPlayingPerformerLine) {
+    const card = nowPlayingPerformerLine.closest(".jam-card");
+
+    if (card) {
+      return card;
+    }
+  }
+
+  const cards = Array.from(document.querySelectorAll(".jam-card"));
+
+  return cards.find((card) => {
+    const title = card.querySelector("h2");
+    return title && title.innerText.trim().toLowerCase() === "aktualny beat";
+  }) || null;
+}
+
+function findBeatNumberBox55B8B2(card) {
+  if (!card) return null;
+
+  const preferred =
+    card.querySelector(".jam-track-number") ||
+    card.querySelector(".jam-beat-number") ||
+    card.querySelector(".jam-track-index") ||
+    card.querySelector(".jam-track-cover");
+
+  if (preferred) {
+    return preferred;
+  }
+
+  return Array.from(card.querySelectorAll("div, button, span")).find((element) => {
+    return /^#\d+/.test(element.innerText.trim());
+  }) || null;
+}
+
+function removeOldBeatPanel55B8B2() {
+  const oldPanel =
+    document.querySelector("#jamBeatPanel55B8B") ||
+    document.querySelector(".jam-beat-panel");
+
+  if (oldPanel) {
+    oldPanel.remove();
+  }
+}
+
+function hideOldLooperFunctionsCard55B8B2() {
+  const currentBeatCard = findCurrentBeatCard55B8B2();
+
+  const cards = Array.from(document.querySelectorAll(".jam-card"));
+
+  cards.forEach((card) => {
+    if (card === currentBeatCard) {
+      return;
+    }
+
+    if (card.id === "jamBeatPanel55B8B2") {
+      return;
+    }
+
+    const title = card.querySelector("h2");
+
+    if (!title) {
+      return;
+    }
+
+    const titleText = title.innerText.trim().toLowerCase();
+
+    const looksLikeOldLooperPanel =
+      titleText === "funkcje loopera w pokoju" &&
+      card.innerText.includes("Docelowo host będzie sterował beatem");
+
+    if (looksLikeOldLooperPanel) {
+      card.style.display = "none";
+    }
+  });
+}
+
+function ensureIntegratedLooperStyles55B8B2() {
+  if (document.querySelector("#jamIntegratedLooperStyles55B8B2")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "jamIntegratedLooperStyles55B8B2";
+
+  style.innerHTML = `
+    .jam-integrated-looper-55b8b2 {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(234,162,33,0.18);
+    }
+
+    .jam-integrated-header-55b8b2 {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .jam-integrated-header-55b8b2 h3 {
+      margin: 0;
+      color: rgba(234,162,33,0.92);
+      font-size: 18px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .jam-integrated-header-55b8b2 span {
+      color: rgba(255,255,255,0.52);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .jam-beat-state-grid-55b8b2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .jam-beat-state-box-55b8b2 {
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(234,162,33,0.24);
+      background: rgba(0,0,0,0.22);
+      min-height: 92px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .jam-beat-state-box-55b8b2 strong {
+      color: rgba(255,255,255,0.94);
+      font-size: 17px;
+      line-height: 1.15;
+    }
+
+    .jam-beat-state-box-55b8b2 span {
+      color: rgba(255,255,255,0.62);
+      font-size: 12px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .jam-looper-controls-55b8b2 {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .jam-pitch-mini-55b8b2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: min(100%, 280px);
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(234,162,33,0.22);
+      background: rgba(0,0,0,0.22);
+    }
+
+    .jam-pitch-mini-55b8b2 input[type="range"] {
+      flex: 1;
+    }
+
+    .jam-pitch-mini-55b8b2 span {
+      min-width: 50px;
+      text-align: right;
+      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .jam-beat-square-clickable-55b8b2 {
+      cursor: pointer !important;
+      transition:
+        transform 0.16s ease,
+        border-color 0.16s ease,
+        box-shadow 0.16s ease;
+      user-select: none;
+    }
+
+    .jam-beat-square-clickable-55b8b2:hover {
+      transform: translateY(-1px) scale(1.015);
+      border-color: rgba(234,162,33,0.72) !important;
+      box-shadow:
+        0 0 0 1px rgba(234,162,33,0.18),
+        0 12px 32px rgba(234,162,33,0.10);
+    }
+
+    .jam-beat-picker-grid-55b8b2 {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .jam-beat-picker-btn-55b8b2 {
+      min-height: 42px;
+      justify-content: center;
+      font-size: 13px;
+    }
+
+    .jam-beat-picker-btn-55b8b2.active {
+      border-color: rgba(234,162,33,0.88);
+      background: rgba(234,162,33,0.16);
+      color: rgba(255,255,255,0.96);
+    }
+
+    @media (max-width: 760px) {
+      .jam-beat-state-grid-55b8b2 {
+        grid-template-columns: 1fr;
+      }
+
+      .jam-integrated-header-55b8b2 {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .jam-beat-picker-grid-55b8b2 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function ensureBeatPickerModal55B8B2() {
+  if (jamBeatPickerModal55B8B2) {
+    return jamBeatPickerModal55B8B2;
+  }
+
+  jamBeatPickerModal55B8B2 = document.createElement("div");
+  jamBeatPickerModal55B8B2.id = "jamBeatPickerModal55B8B2";
+  jamBeatPickerModal55B8B2.className = "jam-modal hidden";
+
+  jamBeatPickerModal55B8B2.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Wybierz beat</h2>
+
+      <p>
+        Wybór beatu #1–#36. W tym kroku przygotowujemy panel i modal.
+        Zapis wyboru do pokoju podłączymy w następnym etapie.
+      </p>
+
+      <div id="jamBeatPickerGrid55B8B2" class="jam-beat-picker-grid-55b8b2"></div>
+
+      <div class="jam-modal-actions">
+        <button id="closeBeatPickerModal55B8B2" class="jam-btn" type="button">
+          ZAMKNIJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamBeatPickerModal55B8B2);
+
+  jamBeatPickerGrid55B8B2 =
+    jamBeatPickerModal55B8B2.querySelector("#jamBeatPickerGrid55B8B2");
+
+  const closeBtn =
+    jamBeatPickerModal55B8B2.querySelector("#closeBeatPickerModal55B8B2");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeBeatPickerModal55B8B2();
+    });
+  }
+
+  jamBeatPickerModal55B8B2.addEventListener("click", (event) => {
+    if (event.target === jamBeatPickerModal55B8B2) {
+      closeBeatPickerModal55B8B2();
+    }
+  });
+
+  renderBeatPickerGrid55B8B2();
+
+  return jamBeatPickerModal55B8B2;
+}
+
+function renderBeatPickerGrid55B8B2() {
+  ensureIntegratedLooperStyles55B8B2();
+
+  if (!jamBeatPickerGrid55B8B2) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+
+  jamBeatPickerGrid55B8B2.innerHTML = "";
+
+  for (let index = 1; index <= JAM_BEAT_COUNT_55B8B2; index += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "jam-btn jam-beat-picker-btn-55b8b2";
+    button.innerText = `#${index}`;
+
+    if (index === beatState.currentIndex) {
+      button.classList.add("active");
+    }
+
+    button.title = getBeatAudioUrl55B8B2(index);
+
+    button.addEventListener("click", () => {
+      showSystemInfo(
+        `Beat #${index} wybrany w panelu. Zapis do pokoju podłączymy w następnym etapie.`
+      );
+      closeBeatPickerModal55B8B2();
+    });
+
+    jamBeatPickerGrid55B8B2.appendChild(button);
+  }
+}
+
+function openBeatPickerModal55B8B2() {
+  ensureBeatPickerModal55B8B2();
+  renderBeatPickerGrid55B8B2();
+
+  jamBeatPickerModal55B8B2.classList.remove("hidden");
+}
+
+function closeBeatPickerModal55B8B2() {
+  if (jamBeatPickerModal55B8B2) {
+    jamBeatPickerModal55B8B2.classList.add("hidden");
+  }
+}
+
+function ensureIntegratedLooperPanel55B8B2() {
+  ensureIntegratedLooperStyles55B8B2();
+
+  if (jamIntegratedLooperPanel55B8B2) {
+    return jamIntegratedLooperPanel55B8B2;
+  }
+
+  const currentBeatCard = findCurrentBeatCard55B8B2();
+
+  if (!currentBeatCard) {
+    return null;
+  }
+
+  jamIntegratedLooperPanel55B8B2 = document.createElement("div");
+  jamIntegratedLooperPanel55B8B2.id = "jamIntegratedLooperPanel55B8B2";
+  jamIntegratedLooperPanel55B8B2.className = "jam-integrated-looper-55b8b2";
+
+  jamIntegratedLooperPanel55B8B2.innerHTML = `
+    <div class="jam-integrated-header-55b8b2">
+      <h3>Funkcje Loopera w pokoju</h3>
+      <span>Beat / loop / pitch — panel wspólny</span>
+    </div>
+
+    <div class="jam-beat-state-grid-55b8b2">
+      <div class="jam-beat-state-box-55b8b2">
+        <p class="jam-small-label">Aktualny beat</p>
+        <strong id="jamIntegratedCurrentBeatTitle55B8B2">#-- — Beat --</strong>
+        <span id="jamIntegratedCurrentBeatUrl55B8B2">Brak ścieżki audio</span>
+      </div>
+
+      <div class="jam-beat-state-box-55b8b2">
+        <p class="jam-small-label">Następny beat</p>
+        <strong id="jamIntegratedNextBeatTitle55B8B2">#-- — Beat --</strong>
+        <span id="jamIntegratedNextBeatUrl55B8B2">Brak ścieżki audio</span>
+      </div>
+    </div>
+
+    <div class="jam-looper-controls-55b8b2">
+      <button class="jam-btn" type="button" id="jamPrevBeatBtn55B8B2">PREVIOUS BEAT</button>
+      <button class="jam-btn" type="button" id="jamChooseBeatBtn55B8B2">CHOOSE BEAT</button>
+      <button class="jam-btn" type="button" id="jamNextBeatBtn55B8B2">NEXT BEAT</button>
+      <button class="jam-btn jam-btn-danger" type="button" id="jamStopBeatBtn55B8B2">STOP</button>
+
+      <button class="jam-btn" type="button">INFINITY</button>
+      <button class="jam-btn" type="button">LOOP 1X</button>
+      <button class="jam-btn" type="button">LOOP 2X</button>
+      <button class="jam-btn" type="button">LOOP 4X</button>
+
+      <button class="jam-btn" type="button">PITCH -</button>
+
+      <div class="jam-pitch-mini-55b8b2">
+        <input type="range" min="-12" max="12" step="1" value="0" disabled>
+        <span>0%</span>
+      </div>
+
+      <button class="jam-btn" type="button">PITCH +</button>
+    </div>
+  `;
+
+  currentBeatCard.appendChild(jamIntegratedLooperPanel55B8B2);
+
+  const chooseBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamChooseBeatBtn55B8B2");
+  const prevBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPrevBeatBtn55B8B2");
+  const nextBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamNextBeatBtn55B8B2");
+  const stopBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamStopBeatBtn55B8B2");
+
+  if (chooseBtn) {
+    chooseBtn.addEventListener("click", () => {
+      openBeatPickerModal55B8B2();
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      showSystemInfo("PREVIOUS BEAT podłączymy w następnym etapie.");
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      showSystemInfo("NEXT BEAT podłączymy w następnym etapie.");
+    });
+  }
+
+  if (stopBtn) {
+    stopBtn.addEventListener("click", () => {
+      showSystemInfo("STOP audio podłączymy w etapie lokalnego playera.");
+    });
+  }
+
+  return jamIntegratedLooperPanel55B8B2;
+}
+
+function updateMainCurrentBeatCard55B8B2() {
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+
+  const beatNumberBox = findBeatNumberBox55B8B2(card);
+
+  if (beatNumberBox) {
+    beatNumberBox.innerText = `#${beatState.currentIndex}`;
+    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
+    beatNumberBox.title = "Kliknij, żeby wybrać beat";
+
+    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
+      jamBeatNumberButton55B8B2 = beatNumberBox;
+
+      jamBeatNumberButton55B8B2.addEventListener("click", () => {
+        openBeatPickerModal55B8B2();
+      });
+    }
+  }
+
+  const title =
+    card.querySelector(".jam-track-meta h3") ||
+    card.querySelector("h3");
+
+  if (title) {
+    title.innerText = beatState.currentTitle.toUpperCase();
+  }
+
+  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
+    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
+  });
+
+  if (hostLine) {
+    const host = getEffectiveHost ? getEffectiveHost() : null;
+    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
+  }
+
+  if (nowPlayingPerformerLine) {
+    const performerName =
+      jamActive && jamCurrentPerformer
+        ? jamCurrentPerformer.nick
+        : "nikt";
+
+    nowPlayingPerformerLine.innerHTML =
+      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
+  }
+}
+
+function updateIntegratedLooperPanel55B8B2() {
+  const panel = ensureIntegratedLooperPanel55B8B2();
+
+  if (!panel) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+
+  const currentTitle = panel.querySelector("#jamIntegratedCurrentBeatTitle55B8B2");
+  const currentUrl = panel.querySelector("#jamIntegratedCurrentBeatUrl55B8B2");
+  const nextTitle = panel.querySelector("#jamIntegratedNextBeatTitle55B8B2");
+  const nextUrl = panel.querySelector("#jamIntegratedNextBeatUrl55B8B2");
+
+  if (currentTitle) {
+    currentTitle.innerText =
+      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
+  }
+
+  if (currentUrl) {
+    currentUrl.innerText = beatState.currentUrl || getBeatAudioUrl55B8B2(beatState.currentIndex);
+  }
+
+  if (nextTitle) {
+    nextTitle.innerText =
+      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
+  }
+
+  if (nextUrl) {
+    nextUrl.innerText = beatState.nextUrl || getBeatAudioUrl55B8B2(beatState.nextIndex);
+  }
+}
+
+function renderIntegratedLooper55B8B2() {
+  removeOldBeatPanel55B8B2();
+  hideOldLooperFunctionsCard55B8B2();
+
+  ensureBeatPickerModal55B8B2();
+  ensureIntegratedLooperPanel55B8B2();
+
+  updateMainCurrentBeatCard55B8B2();
+  updateIntegratedLooperPanel55B8B2();
+}
+
+const originalRenderJamState55B8B2 = renderJamState;
+
+renderJamState = function renderJamStateWithIntegratedLooper55B8B2() {
+  originalRenderJamState55B8B2();
+  renderIntegratedLooper55B8B2();
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    renderIntegratedLooper55B8B2();
+  }, 2600);
+});
