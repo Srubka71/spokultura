@@ -9719,3 +9719,342 @@ window.addEventListener("load", () => {
     renderCleanMainPlayer55B8D3();
   }, 5200);
 });
+
+// =======================
+// ETAP 55B-8D4 — CLEAN PLAYER STABILITY FIX
+// Naprawia mruganie/znikanie playera i widoczność kontrolek Hosta
+// =======================
+
+let jamCleanPlayerRepairTimer55B8D4 = null;
+
+function ensureCleanPlayerStabilityStyles55B8D4() {
+  if (document.querySelector("#jamCleanPlayerStabilityStyles55B8D4")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "jamCleanPlayerStabilityStyles55B8D4";
+
+  style.innerHTML = `
+    /* Cofamy agresywne ukrywanie z poprzedniego etapu D3 */
+    .jam-clean-player-card-55b8d3 > * {
+      display: revert !important;
+    }
+
+    /* Ukrywamy tylko stare/zdublowane elementy w górnym kaflu */
+    .jam-clean-player-card-55b8d3 .jam-now-playing,
+    .jam-clean-player-card-55b8d3 .jam-track,
+    .jam-clean-player-card-55b8d3 .jam-track-row,
+    .jam-clean-player-card-55b8d3 .jam-integrated-looper-55b8b2:not(#jamCleanMainPlayer55B8D3) {
+      display: none !important;
+    }
+
+    #jamCleanMainPlayer55B8D3 {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    .jam-clean-controls-55b8d3.host-hidden {
+      display: none !important;
+    }
+
+    .jam-clean-controls-55b8d3.host-visible {
+      display: flex !important;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function isCurrentUserHostReliable55B8D4() {
+  if (typeof isCurrentUserHost === "function" && isCurrentUserHost()) {
+    return true;
+  }
+
+  if (hostPanel && !hostPanel.classList.contains("jam-card-hidden")) {
+    return true;
+  }
+
+  if (jamUser && jamUser.role && String(jamUser.role).toLowerCase() === "host") {
+    return true;
+  }
+
+  const currentSessionId =
+    typeof JAM_SESSION_ID !== "undefined"
+      ? JAM_SESSION_ID
+      : null;
+
+  const effectiveHost =
+    typeof getEffectiveHost === "function"
+      ? getEffectiveHost()
+      : null;
+
+  if (
+    currentSessionId &&
+    effectiveHost &&
+    effectiveHost.sessionId === currentSessionId
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function findActualBeatCardSafe55B8D4() {
+  const cards = Array.from(document.querySelectorAll(".jam-card"));
+
+  const byTitle = cards.find((card) => {
+    const h2 = card.querySelector("h2");
+    return h2 && h2.innerText.trim().toLowerCase() === "aktualny beat";
+  });
+
+  if (byTitle) {
+    return byTitle;
+  }
+
+  if (nowPlayingPerformerLine) {
+    return nowPlayingPerformerLine.closest(".jam-card");
+  }
+
+  return null;
+}
+
+function forceCleanPlayerMarkup55B8D4() {
+  ensureCleanPlayerStabilityStyles55B8D4();
+  ensureCleanMainPlayerStyles55B8D3();
+
+  const card = findActualBeatCardSafe55B8D4();
+
+  if (!card) {
+    return null;
+  }
+
+  card.classList.add("jam-clean-player-card-55b8d3");
+
+  let player = card.querySelector("#jamCleanMainPlayer55B8D3");
+
+  if (!player) {
+    player = document.createElement("div");
+    player.id = "jamCleanMainPlayer55B8D3";
+
+    player.innerHTML = `
+      <div class="jam-clean-top-55b8d3">
+        <button id="jamCleanBeatSquare55B8D3" class="jam-clean-beat-square-55b8d3" type="button">
+          #1
+        </button>
+
+        <div class="jam-clean-meta-55b8d3">
+          <h3 id="jamCleanBeatTitle55B8D3" class="jam-clean-title-55b8d3">Beat</h3>
+          <p id="jamCleanBeatMeta55B8D3" class="jam-clean-meta-line-55b8d3">
+            Producent: -- | BPM: --
+          </p>
+          <p id="jamCleanBeatPerformer55B8D3" class="jam-clean-subline-55b8d3">
+            Aktualnie skreczuje: nikt
+          </p>
+          <p id="jamCleanBeatHost55B8D3" class="jam-clean-subline-55b8d3">
+            Host: brak
+          </p>
+        </div>
+
+        <div class="jam-clean-next-55b8d3">
+          <p>Następny beat</p>
+          <strong id="jamCleanNextTitle55B8D3">#-- — Beat</strong>
+          <span id="jamCleanNextMeta55B8D3">Producent: -- | BPM: --</span>
+        </div>
+      </div>
+
+      <div id="jamCleanHostControls55B8D3" class="jam-clean-controls-55b8d3">
+        <button class="jam-btn" type="button" id="jamCleanPrevBeat55B8D3">PREVIOUS BEAT</button>
+        <button class="jam-btn" type="button" id="jamCleanChooseBeat55B8D3">CHOOSE BEAT</button>
+        <button class="jam-btn" type="button" id="jamCleanNextBeat55B8D3">NEXT BEAT</button>
+
+        <button class="jam-btn jam-btn-primary" type="button" id="jamCleanStart55B8D3">START</button>
+        <button class="jam-btn jam-btn-danger" type="button" id="jamCleanStop55B8D3">STOP</button>
+
+        <button class="jam-btn" type="button" id="jamCleanLoopInf55B8D3">INFINITY</button>
+        <button class="jam-btn" type="button" id="jamCleanLoop1x55B8D3">LOOP 1X</button>
+        <button class="jam-btn" type="button" id="jamCleanLoop2x55B8D3">LOOP 2X</button>
+        <button class="jam-btn" type="button" id="jamCleanLoop4x55B8D3">LOOP 4X</button>
+        <button class="jam-btn" type="button" id="jamCleanLoop6x55B8D3">LOOP 6X</button>
+        <button class="jam-btn" type="button" id="jamCleanLoop8x55B8D3">LOOP 8X</button>
+
+        <button class="jam-btn" type="button" id="jamCleanPitchMinus55B8D3">PITCH -</button>
+
+        <div class="jam-clean-pitch-55b8d3">
+          <input id="jamCleanPitchSlider55B8D3" type="range" min="-12" max="12" step="1" value="0">
+          <span id="jamCleanPitchValue55B8D3">0%</span>
+        </div>
+
+        <button class="jam-btn" type="button" id="jamCleanPitchPlus55B8D3">PITCH +</button>
+      </div>
+
+      <div id="jamCleanHostHint55B8D3" class="jam-clean-host-hint-55b8d3">
+        Sterowanie beatem widoczne jest tylko dla Hosta.
+      </div>
+    `;
+
+    const h2 = card.querySelector("h2");
+
+    if (h2 && h2.parentNode) {
+      h2.parentNode.insertBefore(player, h2.nextSibling);
+    } else {
+      card.prepend(player);
+    }
+
+    jamCleanMainPlayer55B8D3 = player;
+    bindCleanMainPlayer55B8D3();
+  } else {
+    jamCleanMainPlayer55B8D3 = player;
+  }
+
+  return player;
+}
+
+function renderCleanMainPlayerStable55B8D4() {
+  const player = forceCleanPlayerMarkup55B8D4();
+
+  if (!player) {
+    return;
+  }
+
+  const beatState =
+    typeof getBeatState55B8B2 === "function"
+      ? getBeatState55B8B2()
+      : {
+          currentIndex: 1,
+          currentTitle: "Beat",
+          currentProducer: "Unknown",
+          currentBpm: null,
+          nextIndex: 2,
+          nextTitle: "Beat",
+          nextProducer: "Unknown",
+          nextBpm: null,
+          currentImage: ""
+        };
+
+  const isHost = isCurrentUserHostReliable55B8D4();
+
+  const square = player.querySelector("#jamCleanBeatSquare55B8D3");
+  const title = player.querySelector("#jamCleanBeatTitle55B8D3");
+  const meta = player.querySelector("#jamCleanBeatMeta55B8D3");
+  const performer = player.querySelector("#jamCleanBeatPerformer55B8D3");
+  const hostLine = player.querySelector("#jamCleanBeatHost55B8D3");
+  const nextTitle = player.querySelector("#jamCleanNextTitle55B8D3");
+  const nextMeta = player.querySelector("#jamCleanNextMeta55B8D3");
+  const controls = player.querySelector("#jamCleanHostControls55B8D3");
+  const hint = player.querySelector("#jamCleanHostHint55B8D3");
+
+  const image =
+    typeof getCurrentBeatImage55B8D3 === "function"
+      ? getCurrentBeatImage55B8D3(beatState)
+      : beatState.currentImage || "";
+
+  if (square) {
+    square.innerText = `#${beatState.currentIndex}`;
+    square.style.backgroundImage = image ? `url("${image}")` : "";
+    square.classList.toggle("not-host", !isHost);
+    square.title = isHost
+      ? "Kliknij, żeby wybrać beat"
+      : "Tylko Host może wybierać beat";
+
+    square.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!jamJoined) {
+        showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+        return;
+      }
+
+      if (!isCurrentUserHostReliable55B8D4()) {
+        showSystemInfo("Tylko Host może wybierać beat.", "warn");
+        return;
+      }
+
+      openBeatPickerModal55B8B2();
+    };
+  }
+
+  if (title) {
+    title.innerText = beatState.currentTitle || `Beat ${beatState.currentIndex}`;
+  }
+
+  if (meta) {
+    meta.innerText =
+      `Producent: ${beatState.currentProducer || "Unknown"} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
+  }
+
+  if (performer) {
+    const performerName =
+      jamActive && jamCurrentPerformer
+        ? jamCurrentPerformer.nick
+        : "nikt";
+
+    performer.innerText = `Aktualnie skreczuje: ${performerName}`;
+  }
+
+  if (hostLine) {
+    const host =
+      typeof getEffectiveHost === "function"
+        ? getEffectiveHost()
+        : null;
+
+    hostLine.innerText = `Host: ${host ? host.nick : "brak"}`;
+  }
+
+  if (nextTitle) {
+    nextTitle.innerText =
+      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
+  }
+
+  if (nextMeta) {
+    nextMeta.innerText =
+      `Producent: ${beatState.nextProducer || "Unknown"} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)}`;
+  }
+
+  if (controls) {
+    controls.classList.toggle("host-hidden", !isHost);
+    controls.classList.toggle("host-visible", isHost);
+  }
+
+  if (hint) {
+    hint.style.display = isHost ? "none" : "";
+  }
+
+  updateCleanPitch55B8D3(getCleanPitchValue55B8D3());
+}
+
+function scheduleCleanPlayerRepair55B8D4() {
+  if (jamCleanPlayerRepairTimer55B8D4) {
+    clearTimeout(jamCleanPlayerRepairTimer55B8D4);
+  }
+
+  jamCleanPlayerRepairTimer55B8D4 = setTimeout(() => {
+    renderCleanMainPlayerStable55B8D4();
+  }, 80);
+}
+
+const originalRenderJamState55B8D4 = renderJamState;
+
+renderJamState = function renderJamStateStableCleanPlayer55B8D4() {
+  originalRenderJamState55B8D4();
+  scheduleCleanPlayerRepair55B8D4();
+};
+
+const originalApplyRoomStateToLocalState55B8D4 = applyRoomStateToLocalState;
+
+applyRoomStateToLocalState = function applyRoomStateStableCleanPlayer55B8D4(nextRoomState, options = {}) {
+  originalApplyRoomStateToLocalState55B8D4(nextRoomState, options);
+  scheduleCleanPlayerRepair55B8D4();
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    renderCleanMainPlayerStable55B8D4();
+  }, 5600);
+
+  setTimeout(() => {
+    renderCleanMainPlayerStable55B8D4();
+  }, 7000);
+});
