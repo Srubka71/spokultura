@@ -8212,3 +8212,488 @@ window.addEventListener("load", () => {
     renderIntegratedLooper55B8B2();
   }, 3600);
 });
+
+// =======================
+// ETAP 55B-8D — LOOPER CONFIG METADATA
+// Jam Room czyta nazwy, producentów, BPM i pliki z /looper/config.js
+// =======================
+
+const JAM_LOOPER_CONFIG_SRC_55B8D = "/looper/config.js";
+
+let jamLooperConfigLoaded55B8D = false;
+let jamLooperConfigLoading55B8D = false;
+let jamLooperConfigLoadPromise55B8D = null;
+
+function loadLooperConfig55B8D() {
+  if (typeof beats !== "undefined" && Array.isArray(beats)) {
+    jamLooperConfigLoaded55B8D = true;
+    return Promise.resolve(true);
+  }
+
+  if (jamLooperConfigLoaded55B8D) {
+    return Promise.resolve(true);
+  }
+
+  if (jamLooperConfigLoading55B8D && jamLooperConfigLoadPromise55B8D) {
+    return jamLooperConfigLoadPromise55B8D;
+  }
+
+  jamLooperConfigLoading55B8D = true;
+
+  jamLooperConfigLoadPromise55B8D = new Promise((resolve) => {
+    const existingScript = Array.from(document.querySelectorAll("script")).find((script) => {
+      return script.src && script.src.includes("/looper/config.js");
+    });
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => {
+        jamLooperConfigLoaded55B8D = true;
+        jamLooperConfigLoading55B8D = false;
+        resolve(true);
+      });
+
+      existingScript.addEventListener("error", () => {
+        jamLooperConfigLoaded55B8D = false;
+        jamLooperConfigLoading55B8D = false;
+        resolve(false);
+      });
+
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = JAM_LOOPER_CONFIG_SRC_55B8D;
+    script.async = false;
+
+    script.onload = () => {
+      jamLooperConfigLoaded55B8D = true;
+      jamLooperConfigLoading55B8D = false;
+      resolve(true);
+    };
+
+    script.onerror = () => {
+      console.error("[JAM LOOPER CONFIG] Nie udało się załadować /looper/config.js");
+      jamLooperConfigLoaded55B8D = false;
+      jamLooperConfigLoading55B8D = false;
+      resolve(false);
+    };
+
+    document.head.appendChild(script);
+  });
+
+  return jamLooperConfigLoadPromise55B8D;
+}
+
+function getLooperBeats55B8D() {
+  if (typeof beats !== "undefined" && Array.isArray(beats)) {
+    return beats;
+  }
+
+  return [];
+}
+
+function getLooperBeatByIndex55B8D(index) {
+  const safeIndex = normalizeBeatIndex55B8C
+    ? normalizeBeatIndex55B8C(index)
+    : Number(index || 1);
+
+  const looperBeats = getLooperBeats55B8D();
+
+  return looperBeats.find((beat) => {
+    return Number(beat.id) === Number(safeIndex);
+  }) || null;
+}
+
+function getLooperAudioUrl55B8D(beat) {
+  if (!beat || !beat.file) {
+    const fallbackIndex = beat && beat.id ? beat.id : 1;
+    return `/looper/assets/audio/beat${fallbackIndex}.mp3`;
+  }
+
+  const file = String(beat.file);
+
+  if (file.startsWith("/")) {
+    return file;
+  }
+
+  if (file.startsWith("looper/")) {
+    return `/${file}`;
+  }
+
+  if (file.startsWith("assets/")) {
+    return `/looper/${file}`;
+  }
+
+  return `/looper/${file}`;
+}
+
+function getLooperImageUrl55B8D(beat) {
+  if (!beat || !beat.image) {
+    return "";
+  }
+
+  const image = String(beat.image);
+
+  if (image.startsWith("/")) {
+    return image;
+  }
+
+  if (image.startsWith("looper/")) {
+    return `/${image}`;
+  }
+
+  if (image.startsWith("assets/")) {
+    return `/looper/${image}`;
+  }
+
+  return `/looper/${image}`;
+}
+
+function getBeatTitle55B8B2(index) {
+  const beat = getLooperBeatByIndex55B8D(index);
+
+  if (beat && beat.title) {
+    return beat.title;
+  }
+
+  return `Beat ${String(Number(index)).padStart(2, "0")}`;
+}
+
+function getBeatAudioUrl55B8B2(index) {
+  const beat = getLooperBeatByIndex55B8D(index);
+
+  if (beat) {
+    return getLooperAudioUrl55B8D(beat);
+  }
+
+  return `/looper/assets/audio/beat${Number(index)}.mp3`;
+}
+
+function getBeatProducer55B8D(index) {
+  const beat = getLooperBeatByIndex55B8D(index);
+
+  if (beat && beat.producer) {
+    return String(beat.producer).trim() || "Unknown";
+  }
+
+  return "Unknown";
+}
+
+function getBeatBpm55B8D(index) {
+  const beat = getLooperBeatByIndex55B8D(index);
+
+  if (beat && beat.bpm !== null && beat.bpm !== undefined) {
+    return beat.bpm;
+  }
+
+  return null;
+}
+
+function getBeatImage55B8D(index) {
+  const beat = getLooperBeatByIndex55B8D(index);
+
+  return getLooperImageUrl55B8D(beat);
+}
+
+function formatBeatBpm55B8D(bpmValue) {
+  if (bpmValue === null || bpmValue === undefined || bpmValue === "") {
+    return "--";
+  }
+
+  const parsed = Number(bpmValue);
+
+  if (!Number.isFinite(parsed)) {
+    return String(bpmValue);
+  }
+
+  return Number.isInteger(parsed)
+    ? String(parsed)
+    : parsed.toFixed(2);
+}
+
+function getBeatState55B8B2() {
+  const state = jamRoomState || {};
+
+  const currentIndex = Number(state.current_beat_index || 1);
+  const fallbackNextIndex =
+    currentIndex >= JAM_BEAT_COUNT_55B8B2
+      ? 1
+      : currentIndex + 1;
+
+  const nextIndex = Number(state.next_beat_index || fallbackNextIndex);
+
+  const currentBeat = getLooperBeatByIndex55B8D(currentIndex);
+  const nextBeat = getLooperBeatByIndex55B8D(nextIndex);
+
+  return {
+    currentIndex,
+    currentTitle:
+      currentBeat?.title ||
+      state.current_beat_title ||
+      `Beat ${String(currentIndex).padStart(2, "0")}`,
+    currentProducer:
+      currentBeat?.producer ||
+      "Unknown",
+    currentBpm:
+      currentBeat?.bpm ?? null,
+    currentUrl:
+      currentBeat
+        ? getLooperAudioUrl55B8D(currentBeat)
+        : state.current_beat_url || `/looper/assets/audio/beat${currentIndex}.mp3`,
+    currentImage:
+      currentBeat
+        ? getLooperImageUrl55B8D(currentBeat)
+        : "",
+
+    nextIndex,
+    nextTitle:
+      nextBeat?.title ||
+      state.next_beat_title ||
+      `Beat ${String(nextIndex).padStart(2, "0")}`,
+    nextProducer:
+      nextBeat?.producer ||
+      "Unknown",
+    nextBpm:
+      nextBeat?.bpm ?? null,
+    nextUrl:
+      nextBeat
+        ? getLooperAudioUrl55B8D(nextBeat)
+        : state.next_beat_url || `/looper/assets/audio/beat${nextIndex}.mp3`,
+    nextImage:
+      nextBeat
+        ? getLooperImageUrl55B8D(nextBeat)
+        : "",
+
+    updatedBy: state.beat_updated_by_nick || "System",
+    updatedAt: state.beat_updated_at || null
+  };
+}
+
+function buildBeatPayload55B8C(index) {
+  const currentIndex = normalizeBeatIndex55B8C(index);
+  const nextIndex = getNextBeatIndex55B8C(currentIndex);
+
+  const currentBeat = getLooperBeatByIndex55B8D(currentIndex);
+  const nextBeat = getLooperBeatByIndex55B8D(nextIndex);
+
+  return {
+    current_beat_index: currentIndex,
+    current_beat_title:
+      currentBeat?.title ||
+      `Beat ${String(currentIndex).padStart(2, "0")}`,
+    current_beat_url:
+      currentBeat
+        ? getLooperAudioUrl55B8D(currentBeat)
+        : `/looper/assets/audio/beat${currentIndex}.mp3`,
+
+    next_beat_index: nextIndex,
+    next_beat_title:
+      nextBeat?.title ||
+      `Beat ${String(nextIndex).padStart(2, "0")}`,
+    next_beat_url:
+      nextBeat
+        ? getLooperAudioUrl55B8D(nextBeat)
+        : `/looper/assets/audio/beat${nextIndex}.mp3`,
+
+    beat_updated_by_session_id: JAM_SESSION_ID,
+    beat_updated_by_nick: jamUser ? jamUser.nick : "Host",
+    beat_updated_at: nowIso(),
+
+    updated_by_session_id: JAM_SESSION_ID,
+    updated_by_nick: jamUser ? jamUser.nick : "Host",
+    updated_at: nowIso()
+  };
+}
+
+function ensureBeatMetaLine55B8D(card) {
+  if (!card) return null;
+
+  let metaLine = card.querySelector("#jamMainBeatMeta55B8D");
+
+  if (metaLine) {
+    return metaLine;
+  }
+
+  const trackMeta =
+    card.querySelector(".jam-track-meta") ||
+    card.querySelector(".jam-card-body") ||
+    card;
+
+  metaLine = document.createElement("p");
+  metaLine.id = "jamMainBeatMeta55B8D";
+  metaLine.className = "jam-small-label";
+  metaLine.style.marginTop = "6px";
+
+  const title =
+    trackMeta.querySelector("h3") ||
+    trackMeta.querySelector("h2");
+
+  if (title && title.parentNode) {
+    title.parentNode.insertBefore(metaLine, title.nextSibling);
+  } else {
+    trackMeta.appendChild(metaLine);
+  }
+
+  return metaLine;
+}
+
+function ensureBeatCover55B8D(card) {
+  if (!card) return null;
+
+  let cover = card.querySelector("#jamMainBeatCover55B8D");
+
+  if (cover) {
+    return cover;
+  }
+
+  const beatSquare = findBeatNumberBox55B8B2(card);
+
+  cover = document.createElement("div");
+  cover.id = "jamMainBeatCover55B8D";
+  cover.style.width = "92px";
+  cover.style.height = "92px";
+  cover.style.borderRadius = "16px";
+  cover.style.backgroundSize = "cover";
+  cover.style.backgroundPosition = "center";
+  cover.style.border = "1px solid rgba(234,162,33,0.22)";
+  cover.style.boxShadow = "0 10px 24px rgba(0,0,0,0.25)";
+
+  if (beatSquare && beatSquare.parentNode) {
+    beatSquare.parentNode.insertBefore(cover, beatSquare.nextSibling);
+  }
+
+  return cover;
+}
+
+function updateMainCurrentBeatCard55B8B2() {
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) {
+    return;
+  }
+
+  ensureIntegratedLooperStyles55B8B3();
+
+  const beatState = getBeatState55B8B2();
+
+  const beatNumberBox = findBeatNumberBox55B8B2(card);
+
+  if (beatNumberBox) {
+    beatNumberBox.innerText = `#${beatState.currentIndex}`;
+    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
+    beatNumberBox.title = "Kliknij, żeby wybrać beat";
+
+    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
+      jamBeatNumberButton55B8B2 = beatNumberBox;
+
+      jamBeatNumberButton55B8B2.addEventListener("click", () => {
+        openBeatPickerModal55B8B2();
+      });
+    }
+  }
+
+  const title =
+    card.querySelector(".jam-track-meta h3") ||
+    card.querySelector("h3");
+
+  if (title) {
+    title.innerText = beatState.currentTitle.toUpperCase();
+  }
+
+  const metaLine = ensureBeatMetaLine55B8D(card);
+
+  if (metaLine) {
+    metaLine.innerText =
+      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
+  }
+
+  const cover = ensureBeatCover55B8D(card);
+
+  if (cover && beatState.currentImage) {
+    cover.style.backgroundImage = `url("${beatState.currentImage}")`;
+  }
+
+  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
+    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
+  });
+
+  if (hostLine) {
+    const host = getEffectiveHost ? getEffectiveHost() : null;
+    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
+  }
+
+  if (nowPlayingPerformerLine) {
+    const performerName =
+      jamActive && jamCurrentPerformer
+        ? jamCurrentPerformer.nick
+        : "nikt";
+
+    nowPlayingPerformerLine.innerHTML =
+      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
+  }
+}
+
+function updateIntegratedLooperPanel55B8B2() {
+  const panel = ensureIntegratedLooperPanel55B8B2();
+
+  if (!panel) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+
+  const currentTitle = panel.querySelector("#jamIntegratedCurrentBeatTitle55B8B2");
+  const currentUrl = panel.querySelector("#jamIntegratedCurrentBeatUrl55B8B2");
+  const nextTitle = panel.querySelector("#jamIntegratedNextBeatTitle55B8B2");
+  const nextUrl = panel.querySelector("#jamIntegratedNextBeatUrl55B8B2");
+
+  if (currentTitle) {
+    currentTitle.innerText =
+      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
+  }
+
+  if (currentUrl) {
+    currentUrl.innerText =
+      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)} | ${beatState.currentUrl}`;
+  }
+
+  if (nextTitle) {
+    nextTitle.innerText =
+      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
+  }
+
+  if (nextUrl) {
+    nextUrl.innerText =
+      `Producent: ${beatState.nextProducer} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)} | ${beatState.nextUrl}`;
+  }
+
+  updateHostOnlyLooperControls55B8B3();
+  updatePitchValue55B8B3(
+    Number(document.querySelector("#jamPitchSlider55B8B3")?.value || 0)
+  );
+}
+
+async function initLooperConfigMetadata55B8D() {
+  const loaded = await loadLooperConfig55B8D();
+
+  if (!loaded) {
+    showSystemInfo("Nie udało się załadować metadanych z /looper/config.js.", "warn");
+    return;
+  }
+
+  renderIntegratedLooper55B8B2();
+
+  const beatState = getBeatState55B8B2();
+
+  if (isCurrentUserHost && isCurrentUserHost()) {
+    await saveBeatStateToRoom55B8C(beatState.currentIndex, "Config metadata");
+  }
+
+  showSystemInfo("Metadane beatów załadowane z config.js.", "success");
+}
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    initLooperConfigMetadata55B8D();
+  }, 4200);
+});
