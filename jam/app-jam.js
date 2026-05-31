@@ -8697,3 +8697,188 @@ window.addEventListener("load", () => {
     initLooperConfigMetadata55B8D();
   }, 4200);
 });
+
+// =======================
+// ETAP 55B-8D1 — MAIN BEAT CARD UI FIX
+// Obrazek jako tło kwadratu #, nazwa po prawej, bez osobnego mini-covera
+// =======================
+
+function ensureMainBeatCardStyles55B8D1() {
+  if (document.querySelector("#jamMainBeatCardStyles55B8D1")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "jamMainBeatCardStyles55B8D1";
+
+  style.innerHTML = `
+    .jam-beat-square-clickable-55b8b2 {
+      position: relative !important;
+      overflow: hidden !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+      color: #EAA221 !important;
+      text-shadow:
+        0 2px 10px rgba(0,0,0,0.85),
+        0 0 10px rgba(0,0,0,0.55) !important;
+      box-shadow:
+        inset 0 0 0 1px rgba(234,162,33,0.14),
+        inset 0 -30px 40px rgba(0,0,0,0.35),
+        0 10px 24px rgba(0,0,0,0.22) !important;
+    }
+
+    .jam-beat-square-clickable-55b8b2::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.42));
+      pointer-events: none;
+    }
+
+    .jam-beat-square-clickable-55b8b2 span,
+    .jam-beat-square-clickable-55b8b2 strong {
+      position: relative;
+      z-index: 1;
+    }
+
+    .jam-beat-square-clickable-55b8b2 {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 34px !important;
+      font-weight: 900 !important;
+      letter-spacing: 1px !important;
+    }
+
+    .jam-now-playing {
+      align-items: center !important;
+    }
+
+    .jam-track-meta {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      min-width: 0 !important;
+    }
+
+    .jam-track-meta h3 {
+      margin-bottom: 8px !important;
+    }
+
+    #jamMainBeatMeta55B8D {
+      margin: 0 0 8px !important;
+      color: rgba(255,255,255,0.82) !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.2px !important;
+      text-transform: none !important;
+    }
+
+    @media (max-width: 620px) {
+      .jam-beat-square-clickable-55b8b2 {
+        width: 100% !important;
+        max-width: 112px !important;
+        height: 112px !important;
+        margin: 0 auto !important;
+      }
+
+      .jam-track-meta h3 {
+        text-align: left !important;
+      }
+
+      #jamMainBeatMeta55B8D {
+        text-align: left !important;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function removeLegacyBeatCover55B8D1(card) {
+  if (!card) return;
+
+  const oldCover = card.querySelector("#jamMainBeatCover55B8D");
+
+  if (oldCover) {
+    oldCover.remove();
+  }
+}
+
+const originalUpdateMainCurrentBeatCard55B8D1 = updateMainCurrentBeatCard55B8B2;
+
+updateMainCurrentBeatCard55B8B2 = function updateMainCurrentBeatCard55B8D1() {
+  ensureMainBeatCardStyles55B8D1();
+
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) {
+    return;
+  }
+
+  removeLegacyBeatCover55B8D1(card);
+
+  const beatState = getBeatState55B8B2();
+  const beatNumberBox = findBeatNumberBox55B8B2(card);
+
+  if (beatNumberBox) {
+    beatNumberBox.innerText = `#${beatState.currentIndex}`;
+    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
+    beatNumberBox.title = "Kliknij, żeby wybrać beat";
+    beatNumberBox.style.backgroundImage = beatState.currentImage
+      ? `url("${beatState.currentImage}")`
+      : "";
+    beatNumberBox.style.backgroundColor = "#151515";
+
+    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
+      jamBeatNumberButton55B8B2 = beatNumberBox;
+
+      jamBeatNumberButton55B8B2.addEventListener("click", () => {
+        openBeatPickerModal55B8B2();
+      });
+    }
+  }
+
+  const title =
+    card.querySelector(".jam-track-meta h3") ||
+    card.querySelector("h3");
+
+  if (title) {
+    title.innerText = beatState.currentTitle;
+  }
+
+  const metaLine = ensureBeatMetaLine55B8D(card);
+
+  if (metaLine) {
+    metaLine.innerText =
+      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
+  }
+
+  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
+    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
+  });
+
+  if (hostLine) {
+    const host = getEffectiveHost ? getEffectiveHost() : null;
+    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
+  }
+
+  if (nowPlayingPerformerLine) {
+    const performerName =
+      jamActive && jamCurrentPerformer
+        ? jamCurrentPerformer.nick
+        : "nikt";
+
+    nowPlayingPerformerLine.innerHTML =
+      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
+  }
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    ensureMainBeatCardStyles55B8D1();
+    renderIntegratedLooper55B8B2();
+  }, 4600);
+});
