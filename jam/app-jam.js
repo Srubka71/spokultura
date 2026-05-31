@@ -6127,3 +6127,329 @@ clearChatInRoomState = async function clearChatInRoomStatePersistent55B7D() {
     created_at: nowIso()
   });
 };
+
+// =======================
+// ETAP 55B-7E — CHAT TABLE FIX
+// Chat przeniesiony z room_state.chat_json do osobnej tabeli jam_room_chat
+// =======================
+
+const JAM_CHAT_CHANNEL = "spokultura_jam_room_chat_1";
+
+let jamChatChannel55B7E = null;
+let jamChatTableReady55B7E = false;
+
+// Wyłączamy aktualizowanie chatu z room_state,
+// bo room_state.chat_json powodowało czyszczenie wiadomości po auto-resync.
+applyChatMessagesFromRoomState = function applyChatMessagesFromRoomStateDisabled55B7E() {
+  return;
+};
+
+function normalizeChatRow55B7E(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id || createMessageId(),
+    session_id: row.session_id || "",
+    user_id: row.user_id || "",
+    author: row.nick || "Anon",
+    message: row.message || "",
+    created_at: row.created_at || nowIso()
+  };
+}
+
+function sortChatMessages55B7E(messages) {
+  return [...messages].sort((a, b) => {
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+}
+
+async function fetchJamChatMessages55B7E(options = {}) {
+  if (!jamSupabaseClient) return;
+
+  const silent = Boolean(options.silent);
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_chat")
+      .select("*")
+      .eq("room_id", JAM_ROOM_ID)
+      .order("created_at", { ascending: true })
+      .limit(JAM_CHAT_MAX_MESSAGES);
+
+    if (error) {
+      console.error("[JAM CHAT TABLE] fetch error:", error);
+
+      if (!silent) {
+        showSystemInfo("Chat: błąd odczytu tabeli jam_room_chat.", "warn");
+      }
+
+      return;
+    }
+
+    jamChatTableReady55B7E = true;
+
+    const messages = sortChatMessages55B7E(
+      (data || [])
+        .map((row) => normalizeChatRow55B7E(row))
+        .filter(Boolean)
+    );
+
+    forceRenderChatMessages55B7C(messages);
+  } catch (error) {
+    console.error("[JAM CHAT TABLE] fetch exception:", error);
+
+    if (!silent) {
+      showSystemInfo("Chat: błąd połączenia z jam_room_chat.", "warn");
+    }
+  }
+}
+
+function subscribeJamChat55B7E() {
+  if (!jamSupabaseClient) return;
+
+  if (jamChatChannel55B7E) {
+    try {
+      jamSupabaseClient.removeChannel(jamChatChannel55B7E);
+    } catch (error) {
+      console.error(error);
+    }
+
+    jamChatChannel55B7E = null;
+  }
+
+  jamChatChannel55B7E = jamSupabaseClient.channel(JAM_CHAT_CHANNEL);
+
+  jamChatChannel55B7E
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "jam_room_chat",
+        filter: `room_id=eq.${JAM_ROOM_ID}`
+      },
+      () => {
+        fetchJamChatMessages55B7E({
+          silent: true
+        });
+      }
+    )
+    .subscribe((status) => {
+      console.log("[JAM CHAT TABLE] channel status:", status);
+    });
+}
+
+async function insertChatMessage55B7E(chatMessage) {
+  if (!jamSupabaseClient || !chatMessage) return false;
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_chat")
+      .insert({
+        id: chatMessage.id,
+        room_id: JAM_ROOM_ID,
+        session_id: chatMessage.session_id,
+        user_id: chatMessage.user_id,
+        nick: chatMessage.author,
+        message: chatMessage.message,
+        created_at: chatMessage.created_at
+      });
+
+    if (error) {
+      console.error("[JAM CHAT TABLE] insert error:", error);
+      showSystemInfo("Chat: nie udało się zapisać wiadomości.", "warn");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[JAM CHAT TABLE] insert exception:", error);
+    showSystemInfo("Chat: błąd zapisu wiadomości.", "warn");
+    return false;
+  }
+}
+
+async function clearChatTable55B7E() {
+  if (!jamSupabaseClient) return false;
+
+  try {
+    const { error } = await jamSupabaseClient
+      .from("jam_room_chat")
+      .delete()
+      .eq("room_id", JAM_ROOM_ID);
+
+    if (error) {
+      console.error("[JAM CHAT TABLE] clear error:", error);
+      showSystemInfo("Chat: nie udało się wyczyścić tabeli.", "warn");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[JAM CHAT TABLE] clear exception:", error);
+    showSystemInfo("Chat: błąd czyszczenia tabeli.", "warn");
+    return false;
+  }
+}
+
+// Nadpisujemy wysyłanie wiadomości.
+// Od teraz wiadomość trafia do jam_room_chat, a nie do room_state.chat_json.
+sendLocalChatMessage = async function sendLocalChatMessageTable55B7E() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
+
+  if (!chatInput) return;
+
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  clearLocalMuteIfDbMuteExpired55B6D();
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Chat zablokowany jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  const message = sanitizeText(chatInput.value, 120);
+
+  if (!message) return;
+
+  if (checkChatSpam(message)) return;
+
+  const messageId = createMessageId();
+  const createdAt = nowIso();
+
+  const chatMessage = {
+    id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    author: jamUser.nick,
+    message: message,
+    created_at: createdAt
+  };
+
+  const saved = await insertChatMessage55B7E(chatMessage);
+
+  if (!saved) return;
+
+  jamSeenRealtimeMessageIds.add(messageId);
+  chatInput.value = "";
+
+  // Render lokalny od razu.
+  const nextMessages = sortChatMessages55B7E([
+    ...(Array.isArray(jamChatMessages) ? jamChatMessages : []),
+    chatMessage
+  ]).slice(-JAM_CHAT_MAX_MESSAGES);
+
+  forceRenderChatMessages55B7C(nextMessages);
+
+  await sendRealtimeBroadcast("chat_message", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    nick: jamUser.nick,
+    message: message,
+    created_at: createdAt,
+    source: "jam_room_chat"
+  });
+};
+
+// Nadpisujemy czyszczenie.
+// Host kasuje rekordy z jam_room_chat, nie room_state.chat_json.
+clearChatInRoomState = async function clearChatInRoomStateTable55B7E() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyczyścić chat.", "warn");
+    return;
+  }
+
+  const confirmed = confirm("Wyczyścić chat dla wszystkich w Jam Roomie?");
+
+  if (!confirmed) return;
+
+  const cleared = await clearChatTable55B7E();
+
+  if (!cleared) return;
+
+  forceRenderChatMessages55B7C([]);
+
+  showSystemInfo("Chat wyczyszczony.", "success");
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("chat_clear", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "System",
+    created_at: nowIso(),
+    source: "jam_room_chat"
+  });
+};
+
+// Broadcast wiadomości tylko wymusza pobranie tabeli.
+handleRealtimeChatMessage = function handleRealtimeChatMessageTable55B7E(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  fetchJamChatMessages55B7E({
+    silent: true
+  });
+};
+
+// Broadcast clear czyści widok i pobiera tabelę.
+handleRealtimeChatClear = function handleRealtimeChatClearTable55B7E(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  forceRenderChatMessages55B7C([]);
+
+  fetchJamChatMessages55B7E({
+    silent: true
+  });
+};
+
+// Po wejściu do pokoju pobieramy aktualny chat z tabeli.
+const originalJoinRoom55B7E = joinRoom;
+
+joinRoom = async function joinRoomWithChatTable55B7E() {
+  await originalJoinRoom55B7E();
+
+  if (jamJoined) {
+    await fetchJamChatMessages55B7E({
+      silent: true
+    });
+  }
+};
+
+// Init chatu tabelowego.
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    subscribeJamChat55B7E();
+
+    fetchJamChatMessages55B7E({
+      silent: true
+    });
+  }, 1800);
+});
