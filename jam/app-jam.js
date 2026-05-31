@@ -8699,553 +8699,38 @@ window.addEventListener("load", () => {
 });
 
 // =======================
-// ETAP 55B-8D1 — MAIN BEAT CARD UI FIX
-// Obrazek jako tło kwadratu #, nazwa po prawej, bez osobnego mini-covera
+// ETAP 55B-8D1-FINAL — CLEAN TOP PLAYER LAYOUT
+// Naprawiony układ: # + cover po lewej, meta po środku, następny beat po prawej.
+// Bez konfliktów z poprzednimi D1/D2/D3/D4.
 // =======================
 
-function ensureMainBeatCardStyles55B8D1() {
-  if (document.querySelector("#jamMainBeatCardStyles55B8D1")) {
+let jamTopPlayer55B8D1Final = null;
+
+function ensureTopPlayerStyles55B8D1Final() {
+  if (document.querySelector("#jamTopPlayerStyles55B8D1Final")) {
     return;
   }
 
   const style = document.createElement("style");
-  style.id = "jamMainBeatCardStyles55B8D1";
+  style.id = "jamTopPlayerStyles55B8D1Final";
 
   style.innerHTML = `
-    .jam-beat-square-clickable-55b8b2 {
-      position: relative !important;
-      overflow: hidden !important;
-      background-size: cover !important;
-      background-position: center !important;
-      background-repeat: no-repeat !important;
-      color: #EAA221 !important;
-      text-shadow:
-        0 2px 10px rgba(0,0,0,0.85),
-        0 0 10px rgba(0,0,0,0.55) !important;
-      box-shadow:
-        inset 0 0 0 1px rgba(234,162,33,0.14),
-        inset 0 -30px 40px rgba(0,0,0,0.35),
-        0 10px 24px rgba(0,0,0,0.22) !important;
-    }
-
-    .jam-beat-square-clickable-55b8b2::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.42));
-      pointer-events: none;
-    }
-
-    .jam-beat-square-clickable-55b8b2 span,
-    .jam-beat-square-clickable-55b8b2 strong {
-      position: relative;
-      z-index: 1;
-    }
-
-    .jam-beat-square-clickable-55b8b2 {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      font-size: 34px !important;
-      font-weight: 900 !important;
-      letter-spacing: 1px !important;
-    }
-
-    .jam-now-playing {
-      align-items: center !important;
-    }
-
-    .jam-track-meta {
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-      min-width: 0 !important;
-    }
-
-    .jam-track-meta h3 {
-      margin-bottom: 8px !important;
-    }
-
-    #jamMainBeatMeta55B8D {
-      margin: 0 0 8px !important;
-      color: rgba(255,255,255,0.82) !important;
-      font-size: 14px !important;
-      font-weight: 700 !important;
-      letter-spacing: 0.2px !important;
-      text-transform: none !important;
-    }
-
-    @media (max-width: 620px) {
-      .jam-beat-square-clickable-55b8b2 {
-        width: 100% !important;
-        max-width: 112px !important;
-        height: 112px !important;
-        margin: 0 auto !important;
-      }
-
-      .jam-track-meta h3 {
-        text-align: left !important;
-      }
-
-      #jamMainBeatMeta55B8D {
-        text-align: left !important;
-      }
-    }
-  `;
-
-  document.head.appendChild(style);
-}
-
-function removeLegacyBeatCover55B8D1(card) {
-  if (!card) return;
-
-  const oldCover = card.querySelector("#jamMainBeatCover55B8D");
-
-  if (oldCover) {
-    oldCover.remove();
-  }
-}
-
-const originalUpdateMainCurrentBeatCard55B8D1 = updateMainCurrentBeatCard55B8B2;
-
-updateMainCurrentBeatCard55B8B2 = function updateMainCurrentBeatCard55B8D1() {
-  ensureMainBeatCardStyles55B8D1();
-
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) {
-    return;
-  }
-
-  removeLegacyBeatCover55B8D1(card);
-
-  const beatState = getBeatState55B8B2();
-  const beatNumberBox = findBeatNumberBox55B8B2(card);
-
-  if (beatNumberBox) {
-    beatNumberBox.innerText = `#${beatState.currentIndex}`;
-    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
-    beatNumberBox.title = "Kliknij, żeby wybrać beat";
-    beatNumberBox.style.backgroundImage = beatState.currentImage
-      ? `url("${beatState.currentImage}")`
-      : "";
-    beatNumberBox.style.backgroundColor = "#151515";
-
-    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
-      jamBeatNumberButton55B8B2 = beatNumberBox;
-
-      jamBeatNumberButton55B8B2.addEventListener("click", () => {
-        openBeatPickerModal55B8B2();
-      });
-    }
-  }
-
-  const title =
-    card.querySelector(".jam-track-meta h3") ||
-    card.querySelector("h3");
-
-  if (title) {
-    title.innerText = beatState.currentTitle;
-  }
-
-  const metaLine = ensureBeatMetaLine55B8D(card);
-
-  if (metaLine) {
-    metaLine.innerText =
-      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
-  }
-
-  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
-    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
-  });
-
-  if (hostLine) {
-    const host = getEffectiveHost ? getEffectiveHost() : null;
-    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
-  }
-
-  if (nowPlayingPerformerLine) {
-    const performerName =
-      jamActive && jamCurrentPerformer
-        ? jamCurrentPerformer.nick
-        : "nikt";
-
-    nowPlayingPerformerLine.innerHTML =
-      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
-  }
-};
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    ensureMainBeatCardStyles55B8D1();
-    renderIntegratedLooper55B8B2();
-  }, 4600);
-});
-
-// =======================
-// ETAP 55B-8D2 — MAIN PLAYER LAYOUT FIX
-// Jeden główny player: cover+# po lewej, meta po środku, następny beat po prawej
-// Usuwa zdublowane dolne okienko "Aktualny beat"
-// =======================
-
-function ensureMainPlayerLayoutStyles55B8D2() {
-  if (document.querySelector("#jamMainPlayerLayoutStyles55B8D2")) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = "jamMainPlayerLayoutStyles55B8D2";
-
-  style.innerHTML = `
-    .jam-main-player-layout-55b8d2 {
-      display: grid !important;
-      grid-template-columns: 112px minmax(0, 1fr) minmax(220px, 320px) !important;
-      gap: 18px !important;
-      align-items: center !important;
-      width: 100% !important;
-      margin-top: 12px !important;
-      margin-bottom: 14px !important;
-    }
-
-    .jam-beat-square-clickable-55b8b2 {
-      width: 104px !important;
-      height: 104px !important;
-      min-width: 104px !important;
-      min-height: 104px !important;
-      border-radius: 18px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      background-size: cover !important;
-      background-position: center !important;
-      background-repeat: no-repeat !important;
-      color: rgba(234,162,33,0.95) !important;
-      font-size: 34px !important;
-      font-weight: 900 !important;
-      line-height: 1 !important;
-      text-shadow:
-        0 2px 10px rgba(0,0,0,0.95),
-        0 0 14px rgba(0,0,0,0.85) !important;
-      border: 1px solid rgba(234,162,33,0.34) !important;
-      box-shadow:
-        inset 0 0 0 999px rgba(0,0,0,0.28),
-        inset 0 -36px 44px rgba(0,0,0,0.42),
-        0 12px 26px rgba(0,0,0,0.28) !important;
-      overflow: hidden !important;
-      flex: 0 0 auto !important;
-    }
-
-    .jam-track-meta {
-      min-width: 0 !important;
-    }
-
-    .jam-track-meta h3 {
-      margin: 0 0 8px !important;
-      color: rgba(234,162,33,0.98) !important;
-      font-size: clamp(22px, 3vw, 34px) !important;
-      line-height: 1.02 !important;
-      letter-spacing: 0.7px !important;
-      text-transform: uppercase !important;
-    }
-
-    #jamMainBeatMeta55B8D {
-      margin: 0 0 8px !important;
-      color: rgba(255,255,255,0.82) !important;
-      font-size: 15px !important;
-      font-weight: 900 !important;
-      letter-spacing: 0.4px !important;
-      text-transform: uppercase !important;
-    }
-
-    .jam-main-next-beat-55b8d2 {
-      justify-self: stretch !important;
-      min-height: 98px !important;
-      padding: 14px !important;
-      border-radius: 18px !important;
-      border: 1px solid rgba(234,162,33,0.34) !important;
-      background: rgba(0,0,0,0.26) !important;
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-      gap: 6px !important;
-    }
-
-    .jam-main-next-beat-55b8d2 .jam-small-label {
-      margin: 0 !important;
-      color: rgba(234,162,33,0.82) !important;
-    }
-
-    .jam-main-next-beat-55b8d2 strong {
-      color: rgba(255,255,255,0.94) !important;
-      font-size: 18px !important;
-      line-height: 1.1 !important;
-    }
-
-    .jam-main-next-beat-55b8d2 span {
-      color: rgba(255,255,255,0.66) !important;
-      font-size: 12px !important;
-      line-height: 1.25 !important;
-    }
-
-    .jam-integrated-looper-55b8b2 {
-      margin-top: 14px !important;
-      padding-top: 14px !important;
-      border-top: 1px solid rgba(234,162,33,0.18) !important;
-    }
-
-    .jam-integrated-header-55b8b2 {
-      margin-bottom: 10px !important;
-    }
-
-    .jam-beat-state-grid-55b8b2 {
-      display: none !important;
-    }
-
-    #jamMainBeatCover55B8D {
-      display: none !important;
-    }
-
-    @media (max-width: 820px) {
-      .jam-main-player-layout-55b8d2 {
-        grid-template-columns: 92px minmax(0, 1fr) !important;
-      }
-
-      .jam-main-next-beat-55b8d2 {
-        grid-column: 1 / -1 !important;
-      }
-
-      .jam-beat-square-clickable-55b8b2 {
-        width: 92px !important;
-        height: 92px !important;
-        min-width: 92px !important;
-        min-height: 92px !important;
-        font-size: 30px !important;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .jam-main-player-layout-55b8d2 {
-        grid-template-columns: 1fr !important;
-        text-align: center !important;
-      }
-
-      .jam-beat-square-clickable-55b8b2 {
-        margin: 0 auto !important;
-      }
-
-      .jam-track-meta h3,
-      #jamMainBeatMeta55B8D {
-        text-align: center !important;
-      }
-    }
-  `;
-
-  document.head.appendChild(style);
-}
-
-function getCurrentBeatCardBody55B8D2(card) {
-  if (!card) return null;
-
-  return (
-    card.querySelector(".jam-now-playing") ||
-    card.querySelector(".jam-track-row") ||
-    card.querySelector(".jam-track") ||
-    card
-  );
-}
-
-function ensureMainNextBeatBox55B8D2(card) {
-  if (!card) return null;
-
-  let box = card.querySelector("#jamMainNextBeatBox55B8D2");
-
-  if (box) {
-    return box;
-  }
-
-  box = document.createElement("div");
-  box.id = "jamMainNextBeatBox55B8D2";
-  box.className = "jam-main-next-beat-55b8d2";
-
-  box.innerHTML = `
-    <p class="jam-small-label">Następny beat</p>
-    <strong id="jamMainNextBeatTitle55B8D2">#-- — Beat --</strong>
-    <span id="jamMainNextBeatMeta55B8D2">Producent: -- | BPM: --</span>
-  `;
-
-  const body = getCurrentBeatCardBody55B8D2(card);
-
-  if (body) {
-    body.appendChild(box);
-  } else {
-    card.appendChild(box);
-  }
-
-  return box;
-}
-
-function restructureMainBeatCard55B8D2() {
-  ensureMainPlayerLayoutStyles55B8D2();
-
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) {
-    return;
-  }
-
-  removeLegacyBeatCover55B8D1(card);
-
-  const body = getCurrentBeatCardBody55B8D2(card);
-
-  if (body) {
-    body.classList.add("jam-main-player-layout-55b8d2");
-  }
-
-  ensureMainNextBeatBox55B8D2(card);
-}
-
-function updateMainNextBeatBox55B8D2() {
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) return;
-
-  const box = ensureMainNextBeatBox55B8D2(card);
-
-  if (!box) return;
-
-  const beatState = getBeatState55B8B2();
-
-  const title = box.querySelector("#jamMainNextBeatTitle55B8D2");
-  const meta = box.querySelector("#jamMainNextBeatMeta55B8D2");
-
-  if (title) {
-    title.innerText =
-      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
-  }
-
-  if (meta) {
-    meta.innerText =
-      `Producent: ${beatState.nextProducer} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)}`;
-  }
-}
-
-function removeDuplicatedCurrentBeatBox55B8D2() {
-  const panel = document.querySelector("#jamIntegratedLooperPanel55B8B2");
-
-  if (!panel) return;
-
-  const boxes = Array.from(panel.querySelectorAll(".jam-beat-state-box-55b8b2"));
-
-  boxes.forEach((box) => {
-    const label = box.querySelector(".jam-small-label");
-    const text = label ? label.innerText.trim().toLowerCase() : "";
-
-    if (text === "aktualny beat") {
-      box.remove();
-    }
-  });
-
-  const grid = panel.querySelector(".jam-beat-state-grid-55b8b2");
-
-  if (grid && !grid.querySelector(".jam-beat-state-box-55b8b2")) {
-    grid.remove();
-  }
-}
-
-const originalUpdateMainCurrentBeatCard55B8D2 = updateMainCurrentBeatCard55B8B2;
-
-updateMainCurrentBeatCard55B8B2 = function updateMainCurrentBeatCardLayout55B8D2() {
-  restructureMainBeatCard55B8D2();
-
-  originalUpdateMainCurrentBeatCard55B8D2();
-
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) return;
-
-  const beatState = getBeatState55B8B2();
-  const beatSquare = findBeatNumberBox55B8B2(card);
-
-  if (beatSquare) {
-    beatSquare.innerText = `#${beatState.currentIndex}`;
-    beatSquare.style.backgroundImage = beatState.currentImage
-      ? `url("${beatState.currentImage}")`
-      : "";
-  }
-
-  const title =
-    card.querySelector(".jam-track-meta h3") ||
-    card.querySelector("h3");
-
-  if (title) {
-    title.innerText = beatState.currentTitle;
-  }
-
-  const metaLine = ensureBeatMetaLine55B8D(card);
-
-  if (metaLine) {
-    metaLine.innerText =
-      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
-  }
-
-  updateMainNextBeatBox55B8D2();
-  removeDuplicatedCurrentBeatBox55B8D2();
-};
-
-const originalRenderIntegratedLooper55B8D2 = renderIntegratedLooper55B8B2;
-
-renderIntegratedLooper55B8B2 = function renderIntegratedLooperLayout55B8D2() {
-  originalRenderIntegratedLooper55B8D2();
-
-  restructureMainBeatCard55B8D2();
-  updateMainNextBeatBox55B8D2();
-  removeDuplicatedCurrentBeatBox55B8D2();
-};
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    renderIntegratedLooper55B8B2();
-  }, 5000);
-});
-
-// =======================
-// ETAP 55B-8D3 — CLEAN MAIN PLAYER REPAIR
-// Naprawia błędny layout: # + cover osobno, meta osobno, next beat osobno
-// =======================
-
-let jamCleanMainPlayer55B8D3 = null;
-
-function ensureCleanMainPlayerStyles55B8D3() {
-  if (document.querySelector("#jamCleanMainPlayerStyles55B8D3")) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = "jamCleanMainPlayerStyles55B8D3";
-
-  style.innerHTML = `
-    .jam-clean-player-card-55b8d3 > *:not(h2):not(#jamCleanMainPlayer55B8D3) {
-      display: none !important;
-    }
-
-    #jamCleanMainPlayer55B8D3 {
-      display: block !important;
-      margin-top: 14px;
-    }
-
-    .jam-clean-top-55b8d3 {
+    #jamTopPlayer55B8D1Final {
       display: grid;
       grid-template-columns: 112px minmax(0, 1fr) minmax(230px, 320px);
       gap: 18px;
       align-items: center;
+      width: 100%;
+      margin: 14px 0 16px;
       padding-bottom: 16px;
       border-bottom: 1px solid rgba(234,162,33,0.18);
     }
 
-    .jam-clean-beat-square-55b8d3 {
+    .jam-top-beat-square-55b8d1final {
       width: 104px;
       height: 104px;
+      min-width: 104px;
+      min-height: 104px;
       border-radius: 18px;
       border: 1px solid rgba(234,162,33,0.38);
       background-size: cover;
@@ -9269,16 +8754,16 @@ function ensureCleanMainPlayerStyles55B8D3() {
       user-select: none;
     }
 
-    .jam-clean-beat-square-55b8d3.not-host {
+    .jam-top-beat-square-55b8d1final.not-host {
       cursor: not-allowed;
-      opacity: 0.68;
+      opacity: 0.66;
     }
 
-    .jam-clean-meta-55b8d3 {
+    .jam-top-meta-55b8d1final {
       min-width: 0;
     }
 
-    .jam-clean-title-55b8d3 {
+    .jam-top-title-55b8d1final {
       margin: 0 0 8px;
       color: rgba(234,162,33,0.98);
       font-size: clamp(22px, 3vw, 34px);
@@ -9288,7 +8773,7 @@ function ensureCleanMainPlayerStyles55B8D3() {
       text-transform: uppercase;
     }
 
-    .jam-clean-meta-line-55b8d3 {
+    .jam-top-main-meta-55b8d1final {
       margin: 0 0 8px;
       color: rgba(255,255,255,0.86);
       font-size: 15px;
@@ -9297,14 +8782,14 @@ function ensureCleanMainPlayerStyles55B8D3() {
       text-transform: uppercase;
     }
 
-    .jam-clean-subline-55b8d3 {
-      margin: 0;
+    .jam-top-subline-55b8d1final {
+      margin: 0 0 4px;
       color: rgba(255,255,255,0.62);
       font-size: 13px;
       font-weight: 800;
     }
 
-    .jam-clean-next-55b8d3 {
+    .jam-top-next-55b8d1final {
       min-height: 100px;
       padding: 14px;
       border-radius: 18px;
@@ -9316,7 +8801,7 @@ function ensureCleanMainPlayerStyles55B8D3() {
       gap: 6px;
     }
 
-    .jam-clean-next-55b8d3 p {
+    .jam-top-next-55b8d1final p {
       margin: 0;
       color: rgba(234,162,33,0.84);
       font-size: 12px;
@@ -9325,85 +8810,68 @@ function ensureCleanMainPlayerStyles55B8D3() {
       text-transform: uppercase;
     }
 
-    .jam-clean-next-55b8d3 strong {
+    .jam-top-next-55b8d1final strong {
       color: rgba(255,255,255,0.94);
       font-size: 18px;
       line-height: 1.1;
     }
 
-    .jam-clean-next-55b8d3 span {
+    .jam-top-next-55b8d1final span {
       color: rgba(255,255,255,0.66);
       font-size: 12px;
       line-height: 1.3;
     }
 
-    .jam-clean-controls-55b8d3 {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-top: 14px;
-    }
-
-    .jam-clean-controls-55b8d3.host-hidden {
+    /* Ukrywamy stare elementy tylko w głównym kaflu AKTUALNY BEAT */
+    .jam-current-beat-cleaned-55b8d1final > .jam-now-playing,
+    .jam-current-beat-cleaned-55b8d1final > .jam-track,
+    .jam-current-beat-cleaned-55b8d1final > .jam-track-row,
+    .jam-current-beat-cleaned-55b8d1final > .jam-track-meta,
+    .jam-current-beat-cleaned-55b8d1final #jamMainBeatCover55B8D,
+    .jam-current-beat-cleaned-55b8d1final #jamMainBeatMeta55B8D,
+    .jam-current-beat-cleaned-55b8d1final #jamMainNextBeatBox55B8D2,
+    .jam-current-beat-cleaned-55b8d1final #jamCleanMainPlayer55B8D3 {
       display: none !important;
     }
 
-    .jam-clean-host-hint-55b8d3 {
-      margin-top: 12px;
-      color: rgba(255,255,255,0.58);
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
+    /* W zintegrowanym panelu zostawiamy tylko sterowanie, bez zdublowanych boxów current/next */
+    #jamIntegratedLooperPanel55B8B2 .jam-beat-state-grid-55b8b2 {
+      display: none !important;
     }
 
-    .jam-clean-pitch-55b8d3 {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: min(100%, 280px);
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(234,162,33,0.24);
-      background: rgba(0,0,0,0.24);
+    #jamIntegratedLooperPanel55B8B2 {
+      display: block !important;
+      margin-top: 14px !important;
+      padding-top: 0 !important;
+      border-top: 0 !important;
     }
 
-    .jam-clean-pitch-55b8d3 input {
-      flex: 1;
-      accent-color: rgba(234,162,33,0.96);
+    #jamIntegratedLooperPanel55B8B2 .jam-integrated-header-55b8b2 {
+      display: flex !important;
     }
 
-    .jam-clean-pitch-55b8d3 span {
-      min-width: 48px;
-      text-align: right;
-      color: rgba(255,255,255,0.78);
-      font-size: 12px;
-      font-weight: 900;
+    #jamHostLooperControls55B8B3 {
+      margin-top: 12px !important;
     }
 
     @media (max-width: 860px) {
-      .jam-clean-top-55b8d3 {
+      #jamTopPlayer55B8D1Final {
         grid-template-columns: 104px minmax(0, 1fr);
       }
 
-      .jam-clean-next-55b8d3 {
+      .jam-top-next-55b8d1final {
         grid-column: 1 / -1;
       }
     }
 
     @media (max-width: 560px) {
-      .jam-clean-top-55b8d3 {
+      #jamTopPlayer55B8D1Final {
         grid-template-columns: 1fr;
         text-align: center;
       }
 
-      .jam-clean-beat-square-55b8d3 {
+      .jam-top-beat-square-55b8d1final {
         margin: 0 auto;
-      }
-
-      .jam-clean-controls-55b8d3 {
-        justify-content: center;
       }
     }
   `;
@@ -9411,7 +8879,7 @@ function ensureCleanMainPlayerStyles55B8D3() {
   document.head.appendChild(style);
 }
 
-function findActualBeatCard55B8D3() {
+function findCurrentBeatCard55B8D1Final() {
   const cards = Array.from(document.querySelectorAll(".jam-card"));
 
   return cards.find((card) => {
@@ -9420,115 +8888,90 @@ function findActualBeatCard55B8D3() {
   }) || null;
 }
 
-function getCurrentBeatImage55B8D3(beatState) {
+function getBeatImageSafe55B8D1Final(beatState) {
   if (beatState && beatState.currentImage) {
     return beatState.currentImage;
   }
 
-  if (typeof getBeatImage55B8D === "function") {
+  if (
+    beatState &&
+    typeof getBeatImage55B8D === "function"
+  ) {
     return getBeatImage55B8D(beatState.currentIndex);
   }
 
   return "";
 }
 
-function getCleanPitchValue55B8D3() {
-  const slider = document.querySelector("#jamCleanPitchSlider55B8D3");
-  return slider ? Number(slider.value || 0) : 0;
-}
-
-function updateCleanPitch55B8D3(value) {
-  const safeValue = Math.max(-12, Math.min(12, Number(value || 0)));
-  const slider = document.querySelector("#jamCleanPitchSlider55B8D3");
-  const label = document.querySelector("#jamCleanPitchValue55B8D3");
-
-  if (slider) {
-    slider.value = String(safeValue);
+function isCurrentUserHostStrict55B8D1Final() {
+  if (!jamJoined) {
+    return false;
   }
 
-  if (label) {
-    label.innerText = `${safeValue}%`;
+  if (typeof isCurrentUserHost === "function" && isCurrentUserHost()) {
+    return true;
   }
+
+  const host =
+    typeof getEffectiveHost === "function"
+      ? getEffectiveHost()
+      : null;
+
+  return Boolean(
+    host &&
+    host.sessionId &&
+    host.sessionId === JAM_SESSION_ID
+  );
 }
 
-function changeCleanPitch55B8D3(delta) {
-  updateCleanPitch55B8D3(getCleanPitchValue55B8D3() + Number(delta || 0));
-}
+function ensureTopPlayer55B8D1Final() {
+  ensureTopPlayerStyles55B8D1Final();
 
-function ensureCleanMainPlayer55B8D3() {
-  ensureCleanMainPlayerStyles55B8D3();
-
-  const card = findActualBeatCard55B8D3();
+  const card = findCurrentBeatCard55B8D1Final();
 
   if (!card) {
     return null;
   }
 
-  card.classList.add("jam-clean-player-card-55b8d3");
+  card.classList.add("jam-current-beat-cleaned-55b8d1final");
 
-  let player = card.querySelector("#jamCleanMainPlayer55B8D3");
+  let player = card.querySelector("#jamTopPlayer55B8D1Final");
 
   if (player) {
-    jamCleanMainPlayer55B8D3 = player;
+    jamTopPlayer55B8D1Final = player;
     return player;
   }
 
   player = document.createElement("div");
-  player.id = "jamCleanMainPlayer55B8D3";
+  player.id = "jamTopPlayer55B8D1Final";
 
   player.innerHTML = `
-    <div class="jam-clean-top-55b8d3">
-      <button id="jamCleanBeatSquare55B8D3" class="jam-clean-beat-square-55b8d3" type="button">
-        #1
-      </button>
+    <button id="jamTopBeatSquare55B8D1Final" class="jam-top-beat-square-55b8d1final" type="button">
+      #1
+    </button>
 
-      <div class="jam-clean-meta-55b8d3">
-        <h3 id="jamCleanBeatTitle55B8D3" class="jam-clean-title-55b8d3">Beat</h3>
-        <p id="jamCleanBeatMeta55B8D3" class="jam-clean-meta-line-55b8d3">
-          Producent: -- | BPM: --
-        </p>
-        <p id="jamCleanBeatPerformer55B8D3" class="jam-clean-subline-55b8d3">
-          Aktualnie skreczuje: nikt
-        </p>
-        <p id="jamCleanBeatHost55B8D3" class="jam-clean-subline-55b8d3">
-          Host: brak
-        </p>
-      </div>
+    <div class="jam-top-meta-55b8d1final">
+      <h3 id="jamTopBeatTitle55B8D1Final" class="jam-top-title-55b8d1final">
+        Beat
+      </h3>
 
-      <div class="jam-clean-next-55b8d3">
-        <p>Następny beat</p>
-        <strong id="jamCleanNextTitle55B8D3">#-- — Beat</strong>
-        <span id="jamCleanNextMeta55B8D3">Producent: -- | BPM: --</span>
-      </div>
+      <p id="jamTopBeatMeta55B8D1Final" class="jam-top-main-meta-55b8d1final">
+        Producent: -- | BPM: --
+      </p>
+
+      <p id="jamTopBeatPerformer55B8D1Final" class="jam-top-subline-55b8d1final">
+        Aktualnie skreczuje: nikt
+      </p>
+
+      <p id="jamTopBeatHost55B8D1Final" class="jam-top-subline-55b8d1final">
+        Host: brak
+      </p>
     </div>
 
-    <div id="jamCleanHostControls55B8D3" class="jam-clean-controls-55b8d3">
-      <button class="jam-btn" type="button" id="jamCleanPrevBeat55B8D3">PREVIOUS BEAT</button>
-      <button class="jam-btn" type="button" id="jamCleanChooseBeat55B8D3">CHOOSE BEAT</button>
-      <button class="jam-btn" type="button" id="jamCleanNextBeat55B8D3">NEXT BEAT</button>
-
-      <button class="jam-btn jam-btn-primary" type="button" id="jamCleanStart55B8D3">START</button>
-      <button class="jam-btn jam-btn-danger" type="button" id="jamCleanStop55B8D3">STOP</button>
-
-      <button class="jam-btn" type="button" id="jamCleanLoopInf55B8D3">INFINITY</button>
-      <button class="jam-btn" type="button" id="jamCleanLoop1x55B8D3">LOOP 1X</button>
-      <button class="jam-btn" type="button" id="jamCleanLoop2x55B8D3">LOOP 2X</button>
-      <button class="jam-btn" type="button" id="jamCleanLoop4x55B8D3">LOOP 4X</button>
-      <button class="jam-btn" type="button" id="jamCleanLoop6x55B8D3">LOOP 6X</button>
-      <button class="jam-btn" type="button" id="jamCleanLoop8x55B8D3">LOOP 8X</button>
-
-      <button class="jam-btn" type="button" id="jamCleanPitchMinus55B8D3">PITCH -</button>
-
-      <div class="jam-clean-pitch-55b8d3">
-        <input id="jamCleanPitchSlider55B8D3" type="range" min="-12" max="12" step="1" value="0">
-        <span id="jamCleanPitchValue55B8D3">0%</span>
-      </div>
-
-      <button class="jam-btn" type="button" id="jamCleanPitchPlus55B8D3">PITCH +</button>
-    </div>
-
-    <div id="jamCleanHostHint55B8D3" class="jam-clean-host-hint-55b8d3">
-      Sterowanie beatem widoczne jest tylko dla Hosta.
+    <div class="jam-top-next-55b8d1final">
+      <p>Następny beat</p>
+      <strong id="jamTopNextTitle55B8D1Final">#-- — Beat</strong>
+      <span id="jamTopNextMeta55B8D1Final">Producent: -- | BPM: --</span>
     </div>
   `;
 
@@ -9540,379 +8983,34 @@ function ensureCleanMainPlayer55B8D3() {
     card.prepend(player);
   }
 
-  jamCleanMainPlayer55B8D3 = player;
+  jamTopPlayer55B8D1Final = player;
 
-  bindCleanMainPlayer55B8D3();
-
-  return player;
-}
-
-function bindCleanMainPlayer55B8D3() {
-  const player = jamCleanMainPlayer55B8D3;
-
-  if (!player) return;
-
-  const square = player.querySelector("#jamCleanBeatSquare55B8D3");
-  const chooseBtn = player.querySelector("#jamCleanChooseBeat55B8D3");
-  const prevBtn = player.querySelector("#jamCleanPrevBeat55B8D3");
-  const nextBtn = player.querySelector("#jamCleanNextBeat55B8D3");
-  const startBtn = player.querySelector("#jamCleanStart55B8D3");
-  const stopBtn = player.querySelector("#jamCleanStop55B8D3");
-  const pitchMinus = player.querySelector("#jamCleanPitchMinus55B8D3");
-  const pitchPlus = player.querySelector("#jamCleanPitchPlus55B8D3");
-  const pitchSlider = player.querySelector("#jamCleanPitchSlider55B8D3");
-
-  const openPicker = () => {
-    if (!jamJoined) {
-      showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-      return;
-    }
-
-    if (!isCurrentUserHost()) {
-      showSystemInfo("Tylko Host może wybierać beat.", "warn");
-      return;
-    }
-
-    openBeatPickerModal55B8B2();
-  };
+  const square = player.querySelector("#jamTopBeatSquare55B8D1Final");
 
   if (square) {
-    square.onclick = openPicker;
-  }
-
-  if (chooseBtn) {
-    chooseBtn.onclick = openPicker;
-  }
-
-  if (prevBtn) {
-    prevBtn.onclick = () => showSystemInfo("PREVIOUS BEAT podłączymy po ustabilizowaniu playera.");
-  }
-
-  if (nextBtn) {
-    nextBtn.onclick = () => showSystemInfo("NEXT BEAT podłączymy po ustabilizowaniu playera.");
-  }
-
-  if (startBtn) {
-    startBtn.onclick = () => showSystemInfo("START audio podłączymy w kolejnym etapie.");
-  }
-
-  if (stopBtn) {
-    stopBtn.onclick = () => showSystemInfo("STOP audio podłączymy w kolejnym etapie.");
-  }
-
-  [
-    ["#jamCleanLoopInf55B8D3", "INFINITY"],
-    ["#jamCleanLoop1x55B8D3", "LOOP 1X"],
-    ["#jamCleanLoop2x55B8D3", "LOOP 2X"],
-    ["#jamCleanLoop4x55B8D3", "LOOP 4X"],
-    ["#jamCleanLoop6x55B8D3", "LOOP 6X"],
-    ["#jamCleanLoop8x55B8D3", "LOOP 8X"]
-  ].forEach(([selector, label]) => {
-    const btn = player.querySelector(selector);
-    if (btn) {
-      btn.onclick = () => showSystemInfo(`${label} podłączymy do lokalnego playera.`);
-    }
-  });
-
-  if (pitchMinus) {
-    pitchMinus.onclick = () => changeCleanPitch55B8D3(-1);
-  }
-
-  if (pitchPlus) {
-    pitchPlus.onclick = () => changeCleanPitch55B8D3(1);
-  }
-
-  if (pitchSlider) {
-    pitchSlider.oninput = () => updateCleanPitch55B8D3(Number(pitchSlider.value || 0));
-  }
-}
-
-function renderCleanMainPlayer55B8D3() {
-  const player = ensureCleanMainPlayer55B8D3();
-
-  if (!player) return;
-
-  const beatState = getBeatState55B8B2();
-  const isHost = Boolean(jamJoined && isCurrentUserHost());
-
-  const square = player.querySelector("#jamCleanBeatSquare55B8D3");
-  const title = player.querySelector("#jamCleanBeatTitle55B8D3");
-  const meta = player.querySelector("#jamCleanBeatMeta55B8D3");
-  const performer = player.querySelector("#jamCleanBeatPerformer55B8D3");
-  const hostLine = player.querySelector("#jamCleanBeatHost55B8D3");
-  const nextTitle = player.querySelector("#jamCleanNextTitle55B8D3");
-  const nextMeta = player.querySelector("#jamCleanNextMeta55B8D3");
-  const controls = player.querySelector("#jamCleanHostControls55B8D3");
-  const hint = player.querySelector("#jamCleanHostHint55B8D3");
-
-  if (square) {
-    square.innerText = `#${beatState.currentIndex}`;
-    square.style.backgroundImage = getCurrentBeatImage55B8D3(beatState)
-      ? `url("${getCurrentBeatImage55B8D3(beatState)}")`
-      : "";
-    square.classList.toggle("not-host", !isHost);
-    square.title = isHost
-      ? "Kliknij, żeby wybrać beat"
-      : "Tylko Host może wybierać beat";
-  }
-
-  if (title) {
-    title.innerText = beatState.currentTitle || `Beat ${beatState.currentIndex}`;
-  }
-
-  if (meta) {
-    meta.innerText =
-      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
-  }
-
-  if (performer) {
-    const performerName =
-      jamActive && jamCurrentPerformer
-        ? jamCurrentPerformer.nick
-        : "nikt";
-
-    performer.innerText = `Aktualnie skreczuje: ${performerName}`;
-  }
-
-  if (hostLine) {
-    const host = getEffectiveHost ? getEffectiveHost() : null;
-    hostLine.innerText = `Host: ${host ? host.nick : "brak"}`;
-  }
-
-  if (nextTitle) {
-    nextTitle.innerText =
-      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
-  }
-
-  if (nextMeta) {
-    nextMeta.innerText =
-      `Producent: ${beatState.nextProducer} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)}`;
-  }
-
-  if (controls) {
-    controls.classList.toggle("host-hidden", !isHost);
-  }
-
-  if (hint) {
-    hint.style.display = isHost ? "none" : "";
-  }
-
-  updateCleanPitch55B8D3(getCleanPitchValue55B8D3());
-}
-
-const originalRenderIntegratedLooper55B8D3 = renderIntegratedLooper55B8B2;
-
-renderIntegratedLooper55B8B2 = function renderIntegratedLooperClean55B8D3() {
-  originalRenderIntegratedLooper55B8D3();
-  renderCleanMainPlayer55B8D3();
-};
-
-const originalRenderJamState55B8D3 = renderJamState;
-
-renderJamState = function renderJamStateCleanPlayer55B8D3() {
-  originalRenderJamState55B8D3();
-  renderCleanMainPlayer55B8D3();
-};
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    renderCleanMainPlayer55B8D3();
-  }, 5200);
-});
-
-// =======================
-// ETAP 55B-8D4 — CLEAN PLAYER STABILITY FIX
-// Naprawia mruganie/znikanie playera i widoczność kontrolek Hosta
-// =======================
-
-let jamCleanPlayerRepairTimer55B8D4 = null;
-
-function ensureCleanPlayerStabilityStyles55B8D4() {
-  if (document.querySelector("#jamCleanPlayerStabilityStyles55B8D4")) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = "jamCleanPlayerStabilityStyles55B8D4";
-
-  style.innerHTML = `
-    /* Cofamy agresywne ukrywanie z poprzedniego etapu D3 */
-    .jam-clean-player-card-55b8d3 > * {
-      display: revert !important;
-    }
-
-    /* Ukrywamy tylko stare/zdublowane elementy w górnym kaflu */
-    .jam-clean-player-card-55b8d3 .jam-now-playing,
-    .jam-clean-player-card-55b8d3 .jam-track,
-    .jam-clean-player-card-55b8d3 .jam-track-row,
-    .jam-clean-player-card-55b8d3 .jam-integrated-looper-55b8b2:not(#jamCleanMainPlayer55B8D3) {
-      display: none !important;
-    }
-
-    #jamCleanMainPlayer55B8D3 {
-      display: block !important;
-      visibility: visible !important;
-      opacity: 1 !important;
-    }
-
-    .jam-clean-controls-55b8d3.host-hidden {
-      display: none !important;
-    }
-
-    .jam-clean-controls-55b8d3.host-visible {
-      display: flex !important;
-    }
-  `;
-
-  document.head.appendChild(style);
-}
-
-function isCurrentUserHostReliable55B8D4() {
-  if (typeof isCurrentUserHost === "function" && isCurrentUserHost()) {
-    return true;
-  }
-
-  if (hostPanel && !hostPanel.classList.contains("jam-card-hidden")) {
-    return true;
-  }
-
-  if (jamUser && jamUser.role && String(jamUser.role).toLowerCase() === "host") {
-    return true;
-  }
-
-  const currentSessionId =
-    typeof JAM_SESSION_ID !== "undefined"
-      ? JAM_SESSION_ID
-      : null;
-
-  const effectiveHost =
-    typeof getEffectiveHost === "function"
-      ? getEffectiveHost()
-      : null;
-
-  if (
-    currentSessionId &&
-    effectiveHost &&
-    effectiveHost.sessionId === currentSessionId
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function findActualBeatCardSafe55B8D4() {
-  const cards = Array.from(document.querySelectorAll(".jam-card"));
-
-  const byTitle = cards.find((card) => {
-    const h2 = card.querySelector("h2");
-    return h2 && h2.innerText.trim().toLowerCase() === "aktualny beat";
-  });
-
-  if (byTitle) {
-    return byTitle;
-  }
-
-  if (nowPlayingPerformerLine) {
-    return nowPlayingPerformerLine.closest(".jam-card");
-  }
-
-  return null;
-}
-
-function forceCleanPlayerMarkup55B8D4() {
-  ensureCleanPlayerStabilityStyles55B8D4();
-  ensureCleanMainPlayerStyles55B8D3();
-
-  const card = findActualBeatCardSafe55B8D4();
-
-  if (!card) {
-    return null;
-  }
-
-  card.classList.add("jam-clean-player-card-55b8d3");
-
-  let player = card.querySelector("#jamCleanMainPlayer55B8D3");
-
-  if (!player) {
-    player = document.createElement("div");
-    player.id = "jamCleanMainPlayer55B8D3";
-
-    player.innerHTML = `
-      <div class="jam-clean-top-55b8d3">
-        <button id="jamCleanBeatSquare55B8D3" class="jam-clean-beat-square-55b8d3" type="button">
-          #1
-        </button>
-
-        <div class="jam-clean-meta-55b8d3">
-          <h3 id="jamCleanBeatTitle55B8D3" class="jam-clean-title-55b8d3">Beat</h3>
-          <p id="jamCleanBeatMeta55B8D3" class="jam-clean-meta-line-55b8d3">
-            Producent: -- | BPM: --
-          </p>
-          <p id="jamCleanBeatPerformer55B8D3" class="jam-clean-subline-55b8d3">
-            Aktualnie skreczuje: nikt
-          </p>
-          <p id="jamCleanBeatHost55B8D3" class="jam-clean-subline-55b8d3">
-            Host: brak
-          </p>
-        </div>
-
-        <div class="jam-clean-next-55b8d3">
-          <p>Następny beat</p>
-          <strong id="jamCleanNextTitle55B8D3">#-- — Beat</strong>
-          <span id="jamCleanNextMeta55B8D3">Producent: -- | BPM: --</span>
-        </div>
-      </div>
-
-      <div id="jamCleanHostControls55B8D3" class="jam-clean-controls-55b8d3">
-        <button class="jam-btn" type="button" id="jamCleanPrevBeat55B8D3">PREVIOUS BEAT</button>
-        <button class="jam-btn" type="button" id="jamCleanChooseBeat55B8D3">CHOOSE BEAT</button>
-        <button class="jam-btn" type="button" id="jamCleanNextBeat55B8D3">NEXT BEAT</button>
-
-        <button class="jam-btn jam-btn-primary" type="button" id="jamCleanStart55B8D3">START</button>
-        <button class="jam-btn jam-btn-danger" type="button" id="jamCleanStop55B8D3">STOP</button>
-
-        <button class="jam-btn" type="button" id="jamCleanLoopInf55B8D3">INFINITY</button>
-        <button class="jam-btn" type="button" id="jamCleanLoop1x55B8D3">LOOP 1X</button>
-        <button class="jam-btn" type="button" id="jamCleanLoop2x55B8D3">LOOP 2X</button>
-        <button class="jam-btn" type="button" id="jamCleanLoop4x55B8D3">LOOP 4X</button>
-        <button class="jam-btn" type="button" id="jamCleanLoop6x55B8D3">LOOP 6X</button>
-        <button class="jam-btn" type="button" id="jamCleanLoop8x55B8D3">LOOP 8X</button>
-
-        <button class="jam-btn" type="button" id="jamCleanPitchMinus55B8D3">PITCH -</button>
-
-        <div class="jam-clean-pitch-55b8d3">
-          <input id="jamCleanPitchSlider55B8D3" type="range" min="-12" max="12" step="1" value="0">
-          <span id="jamCleanPitchValue55B8D3">0%</span>
-        </div>
-
-        <button class="jam-btn" type="button" id="jamCleanPitchPlus55B8D3">PITCH +</button>
-      </div>
-
-      <div id="jamCleanHostHint55B8D3" class="jam-clean-host-hint-55b8d3">
-        Sterowanie beatem widoczne jest tylko dla Hosta.
-      </div>
-    `;
-
-    const h2 = card.querySelector("h2");
-
-    if (h2 && h2.parentNode) {
-      h2.parentNode.insertBefore(player, h2.nextSibling);
-    } else {
-      card.prepend(player);
-    }
-
-    jamCleanMainPlayer55B8D3 = player;
-    bindCleanMainPlayer55B8D3();
-  } else {
-    jamCleanMainPlayer55B8D3 = player;
+    square.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!jamJoined) {
+        showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+        return;
+      }
+
+      if (!isCurrentUserHostStrict55B8D1Final()) {
+        showSystemInfo("Tylko Host może wybierać beat.", "warn");
+        return;
+      }
+
+      openBeatPickerModal55B8B2();
+    });
   }
 
   return player;
 }
 
-function renderCleanMainPlayerStable55B8D4() {
-  const player = forceCleanPlayerMarkup55B8D4();
+function renderTopPlayer55B8D1Final() {
+  const player = ensureTopPlayer55B8D1Final();
 
   if (!player) {
     return;
@@ -9933,22 +9031,17 @@ function renderCleanMainPlayerStable55B8D4() {
           currentImage: ""
         };
 
-  const isHost = isCurrentUserHostReliable55B8D4();
+  const isHost = isCurrentUserHostStrict55B8D1Final();
 
-  const square = player.querySelector("#jamCleanBeatSquare55B8D3");
-  const title = player.querySelector("#jamCleanBeatTitle55B8D3");
-  const meta = player.querySelector("#jamCleanBeatMeta55B8D3");
-  const performer = player.querySelector("#jamCleanBeatPerformer55B8D3");
-  const hostLine = player.querySelector("#jamCleanBeatHost55B8D3");
-  const nextTitle = player.querySelector("#jamCleanNextTitle55B8D3");
-  const nextMeta = player.querySelector("#jamCleanNextMeta55B8D3");
-  const controls = player.querySelector("#jamCleanHostControls55B8D3");
-  const hint = player.querySelector("#jamCleanHostHint55B8D3");
+  const square = player.querySelector("#jamTopBeatSquare55B8D1Final");
+  const title = player.querySelector("#jamTopBeatTitle55B8D1Final");
+  const meta = player.querySelector("#jamTopBeatMeta55B8D1Final");
+  const performer = player.querySelector("#jamTopBeatPerformer55B8D1Final");
+  const hostLine = player.querySelector("#jamTopBeatHost55B8D1Final");
+  const nextTitle = player.querySelector("#jamTopNextTitle55B8D1Final");
+  const nextMeta = player.querySelector("#jamTopNextMeta55B8D1Final");
 
-  const image =
-    typeof getCurrentBeatImage55B8D3 === "function"
-      ? getCurrentBeatImage55B8D3(beatState)
-      : beatState.currentImage || "";
+  const image = getBeatImageSafe55B8D1Final(beatState);
 
   if (square) {
     square.innerText = `#${beatState.currentIndex}`;
@@ -9957,23 +9050,6 @@ function renderCleanMainPlayerStable55B8D4() {
     square.title = isHost
       ? "Kliknij, żeby wybrać beat"
       : "Tylko Host może wybierać beat";
-
-    square.onclick = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!jamJoined) {
-        showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-        return;
-      }
-
-      if (!isCurrentUserHostReliable55B8D4()) {
-        showSystemInfo("Tylko Host może wybierać beat.", "warn");
-        return;
-      }
-
-      openBeatPickerModal55B8B2();
-    };
   }
 
   if (title) {
@@ -10013,48 +9089,49 @@ function renderCleanMainPlayerStable55B8D4() {
       `Producent: ${beatState.nextProducer || "Unknown"} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)}`;
   }
 
+  const controls = document.querySelector("#jamHostLooperControls55B8B3");
+  const hint = document.querySelector("#jamListenerBeatHint55B8B3");
+
   if (controls) {
-    controls.classList.toggle("host-hidden", !isHost);
-    controls.classList.toggle("host-visible", isHost);
+    controls.classList.toggle("is-host-visible", isHost);
+    controls.style.display = isHost ? "flex" : "none";
   }
 
   if (hint) {
     hint.style.display = isHost ? "none" : "";
   }
-
-  updateCleanPitch55B8D3(getCleanPitchValue55B8D3());
 }
 
-function scheduleCleanPlayerRepair55B8D4() {
-  if (jamCleanPlayerRepairTimer55B8D4) {
-    clearTimeout(jamCleanPlayerRepairTimer55B8D4);
-  }
-
-  jamCleanPlayerRepairTimer55B8D4 = setTimeout(() => {
-    renderCleanMainPlayerStable55B8D4();
-  }, 80);
+function scheduleTopPlayerRender55B8D1Final() {
+  setTimeout(() => {
+    renderTopPlayer55B8D1Final();
+  }, 40);
 }
 
-const originalRenderJamState55B8D4 = renderJamState;
+const previousRenderJamState55B8D1Final = renderJamState;
 
-renderJamState = function renderJamStateStableCleanPlayer55B8D4() {
-  originalRenderJamState55B8D4();
-  scheduleCleanPlayerRepair55B8D4();
+renderJamState = function renderJamStateWithTopPlayer55B8D1Final() {
+  previousRenderJamState55B8D1Final();
+  scheduleTopPlayerRender55B8D1Final();
 };
 
-const originalApplyRoomStateToLocalState55B8D4 = applyRoomStateToLocalState;
+const previousApplyRoomStateToLocalState55B8D1Final = applyRoomStateToLocalState;
 
-applyRoomStateToLocalState = function applyRoomStateStableCleanPlayer55B8D4(nextRoomState, options = {}) {
-  originalApplyRoomStateToLocalState55B8D4(nextRoomState, options);
-  scheduleCleanPlayerRepair55B8D4();
+applyRoomStateToLocalState = function applyRoomStateWithTopPlayer55B8D1Final(nextRoomState, options = {}) {
+  previousApplyRoomStateToLocalState55B8D1Final(nextRoomState, options);
+  scheduleTopPlayerRender55B8D1Final();
 };
 
 window.addEventListener("load", () => {
   setTimeout(() => {
-    renderCleanMainPlayerStable55B8D4();
-  }, 5600);
+    renderTopPlayer55B8D1Final();
+  }, 1200);
 
   setTimeout(() => {
-    renderCleanMainPlayerStable55B8D4();
-  }, 7000);
+    renderTopPlayer55B8D1Final();
+  }, 3200);
+
+  setTimeout(() => {
+    renderTopPlayer55B8D1Final();
+  }, 5200);
 });
