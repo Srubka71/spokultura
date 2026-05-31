@@ -7602,22 +7602,20 @@ window.addEventListener("load", () => {
 });
 
 // =======================
-// ETAP 55B-9A — HOST INTERCOM MIC FIX
-// Hostowe przejęcie/przekazanie mikrofonu niezależne od kolejki scratchujących
+// ETAP 55B-9A-FIX — HOST INTERCOM ROOM_STATE ONLY
+// Interkom Hosta nie używa kolejki ani is_performer w jam_room_members.
+// Dzięki temu realtime/members resync nie cofa mikrofonu po ułamku sekundy.
 // =======================
 
-let jamHostIntercomPreviousPerformer55B9A = null;
-let jamHostIntercomPreviousMicSource55B9A = null;
-
-function isQueueMicSource55B9A(source) {
-  return (
-    source === "queue" ||
-    source === "queue_pass" ||
-    source === "skip"
-  );
+function isHostIntercomSource55B9AFix(source) {
+  return source === "host_takeover" || source === "host_intercom";
 }
 
-function getMemberQueueState55B9A(sessionId) {
+function isQueueMicSource55B9AFix(source) {
+  return source === "queue" || source === "queue_pass" || source === "skip";
+}
+
+function getOnlineUserBySession55B9AFix(sessionId) {
   if (!sessionId) return null;
 
   return jamOnlineUsers.find((user) => {
@@ -7625,32 +7623,111 @@ function getMemberQueueState55B9A(sessionId) {
   }) || null;
 }
 
-function shouldRestorePreviousPerformer55B9A() {
-  if (!jamActive) {
-    return false;
-  }
+function getCurrentRoomSpeaker55B9AFix() {
+  if (!jamCurrentPerformer) return null;
 
-  if (!jamHostIntercomPreviousPerformer55B9A) {
-    return false;
-  }
-
-  if (!isQueueMicSource55B9A(jamHostIntercomPreviousMicSource55B9A)) {
-    return false;
-  }
-
-  const previousMember = getMemberQueueState55B9A(
-    jamHostIntercomPreviousPerformer55B9A.sessionId
-  );
-
-  return Boolean(
-    previousMember &&
-    previousMember.isInQueue &&
-    sessionIsCurrentlyOnline(previousMember.sessionId)
-  );
+  return {
+    id: jamCurrentPerformer.id || jamCurrentPerformer.userId,
+    userId: jamCurrentPerformer.userId || jamCurrentPerformer.id,
+    sessionId: jamCurrentPerformer.sessionId,
+    nick: jamCurrentPerformer.nick,
+    joinedAt: jamCurrentPerformer.joinedAt || Date.now()
+  };
 }
 
-async function clearAllPerformerState55B9A() {
-  await setAllMembersPerformerFalse();
+async function saveIntercomSpeakerToRoomState55B9AFix(targetUser, micSource) {
+  if (!jamSupabaseClient || !targetUser) {
+    showSystemInfo("Brak danych do przekazania mikrofonu.", "warn");
+    return false;
+  }
+
+  const payload = {
+    current_performer_session_id: targetUser.sessionId,
+    current_performer_user_id: targetUser.userId || targetUser.id || targetUser.sessionId,
+    current_performer_nick: targetUser.nick || "Użytkownik",
+    mic_source: micSource,
+
+    updated_by_session_id: JAM_SESSION_ID,
+    updated_by_nick: jamUser ? jamUser.nick : "Host",
+    updated_at: nowIso()
+  };
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM HOST INTERCOM] room_state update error:", error);
+      showSystemInfo("Nie udało się zapisać mikrofonu w room_state.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "host intercom"
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM HOST INTERCOM] room_state exception:", error);
+    showSystemInfo("Błąd przekazania mikrofonu.", "warn");
+    return false;
+  }
+}
+
+async function clearIntercomSpeakerInRoomState55B9AFix() {
+  if (!jamSupabaseClient) {
+    return false;
+  }
+
+  const payload = {
+    current_performer_session_id: null,
+    current_performer_user_id: null,
+    current_performer_nick: null,
+    mic_source: null,
+
+    updated_by_session_id: JAM_SESSION_ID,
+    updated_by_nick: jamUser ? jamUser.nick : "Host",
+    updated_at: nowIso()
+  };
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM HOST INTERCOM] clear error:", error);
+      showSystemInfo("Nie udało się wyłączyć mikrofonu.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "host intercom clear"
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM HOST INTERCOM] clear exception:", error);
+    showSystemInfo("Błąd wyłączania mikrofonu.", "warn");
+    return false;
+  }
+}
+
+async function setAllMembersPerformerFalseSafe55B9AFix() {
+  try {
+    await setAllMembersPerformerFalse();
+  } catch (error) {
+    console.error("[JAM HOST INTERCOM] clear member performers error:", error);
+  }
 
   if (jamUser) {
     jamUser.isPerformer = false;
@@ -7658,82 +7735,59 @@ async function clearAllPerformerState55B9A() {
     saveJamUser();
   }
 
-  jamCurrentPerformer = null;
-  jamMicSource = null;
+  try {
+    if (jamJoined) {
+      await updateCurrentMemberFields({
+        is_performer: false
+      });
+    }
+  } catch (error) {
+    console.error("[JAM HOST INTERCOM] update self performer false error:", error);
+  }
+}
 
-  await clearCurrentPerformerInRoomState();
+async function assignHostIntercomSpeaker55B9AFix(targetUser, micSource = "host_intercom") {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return false;
+  }
+
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może sterować mikrofonem.", "warn");
+    return false;
+  }
+
+  if (!targetUser || !targetUser.sessionId) {
+    showSystemInfo("Nie wybrano osoby do mikrofonu.", "warn");
+    return false;
+  }
+
+  await setAllMembersPerformerFalseSafe55B9AFix();
+
+  jamCurrentPerformer = {
+    id: targetUser.userId || targetUser.id || targetUser.sessionId,
+    userId: targetUser.userId || targetUser.id || targetUser.sessionId,
+    sessionId: targetUser.sessionId,
+    nick: targetUser.nick || "Użytkownik",
+    joinedAt: targetUser.joinedAt || Date.now()
+  };
+
+  jamMicSource = micSource;
+
+  const saved = await saveIntercomSpeakerToRoomState55B9AFix(
+    jamCurrentPerformer,
+    micSource
+  );
+
+  if (!saved) {
+    return false;
+  }
 
   await fetchJamMembers({
     silent: true
   });
 
   renderJamState();
-}
-
-async function assignHostIntercomSpeaker55B9A(targetUser, sourceLabel = "Host") {
-  if (!targetUser) {
-    showSystemInfo("Brak osoby do przekazania mikrofonu.", "warn");
-    return;
-  }
-
-  await setAllMembersPerformerFalse();
-
-  // Tryb interkomu NIE dopisuje do kolejki.
-  if (targetUser.sessionId === JAM_SESSION_ID) {
-    jamUser.isPerformer = true;
-    jamMicRequested = true;
-    saveJamUser();
-
-    await updateCurrentMemberFields({
-      is_performer: true,
-      is_in_queue: Boolean(jamUser.isInQueue),
-      queue_joined_at: jamUser.isInQueue && jamUser.queueJoinedAt
-        ? new Date(jamUser.queueJoinedAt).toISOString()
-        : null
-    });
-  } else {
-    if (jamUser && jamUser.isPerformer) {
-      jamUser.isPerformer = false;
-      saveJamUser();
-
-      await updateCurrentMemberFields({
-        is_performer: false
-      });
-    }
-
-    await updateMemberFieldsBySession(targetUser.sessionId, {
-      is_performer: true,
-      is_in_queue: Boolean(targetUser.isInQueue),
-      queue_joined_at: targetUser.isInQueue && targetUser.queueJoinedAt
-        ? targetUser.queueJoinedAt
-        : null
-    });
-  }
-
-  jamCurrentPerformer = {
-    id: targetUser.id || targetUser.userId,
-    userId: targetUser.id || targetUser.userId,
-    sessionId: targetUser.sessionId,
-    nick: targetUser.nick,
-    joinedAt: targetUser.joinedAt || Date.now()
-  };
-
-  jamMicSource = targetUser.sessionId === JAM_SESSION_ID
-    ? "host_takeover"
-    : "host_intercom";
-
-  await saveCurrentPerformerToRoomState(jamCurrentPerformer, jamMicSource);
-
-  await fetchJamMembers({
-    silent: true
-  });
-
-  showSystemInfo(
-    targetUser.sessionId === JAM_SESSION_ID
-      ? "Host przejął mikrofon."
-      : `${sourceLabel}: mikrofon ma teraz ${targetUser.nick}.`,
-    "success"
-  );
 
   const messageId = createMessageId();
   jamSeenRealtimeMessageIds.add(messageId);
@@ -7744,19 +7798,25 @@ async function assignHostIntercomSpeaker55B9A(targetUser, sourceLabel = "Host") 
     clear_all: true,
     add_to_queue: false,
     preserve_queue: true,
-    mic_source: jamMicSource,
-    session_id: targetUser.sessionId,
-    user_id: targetUser.id || targetUser.userId,
-    nick: targetUser.nick,
+    mic_source: micSource,
+    session_id: jamCurrentPerformer.sessionId,
+    user_id: jamCurrentPerformer.userId,
+    nick: jamCurrentPerformer.nick,
     created_at: nowIso()
   });
 
-  renderJamState();
+  showSystemInfo(
+    micSource === "host_takeover"
+      ? "Host przejął mikrofon."
+      : `Mikrofon przekazany: ${jamCurrentPerformer.nick}.`,
+    "success"
+  );
+
+  return true;
 }
 
-// Nadpisujemy PRZEJMIJ MIKROFON.
-// Teraz Host może przejąć mikrofon zawsze, bez kolejki i bez jam_active.
-hostTakeMicrophone = async function hostTakeMicrophoneIntercom55B9A() {
+// PRZEJMIJ MIKROFON: działa niezależnie od jam_active i kolejki.
+hostTakeMicrophone = async function hostTakeMicrophoneRoomStateOnly55B9AFix() {
   if (!jamJoined) {
     showSystemInfo("Najpierw dołącz do pokoju.", "warn");
     return;
@@ -7767,33 +7827,17 @@ hostTakeMicrophone = async function hostTakeMicrophoneIntercom55B9A() {
     return;
   }
 
-  // Jeśli Host ma aktywne awaryjne przejęcie — klik oznacza WYŁĄCZ.
+  // Jeśli Host już mówi w trybie awaryjnym/interkomowym — klik oznacza WYŁĄCZ.
   if (
     jamCurrentPerformer &&
     jamCurrentPerformer.sessionId === JAM_SESSION_ID &&
-    jamMicSource === "host_takeover"
+    isHostIntercomSource55B9AFix(jamMicSource)
   ) {
     await hostReleaseMicrophone();
     return;
   }
 
-  // Zapamiętujemy poprzedniego performera tylko informacyjnie.
-  // Przywrócimy go wyłącznie wtedy, gdy to był prawdziwy performer z kolejki.
-  jamHostIntercomPreviousPerformer55B9A =
-    jamCurrentPerformer &&
-    jamCurrentPerformer.sessionId !== JAM_SESSION_ID
-      ? {
-          id: jamCurrentPerformer.id,
-          userId: jamCurrentPerformer.userId,
-          sessionId: jamCurrentPerformer.sessionId,
-          nick: jamCurrentPerformer.nick,
-          joinedAt: jamCurrentPerformer.joinedAt || Date.now()
-        }
-      : null;
-
-  jamHostIntercomPreviousMicSource55B9A = jamMicSource || null;
-
-  await assignHostIntercomSpeaker55B9A({
+  await assignHostIntercomSpeaker55B9AFix({
     id: jamUser.id,
     userId: jamUser.id,
     sessionId: JAM_SESSION_ID,
@@ -7801,13 +7845,12 @@ hostTakeMicrophone = async function hostTakeMicrophoneIntercom55B9A() {
     joinedAt: Date.now(),
     isInQueue: Boolean(jamUser.isInQueue),
     queueJoinedAt: jamUser.queueJoinedAt || null
-  }, "Host");
+  }, "host_takeover");
 };
 
-// Nadpisujemy WYŁĄCZ MIKROFON.
-// W trybie hostowym/interkomowym ma po prostu wyłączyć głos,
-// a nie oddawać go przypadkowo osobie z ONLINE.
-hostReleaseMicrophone = async function hostReleaseMicrophoneIntercom55B9A() {
+// WYŁĄCZ MIKROFON: w trybie interkomowym zawsze czyści room_state.
+// Nie oddaje automatycznie głosu nikomu z ONLINE.
+hostReleaseMicrophone = async function hostReleaseMicrophoneRoomStateOnly55B9AFix() {
   if (!jamJoined || !isCurrentUserHost()) {
     return;
   }
@@ -7817,42 +7860,51 @@ hostReleaseMicrophone = async function hostReleaseMicrophoneIntercom55B9A() {
     return;
   }
 
-  const currentMicSource = jamMicSource || null;
-  const currentSpeakerNick = jamCurrentPerformer.nick || "Użytkownik";
+  const oldSpeaker = getCurrentRoomSpeaker55B9AFix();
+  const oldSource = jamMicSource;
 
-  const shouldRestore = shouldRestorePreviousPerformer55B9A();
+  await setAllMembersPerformerFalseSafe55B9AFix();
 
-  await clearAllPerformerState55B9A();
+  jamCurrentPerformer = null;
+  jamMicSource = null;
 
-  if (shouldRestore) {
-    const restoreTarget = jamHostIntercomPreviousPerformer55B9A;
+  const cleared = await clearIntercomSpeakerInRoomState55B9AFix();
 
-    jamHostIntercomPreviousPerformer55B9A = null;
-    jamHostIntercomPreviousMicSource55B9A = null;
-
-    await assignPerformer(restoreTarget, "Host", {
-      addToQueue: true,
-      preserveQueue: true,
-      micSource: "queue"
-    });
-
-    showSystemInfo(`Mikrofon wrócił do kolejki: ${restoreTarget.nick}.`, "success");
+  if (!cleared) {
     return;
   }
 
-  jamHostIntercomPreviousPerformer55B9A = null;
-  jamHostIntercomPreviousMicSource55B9A = null;
+  await fetchJamMembers({
+    silent: true
+  });
 
-  if (currentMicSource === "host_intercom") {
-    showSystemInfo(`Host zakończył mówienie: ${currentSpeakerNick}.`, "success");
-  } else {
-    showSystemInfo("Host wyłączył mikrofon.", "success");
+  renderJamState();
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("performer_status", {
+    message_id: messageId,
+    active: false,
+    clear_all: true,
+    preserve_queue: true,
+    mic_source: null,
+    session_id: oldSpeaker ? oldSpeaker.sessionId : null,
+    user_id: oldSpeaker ? oldSpeaker.userId : null,
+    nick: oldSpeaker ? oldSpeaker.nick : null,
+    created_at: nowIso()
+  });
+
+  if (isHostIntercomSource55B9AFix(oldSource)) {
+    showSystemInfo("Mikrofon wyłączony.", "success");
+    return;
   }
+
+  showSystemInfo("Mikrofon wyłączony.", "success");
 };
 
-// Nadpisujemy modal PRZEKAŻ MIKROFON.
-// To jest wybór z ONLINE jako interkom, nie kolejka scratchujących.
-openHostPickMicModal = function openHostPickMicModalIntercom55B9A() {
+// Modal PRZEKAŻ MIKROFON: wybór z ONLINE, bez dopisywania do kolejki.
+openHostPickMicModal = function openHostPickMicModalRoomStateOnly55B9AFix() {
   if (!jamJoined) {
     showSystemInfo("Najpierw dołącz do pokoju.", "warn");
     return;
@@ -7912,7 +7964,7 @@ openHostPickMicModal = function openHostPickMicModalIntercom55B9A() {
             return;
           }
 
-          await assignHostIntercomSpeaker55B9A({
+          await assignHostIntercomSpeaker55B9AFix({
             id: user.userId || user.id,
             userId: user.userId || user.id,
             sessionId: user.sessionId,
@@ -7920,7 +7972,7 @@ openHostPickMicModal = function openHostPickMicModalIntercom55B9A() {
             joinedAt: user.joinedAt || Date.now(),
             isInQueue: Boolean(user.isInQueue),
             queueJoinedAt: user.queueJoinedAt || null
-          }, "Host");
+          }, "host_intercom");
         }, "przekaż mikrofon", "host_pass_mic");
       });
 
@@ -7948,9 +8000,7 @@ openHostPickMicModal = function openHostPickMicModalIntercom55B9A() {
   modal.classList.remove("hidden");
 };
 
-// Nadpisujemy PRZEKAŻ MIKROFON DALEJ z panelu Hosta.
-// Teraz otwiera wybór interkomowy z ONLINE.
-hostPassMicrophoneNext = async function hostPassMicrophoneNextIntercom55B9A() {
+hostPassMicrophoneNext = async function hostPassMicrophoneNextRoomStateOnly55B9AFix() {
   if (!jamJoined) {
     showSystemInfo("Najpierw dołącz do pokoju.", "warn");
     return;
@@ -7964,28 +8014,47 @@ hostPassMicrophoneNext = async function hostPassMicrophoneNextIntercom55B9A() {
   openHostPickMicModal();
 };
 
-// Chowamy stary NEXT BEAT z Panelu Hosta, bo beatami steruje teraz player AKTUALNY BEAT.
-function hideLegacyHostNextBeat55B9A() {
-  if (!nextBeatBtn) {
+// Reconcile nie powinien ubijać interkomu tylko dlatego, że user nie jest w kolejce.
+const previousReconcileRoomStateAfterMembersChange55B9AFix =
+  reconcileRoomStateAfterMembersChange;
+
+reconcileRoomStateAfterMembersChange = async function reconcileRoomStateAfterMembersChangeIntercomSafe55B9AFix() {
+  if (isHostIntercomSource55B9AFix(jamMicSource)) {
+    if (
+      jamCurrentPerformer &&
+      !sessionIsCurrentlyOnline(jamCurrentPerformer.sessionId)
+    ) {
+      if (isCurrentUserHost()) {
+        await hostReleaseMicrophone();
+      }
+    }
+
     return;
   }
 
-  nextBeatBtn.style.display = "none";
+  await previousReconcileRoomStateAfterMembersChange55B9AFix();
+};
+
+// Stary NEXT BEAT w panelu hosta chowamy — beatami steruje player.
+function hideLegacyHostNextBeat55B9AFix() {
+  if (nextBeatBtn) {
+    nextBeatBtn.style.display = "none";
+  }
 }
 
-const previousRenderJamState55B9A = renderJamState;
+const previousRenderJamState55B9AFix = renderJamState;
 
-renderJamState = function renderJamStateHostIntercom55B9A() {
-  previousRenderJamState55B9A();
-  hideLegacyHostNextBeat55B9A();
+renderJamState = function renderJamStateHostIntercomRoomStateOnly55B9AFix() {
+  previousRenderJamState55B9AFix();
+  hideLegacyHostNextBeat55B9AFix();
 };
 
 window.addEventListener("load", () => {
   setTimeout(() => {
-    hideLegacyHostNextBeat55B9A();
+    hideLegacyHostNextBeat55B9AFix();
   }, 1000);
 
   setTimeout(() => {
-    hideLegacyHostNextBeat55B9A();
+    hideLegacyHostNextBeat55B9AFix();
   }, 3000);
 });
