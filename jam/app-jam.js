@@ -5922,3 +5922,208 @@ handleRealtimeChatMessage = function handleRealtimeChatMessageSynced55B7C(payloa
   });
 };
 
+// =======================
+// ETAP 55B-7D — CHAT PERSISTENCE FIX
+// Chat nie może znikać po auto-resync, jeśli chat_json jest null/undefined
+// =======================
+
+function roomStateHasChatJson55B7D(roomState) {
+  return Boolean(
+    roomState &&
+    Object.prototype.hasOwnProperty.call(roomState, "chat_json") &&
+    Array.isArray(roomState.chat_json)
+  );
+}
+
+// Nadpisujemy applyRoomStateToLocalState:
+// chat aktualizujemy TYLKO jeśli room_state faktycznie ma tablicę chat_json.
+// Jeśli chat_json jest null/undefined, nie czyścimy widoku.
+const originalApplyRoomStateToLocalState55B7D = applyRoomStateToLocalState;
+
+applyRoomStateToLocalState = function applyRoomStateToLocalStateChatSafe55B7D(nextRoomState, options = {}) {
+  if (!nextRoomState) return;
+
+  const hasValidChatJson = roomStateHasChatJson55B7D(nextRoomState);
+  const savedChatJson = hasValidChatJson ? nextRoomState.chat_json : null;
+
+  if (!hasValidChatJson) {
+    nextRoomState = {
+      ...nextRoomState,
+      chat_json: jamChatMessages
+    };
+  }
+
+  originalApplyRoomStateToLocalState55B7D(nextRoomState, options);
+
+  if (hasValidChatJson) {
+    applyChatMessagesFromRoomState(savedChatJson);
+  }
+};
+
+// Nadpisujemy applyChatMessagesFromRoomState:
+// undefined/null NIE czyści chatu.
+// Pusta tablica [] czyści chat tylko wtedy, gdy przyszła świadomie z room_state.
+applyChatMessagesFromRoomState = function applyChatMessagesFromRoomStateSafe55B7D(rawMessages) {
+  if (!Array.isArray(rawMessages)) {
+    return;
+  }
+
+  const normalizedMessages = normalizeChatMessages(rawMessages);
+
+  if (!normalizedMessages.length) {
+    forceRenderChatMessages55B7C([]);
+    return;
+  }
+
+  const currentSignature = JSON.stringify(
+    jamChatMessages.map((message) => message.id)
+  );
+
+  const nextSignature = JSON.stringify(
+    normalizedMessages.map((message) => message.id)
+  );
+
+  if (currentSignature === nextSignature) {
+    return;
+  }
+
+  forceRenderChatMessages55B7C(normalizedMessages);
+};
+
+// Nadpisujemy wysyłanie wiadomości jeszcze raz:
+// najpierw zapis do chat_json, dopiero potem render/broadcast.
+// Jeśli zapis się nie uda, nie udajemy że wiadomość jest trwała.
+sendLocalChatMessage = async function sendLocalChatMessagePersistent55B7D() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
+
+  if (!chatInput) return;
+
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  clearLocalMuteIfDbMuteExpired55B6D();
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Chat zablokowany jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  const message = sanitizeText(chatInput.value, 120);
+
+  if (!message) {
+    return;
+  }
+
+  if (checkChatSpam(message)) {
+    return;
+  }
+
+  const messageId = createMessageId();
+  const createdAt = nowIso();
+
+  const chatMessage = {
+    id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    author: jamUser.nick,
+    message: message,
+    created_at: createdAt
+  };
+
+  const existingMessages = Array.isArray(jamChatMessages)
+    ? jamChatMessages
+    : [];
+
+  const nextMessages = [
+    ...existingMessages,
+    chatMessage
+  ].slice(-JAM_CHAT_MAX_MESSAGES);
+
+  const saved = await saveChatMessagesToRoomState(nextMessages);
+
+  if (!saved) {
+    showSystemInfo("Nie udało się zapisać wiadomości w room_state.", "warn");
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(messageId);
+  chatInput.value = "";
+
+  forceRenderChatMessages55B7C(nextMessages);
+
+  await sendRealtimeBroadcast("chat_message", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    nick: jamUser.nick,
+    message: message,
+    created_at: createdAt,
+    saved: true
+  });
+};
+
+// Po broadcastzie wiadomości pobieramy room_state, ale nie czyścimy lokalnie,
+// jeśli Supabase chwilowo zwróci null/undefined.
+handleRealtimeChatMessage = function handleRealtimeChatMessagePersistent55B7D(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  fetchJamRoomState({
+    silent: true,
+    reason: "chat message broadcast"
+  });
+};
+
+// Clear zostaje świadomy: tylko Host ustawia chat_json = []
+// i wtedy wszyscy mają wyczyścić.
+clearChatInRoomState = async function clearChatInRoomStatePersistent55B7D() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyczyścić chat.", "warn");
+    return;
+  }
+
+  const confirmed = confirm("Wyczyścić chat dla wszystkich w Jam Roomie?");
+
+  if (!confirmed) {
+    return;
+  }
+
+  const saved = await saveChatMessagesToRoomState([]);
+
+  if (!saved) {
+    showSystemInfo("Nie udało się wyczyścić chatu.", "warn");
+    return;
+  }
+
+  forceRenderChatMessages55B7C([]);
+
+  showSystemInfo("Chat wyczyszczony.", "success");
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("chat_clear", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "System",
+    created_at: nowIso()
+  });
+};
