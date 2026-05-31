@@ -6547,3 +6547,206 @@ clearChatInRoomState = async function clearChatInRoomStateWithReactionFix55B7F()
     });
   }, 400);
 };
+
+// =======================
+// ETAP 55B-8B — BEAT STATE PANEL
+// Pokazuje Aktualny Beat / Następny Beat z jam_room_state
+// =======================
+
+let jamBeatPanel55B8B = null;
+let jamCurrentBeatTitle55B8B = null;
+let jamCurrentBeatMeta55B8B = null;
+let jamNextBeatTitle55B8B = null;
+let jamNextBeatMeta55B8B = null;
+let jamBeatUpdatedInfo55B8B = null;
+
+function ensureBeatPanel55B8B() {
+  if (jamBeatPanel55B8B) {
+    return jamBeatPanel55B8B;
+  }
+
+  const target =
+    document.querySelector(".jam-now-playing") ||
+    document.querySelector(".jam-track-card") ||
+    document.querySelector(".jam-main") ||
+    document.querySelector("main") ||
+    document.body;
+
+  jamBeatPanel55B8B = document.createElement("section");
+  jamBeatPanel55B8B.id = "jamBeatPanel55B8B";
+  jamBeatPanel55B8B.className = "jam-card jam-beat-panel";
+
+  jamBeatPanel55B8B.innerHTML = `
+    <h2>Funkcje Loopera w pokoju</h2>
+
+    <div class="jam-beat-grid-55b8b">
+      <div class="jam-beat-box-55b8b">
+        <p class="jam-small-label">Aktualny beat</p>
+        <strong id="jamCurrentBeatTitle55B8B">Beat --</strong>
+        <span id="jamCurrentBeatMeta55B8B">Brak danych</span>
+      </div>
+
+      <div class="jam-beat-box-55b8b">
+        <p class="jam-small-label">Następny beat</p>
+        <strong id="jamNextBeatTitle55B8B">Beat --</strong>
+        <span id="jamNextBeatMeta55B8B">Brak danych</span>
+      </div>
+    </div>
+
+    <p id="jamBeatUpdatedInfo55B8B" class="jam-small-label">
+      Beat state: oczekiwanie na room_state...
+    </p>
+  `;
+
+  const style = document.createElement("style");
+  style.innerHTML = `
+    .jam-beat-panel {
+      margin-top: 14px;
+    }
+
+    .jam-beat-grid-55b8b {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .jam-beat-box-55b8b {
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(234,162,33,0.22);
+      background: rgba(0,0,0,0.22);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-height: 92px;
+    }
+
+    .jam-beat-box-55b8b strong {
+      color: rgba(255,255,255,0.94);
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .jam-beat-box-55b8b span {
+      color: rgba(255,255,255,0.68);
+      font-size: 13px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    @media (max-width: 720px) {
+      .jam-beat-grid-55b8b {
+        grid-template-columns: 1fr;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+
+  if (target && target.parentNode) {
+    target.parentNode.insertBefore(jamBeatPanel55B8B, target.nextSibling);
+  } else {
+    document.body.appendChild(jamBeatPanel55B8B);
+  }
+
+  jamCurrentBeatTitle55B8B = jamBeatPanel55B8B.querySelector("#jamCurrentBeatTitle55B8B");
+  jamCurrentBeatMeta55B8B = jamBeatPanel55B8B.querySelector("#jamCurrentBeatMeta55B8B");
+  jamNextBeatTitle55B8B = jamBeatPanel55B8B.querySelector("#jamNextBeatTitle55B8B");
+  jamNextBeatMeta55B8B = jamBeatPanel55B8B.querySelector("#jamNextBeatMeta55B8B");
+  jamBeatUpdatedInfo55B8B = jamBeatPanel55B8B.querySelector("#jamBeatUpdatedInfo55B8B");
+
+  return jamBeatPanel55B8B;
+}
+
+function getBeatStateFromRoom55B8B() {
+  const state = jamRoomState || {};
+
+  return {
+    currentIndex: Number(state.current_beat_index || 1),
+    currentTitle: state.current_beat_title || `Beat ${String(state.current_beat_index || 1).padStart(2, "0")}`,
+    currentUrl: state.current_beat_url || "",
+
+    nextIndex: Number(state.next_beat_index || 2),
+    nextTitle: state.next_beat_title || `Beat ${String(state.next_beat_index || 2).padStart(2, "0")}`,
+    nextUrl: state.next_beat_url || "",
+
+    updatedBy: state.beat_updated_by_nick || "System",
+    updatedAt: state.beat_updated_at || null
+  };
+}
+
+function formatBeatUpdatedAt55B8B(value) {
+  if (!value) {
+    return "brak czasu aktualizacji";
+  }
+
+  try {
+    const date = new Date(value);
+
+    return date.toLocaleString("pl-PL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      day: "2-digit",
+      month: "2-digit"
+    });
+  } catch (error) {
+    return String(value);
+  }
+}
+
+function renderBeatPanel55B8B() {
+  ensureBeatPanel55B8B();
+
+  const beatState = getBeatStateFromRoom55B8B();
+
+  if (jamCurrentBeatTitle55B8B) {
+    jamCurrentBeatTitle55B8B.innerText =
+      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
+  }
+
+  if (jamCurrentBeatMeta55B8B) {
+    jamCurrentBeatMeta55B8B.innerText =
+      beatState.currentUrl
+        ? beatState.currentUrl
+        : "Brak ścieżki audio";
+  }
+
+  if (jamNextBeatTitle55B8B) {
+    jamNextBeatTitle55B8B.innerText =
+      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
+  }
+
+  if (jamNextBeatMeta55B8B) {
+    jamNextBeatMeta55B8B.innerText =
+      beatState.nextUrl
+        ? beatState.nextUrl
+        : "Brak ścieżki audio";
+  }
+
+  if (jamBeatUpdatedInfo55B8B) {
+    jamBeatUpdatedInfo55B8B.innerText =
+      `Beat state: ${beatState.updatedBy}, ${formatBeatUpdatedAt55B8B(beatState.updatedAt)}`;
+  }
+}
+
+const originalRenderJamState55B8B = renderJamState;
+
+renderJamState = function renderJamStateWithBeatPanel55B8B() {
+  originalRenderJamState55B8B();
+  renderBeatPanel55B8B();
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    ensureBeatPanel55B8B();
+
+    fetchJamRoomState({
+      silent: true,
+      reason: "beat-panel-init"
+    });
+
+    renderBeatPanel55B8B();
+  }, 2200);
+});
