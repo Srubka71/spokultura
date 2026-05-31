@@ -7796,3 +7796,102 @@ window.addEventListener("load", () => {
     renderIntegratedLooper55B8B2();
   }, 3200);
 });
+
+// =======================
+// ETAP 55B-8B4 — BEAT PICKER HOST ONLY FIX
+// Wybór beatu tylko dla Hosta będącego w pokoju
+// =======================
+
+function canCurrentUserControlBeat55B8B4() {
+  return Boolean(jamJoined && isCurrentUserHost());
+}
+
+openBeatPickerModal55B8B2 = function openBeatPickerModalHostOnly55B8B4() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju, żeby sterować beatem.", "warn");
+    return;
+  }
+
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wybierać beat.", "warn");
+    return;
+  }
+
+  ensureBeatPickerModal55B8B2();
+  renderBeatPickerGrid55B8B2();
+
+  jamBeatPickerModal55B8B2.classList.remove("hidden");
+};
+
+renderBeatPickerGrid55B8B2 = function renderBeatPickerGridHostOnly55B8B4() {
+  ensureIntegratedLooperStyles55B8B2();
+
+  if (!jamBeatPickerGrid55B8B2) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+
+  jamBeatPickerGrid55B8B2.innerHTML = "";
+
+  for (let index = 1; index <= JAM_BEAT_COUNT_55B8B2; index += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "jam-btn jam-beat-picker-btn-55b8b2";
+    button.innerText = `#${index}`;
+
+    if (index === beatState.currentIndex) {
+      button.classList.add("active");
+    }
+
+    button.title = getBeatAudioUrl55B8B2(index);
+
+    const canControl = canCurrentUserControlBeat55B8B4();
+
+    button.disabled = !canControl;
+
+    if (!canControl) {
+      button.classList.add("jam-btn-muted");
+    }
+
+    button.addEventListener("click", () => {
+      if (!canCurrentUserControlBeat55B8B4()) {
+        showSystemInfo("Tylko Host może wybierać beat.", "warn");
+        return;
+      }
+
+      showSystemInfo(
+        `Beat #${index} wybrany w panelu. Zapis do pokoju podłączymy w następnym etapie.`
+      );
+
+      closeBeatPickerModal55B8B2();
+    });
+
+    jamBeatPickerGrid55B8B2.appendChild(button);
+  }
+};
+
+function updateBeatSquareAccess55B8B4() {
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) return;
+
+  const beatBox = findBeatNumberBox55B8B2(card);
+
+  if (!beatBox) return;
+
+  const canControl = canCurrentUserControlBeat55B8B4();
+
+  beatBox.classList.toggle("jam-btn-muted", !canControl);
+  beatBox.style.pointerEvents = canControl ? "" : "auto";
+  beatBox.title = canControl
+    ? "Kliknij, żeby wybrać beat"
+    : "Tylko Host może wybierać beat";
+}
+
+const originalRenderIntegratedLooper55B8B4 = renderIntegratedLooper55B8B2;
+
+renderIntegratedLooper55B8B2 = function renderIntegratedLooperHostOnly55B8B4() {
+  originalRenderIntegratedLooper55B8B4();
+  updateBeatSquareAccess55B8B4();
+};
