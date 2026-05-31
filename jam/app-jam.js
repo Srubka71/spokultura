@@ -6549,1712 +6549,56 @@ clearChatInRoomState = async function clearChatInRoomStateWithReactionFix55B7F()
 };
 
 // =======================
-// ETAP 55B-8B — BEAT STATE PANEL
-// Pokazuje Aktualny Beat / Następny Beat z jam_room_state
+// ETAP 55B-8-FINAL — CLEAN JAM LOOPER PLAYER
+// Jeden czysty panel: cover+#, metadane z /looper/config.js, next beat, host-only controls.
 // =======================
 
-let jamBeatPanel55B8B = null;
-let jamCurrentBeatTitle55B8B = null;
-let jamCurrentBeatMeta55B8B = null;
-let jamNextBeatTitle55B8B = null;
-let jamNextBeatMeta55B8B = null;
-let jamBeatUpdatedInfo55B8B = null;
+const JAM_BEAT_COUNT_FINAL = 36;
+const JAM_LOOPER_CONFIG_SRC_FINAL = "/looper/config.js";
 
-function ensureBeatPanel55B8B() {
-  if (jamBeatPanel55B8B) {
-    return jamBeatPanel55B8B;
-  }
+let jamLooperConfigLoadedFinal = false;
+let jamLooperConfigLoadingFinal = false;
+let jamLooperConfigLoadPromiseFinal = null;
 
-  const target =
-    document.querySelector(".jam-now-playing") ||
-    document.querySelector(".jam-track-card") ||
-    document.querySelector(".jam-main") ||
-    document.querySelector("main") ||
-    document.body;
-
-  jamBeatPanel55B8B = document.createElement("section");
-  jamBeatPanel55B8B.id = "jamBeatPanel55B8B";
-  jamBeatPanel55B8B.className = "jam-card jam-beat-panel";
-
-  jamBeatPanel55B8B.innerHTML = `
-    <h2>Funkcje Loopera w pokoju</h2>
-
-    <div class="jam-beat-grid-55b8b">
-      <div class="jam-beat-box-55b8b">
-        <p class="jam-small-label">Aktualny beat</p>
-        <strong id="jamCurrentBeatTitle55B8B">Beat --</strong>
-        <span id="jamCurrentBeatMeta55B8B">Brak danych</span>
-      </div>
-
-      <div class="jam-beat-box-55b8b">
-        <p class="jam-small-label">Następny beat</p>
-        <strong id="jamNextBeatTitle55B8B">Beat --</strong>
-        <span id="jamNextBeatMeta55B8B">Brak danych</span>
-      </div>
-    </div>
-
-    <p id="jamBeatUpdatedInfo55B8B" class="jam-small-label">
-      Beat state: oczekiwanie na room_state...
-    </p>
-  `;
-
-  const style = document.createElement("style");
-  style.innerHTML = `
-    .jam-beat-panel {
-      margin-top: 14px;
-    }
-
-    .jam-beat-grid-55b8b {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .jam-beat-box-55b8b {
-      padding: 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(234,162,33,0.22);
-      background: rgba(0,0,0,0.22);
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      min-height: 92px;
-    }
-
-    .jam-beat-box-55b8b strong {
-      color: rgba(255,255,255,0.94);
-      font-size: 18px;
-      line-height: 1.1;
-    }
-
-    .jam-beat-box-55b8b span {
-      color: rgba(255,255,255,0.68);
-      font-size: 13px;
-      line-height: 1.25;
-      word-break: break-word;
-    }
-
-    @media (max-width: 720px) {
-      .jam-beat-grid-55b8b {
-        grid-template-columns: 1fr;
-      }
-    }
-  `;
-
-  document.head.appendChild(style);
-
-  if (target && target.parentNode) {
-    target.parentNode.insertBefore(jamBeatPanel55B8B, target.nextSibling);
-  } else {
-    document.body.appendChild(jamBeatPanel55B8B);
-  }
-
-  jamCurrentBeatTitle55B8B = jamBeatPanel55B8B.querySelector("#jamCurrentBeatTitle55B8B");
-  jamCurrentBeatMeta55B8B = jamBeatPanel55B8B.querySelector("#jamCurrentBeatMeta55B8B");
-  jamNextBeatTitle55B8B = jamBeatPanel55B8B.querySelector("#jamNextBeatTitle55B8B");
-  jamNextBeatMeta55B8B = jamBeatPanel55B8B.querySelector("#jamNextBeatMeta55B8B");
-  jamBeatUpdatedInfo55B8B = jamBeatPanel55B8B.querySelector("#jamBeatUpdatedInfo55B8B");
-
-  return jamBeatPanel55B8B;
-}
-
-function getBeatStateFromRoom55B8B() {
-  const state = jamRoomState || {};
-
-  return {
-    currentIndex: Number(state.current_beat_index || 1),
-    currentTitle: state.current_beat_title || `Beat ${String(state.current_beat_index || 1).padStart(2, "0")}`,
-    currentUrl: state.current_beat_url || "",
-
-    nextIndex: Number(state.next_beat_index || 2),
-    nextTitle: state.next_beat_title || `Beat ${String(state.next_beat_index || 2).padStart(2, "0")}`,
-    nextUrl: state.next_beat_url || "",
-
-    updatedBy: state.beat_updated_by_nick || "System",
-    updatedAt: state.beat_updated_at || null
-  };
-}
-
-function formatBeatUpdatedAt55B8B(value) {
-  if (!value) {
-    return "brak czasu aktualizacji";
-  }
-
-  try {
-    const date = new Date(value);
-
-    return date.toLocaleString("pl-PL", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      day: "2-digit",
-      month: "2-digit"
-    });
-  } catch (error) {
-    return String(value);
-  }
-}
-
-function renderBeatPanel55B8B() {
-  ensureBeatPanel55B8B();
-
-  const beatState = getBeatStateFromRoom55B8B();
-
-  if (jamCurrentBeatTitle55B8B) {
-    jamCurrentBeatTitle55B8B.innerText =
-      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
-  }
-
-  if (jamCurrentBeatMeta55B8B) {
-    jamCurrentBeatMeta55B8B.innerText =
-      beatState.currentUrl
-        ? beatState.currentUrl
-        : "Brak ścieżki audio";
-  }
-
-  if (jamNextBeatTitle55B8B) {
-    jamNextBeatTitle55B8B.innerText =
-      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
-  }
-
-  if (jamNextBeatMeta55B8B) {
-    jamNextBeatMeta55B8B.innerText =
-      beatState.nextUrl
-        ? beatState.nextUrl
-        : "Brak ścieżki audio";
-  }
-
-  if (jamBeatUpdatedInfo55B8B) {
-    jamBeatUpdatedInfo55B8B.innerText =
-      `Beat state: ${beatState.updatedBy}, ${formatBeatUpdatedAt55B8B(beatState.updatedAt)}`;
-  }
-}
-
-const originalRenderJamState55B8B = renderJamState;
-
-renderJamState = function renderJamStateWithBeatPanel55B8B() {
-  originalRenderJamState55B8B();
-  renderBeatPanel55B8B();
-};
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    ensureBeatPanel55B8B();
-
-    fetchJamRoomState({
-      silent: true,
-      reason: "beat-panel-init"
-    });
-
-    renderBeatPanel55B8B();
-  }, 2200);
-});
+let jamBeatPickerModalFinal = null;
+let jamBeatPickerGridFinal = null;
+let jamLooperPlayerMountedFinal = false;
 
 // =======================
-// ETAP 55B-8B2 — INTEGRATED LOOPER PANEL
-// Łączy Aktualny Beat + Funkcje Loopera w jeden panel
+// CONFIG / BEAT METADATA
 // =======================
 
-const JAM_BEAT_COUNT_55B8B2 = 36;
-
-let jamIntegratedLooperPanel55B8B2 = null;
-let jamBeatPickerModal55B8B2 = null;
-let jamBeatPickerGrid55B8B2 = null;
-let jamBeatNumberButton55B8B2 = null;
-
-function getBeatAudioUrl55B8B2(index) {
-  return `/looper/assets/audio/beat${Number(index)}.mp3`;
-}
-
-function getBeatTitle55B8B2(index) {
-  return `Beat ${String(Number(index)).padStart(2, "0")}`;
-}
-
-function getBeatState55B8B2() {
-  const state = jamRoomState || {};
-
-  const currentIndex = Number(state.current_beat_index || 1);
-  const nextIndex =
-    currentIndex >= JAM_BEAT_COUNT_55B8B2
-      ? 1
-      : currentIndex + 1;
-
-  return {
-    currentIndex,
-    currentTitle:
-      state.current_beat_title ||
-      getBeatTitle55B8B2(currentIndex),
-    currentUrl:
-      state.current_beat_url ||
-      getBeatAudioUrl55B8B2(currentIndex),
-
-    nextIndex: Number(state.next_beat_index || nextIndex),
-    nextTitle:
-      state.next_beat_title ||
-      getBeatTitle55B8B2(state.next_beat_index || nextIndex),
-    nextUrl:
-      state.next_beat_url ||
-      getBeatAudioUrl55B8B2(state.next_beat_index || nextIndex),
-
-    updatedBy: state.beat_updated_by_nick || "System",
-    updatedAt: state.beat_updated_at || null
-  };
-}
-
-function findCurrentBeatCard55B8B2() {
-  if (nowPlayingPerformerLine) {
-    const card = nowPlayingPerformerLine.closest(".jam-card");
-
-    if (card) {
-      return card;
-    }
-  }
-
-  const cards = Array.from(document.querySelectorAll(".jam-card"));
-
-  return cards.find((card) => {
-    const title = card.querySelector("h2");
-    return title && title.innerText.trim().toLowerCase() === "aktualny beat";
-  }) || null;
-}
-
-function findBeatNumberBox55B8B2(card) {
-  if (!card) return null;
-
-  const preferred =
-    card.querySelector(".jam-track-number") ||
-    card.querySelector(".jam-beat-number") ||
-    card.querySelector(".jam-track-index") ||
-    card.querySelector(".jam-track-cover");
-
-  if (preferred) {
-    return preferred;
-  }
-
-  return Array.from(card.querySelectorAll("div, button, span")).find((element) => {
-    return /^#\d+/.test(element.innerText.trim());
-  }) || null;
-}
-
-function removeOldBeatPanel55B8B2() {
-  const oldPanel =
-    document.querySelector("#jamBeatPanel55B8B") ||
-    document.querySelector(".jam-beat-panel");
-
-  if (oldPanel) {
-    oldPanel.remove();
-  }
-}
-
-function hideOldLooperFunctionsCard55B8B2() {
-  const currentBeatCard = findCurrentBeatCard55B8B2();
-
-  const cards = Array.from(document.querySelectorAll(".jam-card"));
-
-  cards.forEach((card) => {
-    if (card === currentBeatCard) {
-      return;
-    }
-
-    if (card.id === "jamBeatPanel55B8B2") {
-      return;
-    }
-
-    const title = card.querySelector("h2");
-
-    if (!title) {
-      return;
-    }
-
-    const titleText = title.innerText.trim().toLowerCase();
-
-    const looksLikeOldLooperPanel =
-      titleText === "funkcje loopera w pokoju" &&
-      card.innerText.includes("Docelowo host będzie sterował beatem");
-
-    if (looksLikeOldLooperPanel) {
-      card.style.display = "none";
-    }
-  });
-}
-
-function ensureIntegratedLooperStyles55B8B2() {
-  if (document.querySelector("#jamIntegratedLooperStyles55B8B2")) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = "jamIntegratedLooperStyles55B8B2";
-
-  style.innerHTML = `
-    .jam-integrated-looper-55b8b2 {
-      margin-top: 16px;
-      padding-top: 14px;
-      border-top: 1px solid rgba(234,162,33,0.18);
-    }
-
-    .jam-integrated-header-55b8b2 {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .jam-integrated-header-55b8b2 h3 {
-      margin: 0;
-      color: rgba(234,162,33,0.92);
-      font-size: 18px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .jam-integrated-header-55b8b2 span {
-      color: rgba(255,255,255,0.52);
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-
-    .jam-beat-state-grid-55b8b2 {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .jam-beat-state-box-55b8b2 {
-      padding: 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(234,162,33,0.24);
-      background: rgba(0,0,0,0.22);
-      min-height: 92px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .jam-beat-state-box-55b8b2 strong {
-      color: rgba(255,255,255,0.94);
-      font-size: 17px;
-      line-height: 1.15;
-    }
-
-    .jam-beat-state-box-55b8b2 span {
-      color: rgba(255,255,255,0.62);
-      font-size: 12px;
-      line-height: 1.25;
-      word-break: break-word;
-    }
-
-    .jam-looper-controls-55b8b2 {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-top: 10px;
-    }
-
-    .jam-pitch-mini-55b8b2 {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: min(100%, 280px);
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(234,162,33,0.22);
-      background: rgba(0,0,0,0.22);
-    }
-
-    .jam-pitch-mini-55b8b2 input[type="range"] {
-      flex: 1;
-    }
-
-    .jam-pitch-mini-55b8b2 span {
-      min-width: 50px;
-      text-align: right;
-      color: rgba(255,255,255,0.72);
-      font-size: 12px;
-      font-weight: 900;
-    }
-
-    .jam-beat-square-clickable-55b8b2 {
-      cursor: pointer !important;
-      transition:
-        transform 0.16s ease,
-        border-color 0.16s ease,
-        box-shadow 0.16s ease;
-      user-select: none;
-    }
-
-    .jam-beat-square-clickable-55b8b2:hover {
-      transform: translateY(-1px) scale(1.015);
-      border-color: rgba(234,162,33,0.72) !important;
-      box-shadow:
-        0 0 0 1px rgba(234,162,33,0.18),
-        0 12px 32px rgba(234,162,33,0.10);
-    }
-
-    .jam-beat-picker-grid-55b8b2 {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .jam-beat-picker-btn-55b8b2 {
-      min-height: 42px;
-      justify-content: center;
-      font-size: 13px;
-    }
-
-    .jam-beat-picker-btn-55b8b2.active {
-      border-color: rgba(234,162,33,0.88);
-      background: rgba(234,162,33,0.16);
-      color: rgba(255,255,255,0.96);
-    }
-
-    @media (max-width: 760px) {
-      .jam-beat-state-grid-55b8b2 {
-        grid-template-columns: 1fr;
-      }
-
-      .jam-integrated-header-55b8b2 {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .jam-beat-picker-grid-55b8b2 {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-    }
-  `;
-
-  document.head.appendChild(style);
-}
-
-function ensureBeatPickerModal55B8B2() {
-  if (jamBeatPickerModal55B8B2) {
-    return jamBeatPickerModal55B8B2;
-  }
-
-  jamBeatPickerModal55B8B2 = document.createElement("div");
-  jamBeatPickerModal55B8B2.id = "jamBeatPickerModal55B8B2";
-  jamBeatPickerModal55B8B2.className = "jam-modal hidden";
-
-  jamBeatPickerModal55B8B2.innerHTML = `
-    <div class="jam-modal-box">
-      <h2>Wybierz beat</h2>
-
-      <p>
-        Wybór beatu #1–#36. W tym kroku przygotowujemy panel i modal.
-        Zapis wyboru do pokoju podłączymy w następnym etapie.
-      </p>
-
-      <div id="jamBeatPickerGrid55B8B2" class="jam-beat-picker-grid-55b8b2"></div>
-
-      <div class="jam-modal-actions">
-        <button id="closeBeatPickerModal55B8B2" class="jam-btn" type="button">
-          ZAMKNIJ
-        </button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(jamBeatPickerModal55B8B2);
-
-  jamBeatPickerGrid55B8B2 =
-    jamBeatPickerModal55B8B2.querySelector("#jamBeatPickerGrid55B8B2");
-
-  const closeBtn =
-    jamBeatPickerModal55B8B2.querySelector("#closeBeatPickerModal55B8B2");
-
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      closeBeatPickerModal55B8B2();
-    });
-  }
-
-  jamBeatPickerModal55B8B2.addEventListener("click", (event) => {
-    if (event.target === jamBeatPickerModal55B8B2) {
-      closeBeatPickerModal55B8B2();
-    }
-  });
-
-  renderBeatPickerGrid55B8B2();
-
-  return jamBeatPickerModal55B8B2;
-}
-
-function renderBeatPickerGrid55B8B2() {
-  ensureIntegratedLooperStyles55B8B2();
-
-  if (!jamBeatPickerGrid55B8B2) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-
-  jamBeatPickerGrid55B8B2.innerHTML = "";
-
-  for (let index = 1; index <= JAM_BEAT_COUNT_55B8B2; index += 1) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "jam-btn jam-beat-picker-btn-55b8b2";
-    button.innerText = `#${index}`;
-
-    if (index === beatState.currentIndex) {
-      button.classList.add("active");
-    }
-
-    button.title = getBeatAudioUrl55B8B2(index);
-
-    button.addEventListener("click", () => {
-      showSystemInfo(
-        `Beat #${index} wybrany w panelu. Zapis do pokoju podłączymy w następnym etapie.`
-      );
-      closeBeatPickerModal55B8B2();
-    });
-
-    jamBeatPickerGrid55B8B2.appendChild(button);
-  }
-}
-
-function openBeatPickerModal55B8B2() {
-  ensureBeatPickerModal55B8B2();
-  renderBeatPickerGrid55B8B2();
-
-  jamBeatPickerModal55B8B2.classList.remove("hidden");
-}
-
-function closeBeatPickerModal55B8B2() {
-  if (jamBeatPickerModal55B8B2) {
-    jamBeatPickerModal55B8B2.classList.add("hidden");
-  }
-}
-
-function ensureIntegratedLooperPanel55B8B2() {
-  ensureIntegratedLooperStyles55B8B2();
-
-  if (jamIntegratedLooperPanel55B8B2) {
-    return jamIntegratedLooperPanel55B8B2;
-  }
-
-  const currentBeatCard = findCurrentBeatCard55B8B2();
-
-  if (!currentBeatCard) {
-    return null;
-  }
-
-  jamIntegratedLooperPanel55B8B2 = document.createElement("div");
-  jamIntegratedLooperPanel55B8B2.id = "jamIntegratedLooperPanel55B8B2";
-  jamIntegratedLooperPanel55B8B2.className = "jam-integrated-looper-55b8b2";
-
-  jamIntegratedLooperPanel55B8B2.innerHTML = `
-    <div class="jam-integrated-header-55b8b2">
-      <h3>Funkcje Loopera w pokoju</h3>
-      <span>Beat / loop / pitch — panel wspólny</span>
-    </div>
-
-    <div class="jam-beat-state-grid-55b8b2">
-      <div class="jam-beat-state-box-55b8b2">
-        <p class="jam-small-label">Aktualny beat</p>
-        <strong id="jamIntegratedCurrentBeatTitle55B8B2">#-- — Beat --</strong>
-        <span id="jamIntegratedCurrentBeatUrl55B8B2">Brak ścieżki audio</span>
-      </div>
-
-      <div class="jam-beat-state-box-55b8b2">
-        <p class="jam-small-label">Następny beat</p>
-        <strong id="jamIntegratedNextBeatTitle55B8B2">#-- — Beat --</strong>
-        <span id="jamIntegratedNextBeatUrl55B8B2">Brak ścieżki audio</span>
-      </div>
-    </div>
-
-    <div class="jam-looper-controls-55b8b2">
-      <button class="jam-btn" type="button" id="jamPrevBeatBtn55B8B2">PREVIOUS BEAT</button>
-      <button class="jam-btn" type="button" id="jamChooseBeatBtn55B8B2">CHOOSE BEAT</button>
-      <button class="jam-btn" type="button" id="jamNextBeatBtn55B8B2">NEXT BEAT</button>
-      <button class="jam-btn jam-btn-danger" type="button" id="jamStopBeatBtn55B8B2">STOP</button>
-
-      <button class="jam-btn" type="button">INFINITY</button>
-      <button class="jam-btn" type="button">LOOP 1X</button>
-      <button class="jam-btn" type="button">LOOP 2X</button>
-      <button class="jam-btn" type="button">LOOP 4X</button>
-
-      <button class="jam-btn" type="button">PITCH -</button>
-
-      <div class="jam-pitch-mini-55b8b2">
-        <input type="range" min="-12" max="12" step="1" value="0" disabled>
-        <span>0%</span>
-      </div>
-
-      <button class="jam-btn" type="button">PITCH +</button>
-    </div>
-  `;
-
-  currentBeatCard.appendChild(jamIntegratedLooperPanel55B8B2);
-
-  const chooseBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamChooseBeatBtn55B8B2");
-  const prevBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPrevBeatBtn55B8B2");
-  const nextBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamNextBeatBtn55B8B2");
-  const stopBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamStopBeatBtn55B8B2");
-
-  if (chooseBtn) {
-    chooseBtn.addEventListener("click", () => {
-      openBeatPickerModal55B8B2();
-    });
-  }
-
-  if (prevBtn) {
-    prevBtn.addEventListener("click", () => {
-      showSystemInfo("PREVIOUS BEAT podłączymy w następnym etapie.");
-    });
-  }
-
-  if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
-      showSystemInfo("NEXT BEAT podłączymy w następnym etapie.");
-    });
-  }
-
-  if (stopBtn) {
-    stopBtn.addEventListener("click", () => {
-      showSystemInfo("STOP audio podłączymy w etapie lokalnego playera.");
-    });
-  }
-
-  return jamIntegratedLooperPanel55B8B2;
-}
-
-function updateMainCurrentBeatCard55B8B2() {
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-
-  const beatNumberBox = findBeatNumberBox55B8B2(card);
-
-  if (beatNumberBox) {
-    beatNumberBox.innerText = `#${beatState.currentIndex}`;
-    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
-    beatNumberBox.title = "Kliknij, żeby wybrać beat";
-
-    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
-      jamBeatNumberButton55B8B2 = beatNumberBox;
-
-      jamBeatNumberButton55B8B2.addEventListener("click", () => {
-        openBeatPickerModal55B8B2();
-      });
-    }
-  }
-
-  const title =
-    card.querySelector(".jam-track-meta h3") ||
-    card.querySelector("h3");
-
-  if (title) {
-    title.innerText = beatState.currentTitle.toUpperCase();
-  }
-
-  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
-    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
-  });
-
-  if (hostLine) {
-    const host = getEffectiveHost ? getEffectiveHost() : null;
-    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
-  }
-
-  if (nowPlayingPerformerLine) {
-    const performerName =
-      jamActive && jamCurrentPerformer
-        ? jamCurrentPerformer.nick
-        : "nikt";
-
-    nowPlayingPerformerLine.innerHTML =
-      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
-  }
-}
-
-function updateIntegratedLooperPanel55B8B2() {
-  const panel = ensureIntegratedLooperPanel55B8B2();
-
-  if (!panel) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-
-  const currentTitle = panel.querySelector("#jamIntegratedCurrentBeatTitle55B8B2");
-  const currentUrl = panel.querySelector("#jamIntegratedCurrentBeatUrl55B8B2");
-  const nextTitle = panel.querySelector("#jamIntegratedNextBeatTitle55B8B2");
-  const nextUrl = panel.querySelector("#jamIntegratedNextBeatUrl55B8B2");
-
-  if (currentTitle) {
-    currentTitle.innerText =
-      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
-  }
-
-  if (currentUrl) {
-    currentUrl.innerText = beatState.currentUrl || getBeatAudioUrl55B8B2(beatState.currentIndex);
-  }
-
-  if (nextTitle) {
-    nextTitle.innerText =
-      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
-  }
-
-  if (nextUrl) {
-    nextUrl.innerText = beatState.nextUrl || getBeatAudioUrl55B8B2(beatState.nextIndex);
-  }
-}
-
-function renderIntegratedLooper55B8B2() {
-  removeOldBeatPanel55B8B2();
-  hideOldLooperFunctionsCard55B8B2();
-
-  ensureBeatPickerModal55B8B2();
-  ensureIntegratedLooperPanel55B8B2();
-
-  updateMainCurrentBeatCard55B8B2();
-  updateIntegratedLooperPanel55B8B2();
-}
-
-const originalRenderJamState55B8B2 = renderJamState;
-
-renderJamState = function renderJamStateWithIntegratedLooper55B8B2() {
-  originalRenderJamState55B8B2();
-  renderIntegratedLooper55B8B2();
-};
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    renderIntegratedLooper55B8B2();
-  }, 2600);
-});
-
-// =======================
-// ETAP 55B-8B3 — INTEGRATED LOOPER PANEL FIX
-// Ścieżki beat02.mp3, panel host-only, START/STOP, loop 6x/8x, pitch slider, widoczny kwadrat #
-// =======================
-
-function getBeatAudioUrl55B8B2(index) {
-  return `/looper/assets/audio/beat${String(Number(index)).padStart(2, "0")}.mp3`;
-}
-
-function ensureIntegratedLooperStyles55B8B3() {
-  if (document.querySelector("#jamIntegratedLooperStyles55B8B3")) {
-    return;
-  }
-
-  const style = document.createElement("style");
-  style.id = "jamIntegratedLooperStyles55B8B3";
-
-  style.innerHTML = `
-    .jam-beat-square-clickable-55b8b2 {
-      min-width: 92px !important;
-      min-height: 92px !important;
-      width: 92px !important;
-      height: 92px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      border-radius: 16px !important;
-      border: 1px solid rgba(234,162,33,0.32) !important;
-      background:
-        radial-gradient(circle at center, rgba(234,162,33,0.10), rgba(0,0,0,0.24)) !important;
-      color: rgba(234,162,33,0.86) !important;
-      font-size: 34px !important;
-      font-weight: 900 !important;
-      line-height: 1 !important;
-      cursor: pointer !important;
-      text-align: center !important;
-      flex: 0 0 auto !important;
-    }
-
-    .jam-beat-square-clickable-55b8b2:hover {
-      transform: translateY(-1px) scale(1.015);
-      border-color: rgba(234,162,33,0.72) !important;
-      box-shadow:
-        0 0 0 1px rgba(234,162,33,0.18),
-        0 12px 32px rgba(234,162,33,0.10);
-    }
-
-    .jam-host-looper-controls-55b8b3 {
-      display: none;
-    }
-
-    .jam-host-looper-controls-55b8b3.is-host-visible {
-      display: flex;
-    }
-
-    .jam-listener-beat-hint-55b8b3 {
-      margin-top: 10px;
-      color: rgba(255,255,255,0.58);
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .jam-pitch-mini-55b8b2 input[type="range"] {
-      accent-color: rgba(234,162,33,0.95);
-      cursor: pointer;
-    }
-
-    .jam-pitch-mini-55b8b2 input[type="range"]:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-  `;
-
-  document.head.appendChild(style);
-}
-
-function getBeatState55B8B2() {
-  const state = jamRoomState || {};
-
-  const currentIndex = Number(state.current_beat_index || 1);
-  const fallbackNextIndex =
-    currentIndex >= JAM_BEAT_COUNT_55B8B2
-      ? 1
-      : currentIndex + 1;
-
-  const nextIndex = Number(state.next_beat_index || fallbackNextIndex);
-
-  return {
-    currentIndex,
-    currentTitle:
-      state.current_beat_title ||
-      getBeatTitle55B8B2(currentIndex),
-    currentUrl:
-      state.current_beat_url && !String(state.current_beat_url).includes("beat-")
-        ? state.current_beat_url
-        : getBeatAudioUrl55B8B2(currentIndex),
-
-    nextIndex,
-    nextTitle:
-      state.next_beat_title ||
-      getBeatTitle55B8B2(nextIndex),
-    nextUrl:
-      state.next_beat_url && !String(state.next_beat_url).includes("beat-")
-        ? state.next_beat_url
-        : getBeatAudioUrl55B8B2(nextIndex),
-
-    updatedBy: state.beat_updated_by_nick || "System",
-    updatedAt: state.beat_updated_at || null
-  };
-}
-
-function findBeatNumberBox55B8B2(card) {
-  if (!card) return null;
-
-  let preferred =
-    card.querySelector(".jam-track-number") ||
-    card.querySelector(".jam-beat-number") ||
-    card.querySelector(".jam-track-index");
-
-  if (preferred) {
-    return preferred;
-  }
-
-  const oldBox = Array.from(card.querySelectorAll("div, button, span")).find((element) => {
-    return /^#\d+/.test(element.innerText.trim());
-  });
-
-  if (oldBox) {
-    return oldBox;
-  }
-
-  const meta =
-    card.querySelector(".jam-track-meta") ||
-    card.querySelector(".jam-card-body") ||
-    card.querySelector("h3") ||
-    card.firstElementChild;
-
-  const beatBox = document.createElement("button");
-  beatBox.type = "button";
-  beatBox.className = "jam-track-number jam-beat-square-clickable-55b8b2";
-  beatBox.innerText = "#1";
-
-  if (meta && meta.parentNode) {
-    meta.parentNode.insertBefore(beatBox, meta);
-  } else {
-    card.prepend(beatBox);
-  }
-
-  return beatBox;
-}
-
-function replaceIntegratedLooperPanelMarkup55B8B3() {
-  const currentBeatCard = findCurrentBeatCard55B8B2();
-
-  if (!currentBeatCard) {
-    return null;
-  }
-
-  if (jamIntegratedLooperPanel55B8B2) {
-    jamIntegratedLooperPanel55B8B2.remove();
-    jamIntegratedLooperPanel55B8B2 = null;
-  }
-
-  jamIntegratedLooperPanel55B8B2 = document.createElement("div");
-  jamIntegratedLooperPanel55B8B2.id = "jamIntegratedLooperPanel55B8B2";
-  jamIntegratedLooperPanel55B8B2.className = "jam-integrated-looper-55b8b2";
-
-  jamIntegratedLooperPanel55B8B2.innerHTML = `
-    <div class="jam-integrated-header-55b8b2">
-      <h3>Funkcje Loopera w pokoju</h3>
-      <span>Beat / loop / pitch — panel wspólny</span>
-    </div>
-
-    <div class="jam-beat-state-grid-55b8b2">
-      <div class="jam-beat-state-box-55b8b2">
-        <p class="jam-small-label">Aktualny beat</p>
-        <strong id="jamIntegratedCurrentBeatTitle55B8B2">#-- — Beat --</strong>
-        <span id="jamIntegratedCurrentBeatUrl55B8B2">Brak ścieżki audio</span>
-      </div>
-
-      <div class="jam-beat-state-box-55b8b2">
-        <p class="jam-small-label">Następny beat</p>
-        <strong id="jamIntegratedNextBeatTitle55B8B2">#-- — Beat --</strong>
-        <span id="jamIntegratedNextBeatUrl55B8B2">Brak ścieżki audio</span>
-      </div>
-    </div>
-
-    <div id="jamListenerBeatHint55B8B3" class="jam-listener-beat-hint-55b8b3">
-      Sterowanie beatem widoczne jest tylko dla Hosta.
-    </div>
-
-    <div id="jamHostLooperControls55B8B3" class="jam-looper-controls-55b8b2 jam-host-looper-controls-55b8b3">
-      <button class="jam-btn" type="button" id="jamPrevBeatBtn55B8B2">PREVIOUS BEAT</button>
-      <button class="jam-btn" type="button" id="jamChooseBeatBtn55B8B2">CHOOSE BEAT</button>
-      <button class="jam-btn" type="button" id="jamNextBeatBtn55B8B2">NEXT BEAT</button>
-
-      <button class="jam-btn jam-btn-primary" type="button" id="jamStartBeatBtn55B8B3">START</button>
-      <button class="jam-btn jam-btn-danger" type="button" id="jamStopBeatBtn55B8B2">STOP</button>
-
-      <button class="jam-btn" type="button" id="jamLoopInfinityBtn55B8B3">INFINITY</button>
-      <button class="jam-btn" type="button" id="jamLoop1Btn55B8B3">LOOP 1X</button>
-      <button class="jam-btn" type="button" id="jamLoop2Btn55B8B3">LOOP 2X</button>
-      <button class="jam-btn" type="button" id="jamLoop4Btn55B8B3">LOOP 4X</button>
-      <button class="jam-btn" type="button" id="jamLoop6Btn55B8B3">LOOP 6X</button>
-      <button class="jam-btn" type="button" id="jamLoop8Btn55B8B3">LOOP 8X</button>
-
-      <button class="jam-btn" type="button" id="jamPitchMinusBtn55B8B3">PITCH -</button>
-
-      <div class="jam-pitch-mini-55b8b2">
-        <input id="jamPitchSlider55B8B3" type="range" min="-12" max="12" step="1" value="0">
-        <span id="jamPitchValue55B8B3">0%</span>
-      </div>
-
-      <button class="jam-btn" type="button" id="jamPitchPlusBtn55B8B3">PITCH +</button>
-    </div>
-  `;
-
-  currentBeatCard.appendChild(jamIntegratedLooperPanel55B8B2);
-
-  bindIntegratedLooperControls55B8B3();
-
-  return jamIntegratedLooperPanel55B8B2;
-}
-
-function bindIntegratedLooperControls55B8B3() {
-  if (!jamIntegratedLooperPanel55B8B2) {
-    return;
-  }
-
-  const chooseBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamChooseBeatBtn55B8B2");
-  const prevBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPrevBeatBtn55B8B2");
-  const nextBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamNextBeatBtn55B8B2");
-  const startBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamStartBeatBtn55B8B3");
-  const stopBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamStopBeatBtn55B8B2");
-
-  const pitchMinusBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPitchMinusBtn55B8B3");
-  const pitchPlusBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPitchPlusBtn55B8B3");
-  const pitchSlider = jamIntegratedLooperPanel55B8B2.querySelector("#jamPitchSlider55B8B3");
-
-  if (chooseBtn) {
-    chooseBtn.addEventListener("click", () => {
-      openBeatPickerModal55B8B2();
-    });
-  }
-
-  if (prevBtn) {
-    prevBtn.addEventListener("click", () => {
-      showSystemInfo("PREVIOUS BEAT podłączymy w następnym etapie.");
-    });
-  }
-
-  if (nextBtn) {
-    nextBtn.addEventListener("click", () => {
-      showSystemInfo("NEXT BEAT podłączymy w następnym etapie.");
-    });
-  }
-
-  if (startBtn) {
-    startBtn.addEventListener("click", () => {
-      showSystemInfo("START audio podłączymy w etapie lokalnego playera.");
-    });
-  }
-
-  if (stopBtn) {
-    stopBtn.addEventListener("click", () => {
-      showSystemInfo("STOP audio podłączymy w etapie lokalnego playera.");
-    });
-  }
-
-  if (pitchSlider) {
-    pitchSlider.addEventListener("input", () => {
-      updatePitchValue55B8B3(Number(pitchSlider.value || 0));
-    });
-  }
-
-  if (pitchMinusBtn) {
-    pitchMinusBtn.addEventListener("click", () => {
-      changePitch55B8B3(-1);
-    });
-  }
-
-  if (pitchPlusBtn) {
-    pitchPlusBtn.addEventListener("click", () => {
-      changePitch55B8B3(1);
-    });
-  }
-
-  [
-    ["#jamLoopInfinityBtn55B8B3", "INFINITY"],
-    ["#jamLoop1Btn55B8B3", "LOOP 1X"],
-    ["#jamLoop2Btn55B8B3", "LOOP 2X"],
-    ["#jamLoop4Btn55B8B3", "LOOP 4X"],
-    ["#jamLoop6Btn55B8B3", "LOOP 6X"],
-    ["#jamLoop8Btn55B8B3", "LOOP 8X"]
-  ].forEach(([selector, label]) => {
-    const btn = jamIntegratedLooperPanel55B8B2.querySelector(selector);
-
-    if (btn) {
-      btn.addEventListener("click", () => {
-        showSystemInfo(`${label} podłączymy do lokalnego playera w kolejnym etapie.`);
-      });
-    }
-  });
-}
-
-function updatePitchValue55B8B3(value) {
-  const slider = document.querySelector("#jamPitchSlider55B8B3");
-  const label = document.querySelector("#jamPitchValue55B8B3");
-
-  const safeValue = Math.max(-12, Math.min(12, Number(value || 0)));
-
-  if (slider) {
-    slider.value = String(safeValue);
-  }
-
-  if (label) {
-    label.innerText = `${safeValue}%`;
-  }
-}
-
-function changePitch55B8B3(delta) {
-  const slider = document.querySelector("#jamPitchSlider55B8B3");
-
-  const current = slider ? Number(slider.value || 0) : 0;
-
-  updatePitchValue55B8B3(current + Number(delta || 0));
-}
-
-function ensureIntegratedLooperPanel55B8B2() {
-  ensureIntegratedLooperStyles55B8B2();
-  ensureIntegratedLooperStyles55B8B3();
-
-  if (jamIntegratedLooperPanel55B8B2) {
-    return jamIntegratedLooperPanel55B8B2;
-  }
-
-  return replaceIntegratedLooperPanelMarkup55B8B3();
-}
-
-function updateHostOnlyLooperControls55B8B3() {
-  const controls = document.querySelector("#jamHostLooperControls55B8B3");
-  const hint = document.querySelector("#jamListenerBeatHint55B8B3");
-
-  const isHost = isCurrentUserHost();
-
-  if (controls) {
-    controls.classList.toggle("is-host-visible", isHost);
-  }
-
-  if (hint) {
-    hint.style.display = isHost ? "none" : "";
-  }
-}
-
-function updateMainCurrentBeatCard55B8B2() {
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) {
-    return;
-  }
-
-  ensureIntegratedLooperStyles55B8B3();
-
-  const beatState = getBeatState55B8B2();
-
-  const beatNumberBox = findBeatNumberBox55B8B2(card);
-
-  if (beatNumberBox) {
-    beatNumberBox.innerText = `#${beatState.currentIndex}`;
-    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
-    beatNumberBox.title = "Kliknij, żeby wybrać beat";
-
-    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
-      jamBeatNumberButton55B8B2 = beatNumberBox;
-
-      jamBeatNumberButton55B8B2.addEventListener("click", () => {
-        openBeatPickerModal55B8B2();
-      });
-    }
-  }
-
-  const title =
-    card.querySelector(".jam-track-meta h3") ||
-    card.querySelector("h3");
-
-  if (title) {
-    title.innerText = beatState.currentTitle.toUpperCase();
-  }
-
-  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
-    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
-  });
-
-  if (hostLine) {
-    const host = getEffectiveHost ? getEffectiveHost() : null;
-    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
-  }
-
-  if (nowPlayingPerformerLine) {
-    const performerName =
-      jamActive && jamCurrentPerformer
-        ? jamCurrentPerformer.nick
-        : "nikt";
-
-    nowPlayingPerformerLine.innerHTML =
-      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
-  }
-}
-
-function updateIntegratedLooperPanel55B8B2() {
-  const panel = ensureIntegratedLooperPanel55B8B2();
-
-  if (!panel) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-
-  const currentTitle = panel.querySelector("#jamIntegratedCurrentBeatTitle55B8B2");
-  const currentUrl = panel.querySelector("#jamIntegratedCurrentBeatUrl55B8B2");
-  const nextTitle = panel.querySelector("#jamIntegratedNextBeatTitle55B8B2");
-  const nextUrl = panel.querySelector("#jamIntegratedNextBeatUrl55B8B2");
-
-  if (currentTitle) {
-    currentTitle.innerText =
-      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
-  }
-
-  if (currentUrl) {
-    currentUrl.innerText = beatState.currentUrl || getBeatAudioUrl55B8B2(beatState.currentIndex);
-  }
-
-  if (nextTitle) {
-    nextTitle.innerText =
-      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
-  }
-
-  if (nextUrl) {
-    nextUrl.innerText = beatState.nextUrl || getBeatAudioUrl55B8B2(beatState.nextIndex);
-  }
-
-  updateHostOnlyLooperControls55B8B3();
-  updatePitchValue55B8B3(
-    Number(document.querySelector("#jamPitchSlider55B8B3")?.value || 0)
-  );
-}
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    if (jamIntegratedLooperPanel55B8B2) {
-      jamIntegratedLooperPanel55B8B2.remove();
-      jamIntegratedLooperPanel55B8B2 = null;
-    }
-
-    renderIntegratedLooper55B8B2();
-  }, 3200);
-});
-
-// =======================
-// ETAP 55B-8B4 — BEAT PICKER HOST ONLY FIX
-// Wybór beatu tylko dla Hosta będącego w pokoju
-// =======================
-
-function canCurrentUserControlBeat55B8B4() {
-  return Boolean(jamJoined && isCurrentUserHost());
-}
-
-openBeatPickerModal55B8B2 = function openBeatPickerModalHostOnly55B8B4() {
-  if (!jamJoined) {
-    showSystemInfo("Najpierw dołącz do pokoju, żeby sterować beatem.", "warn");
-    return;
-  }
-
-  if (!isCurrentUserHost()) {
-    showSystemInfo("Tylko Host może wybierać beat.", "warn");
-    return;
-  }
-
-  ensureBeatPickerModal55B8B2();
-  renderBeatPickerGrid55B8B2();
-
-  jamBeatPickerModal55B8B2.classList.remove("hidden");
-};
-
-renderBeatPickerGrid55B8B2 = function renderBeatPickerGridHostOnly55B8B4() {
-  ensureIntegratedLooperStyles55B8B2();
-
-  if (!jamBeatPickerGrid55B8B2) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-
-  jamBeatPickerGrid55B8B2.innerHTML = "";
-
-  for (let index = 1; index <= JAM_BEAT_COUNT_55B8B2; index += 1) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "jam-btn jam-beat-picker-btn-55b8b2";
-    button.innerText = `#${index}`;
-
-    if (index === beatState.currentIndex) {
-      button.classList.add("active");
-    }
-
-    button.title = getBeatAudioUrl55B8B2(index);
-
-    const canControl = canCurrentUserControlBeat55B8B4();
-
-    button.disabled = !canControl;
-
-    if (!canControl) {
-      button.classList.add("jam-btn-muted");
-    }
-
-    button.addEventListener("click", () => {
-      if (!canCurrentUserControlBeat55B8B4()) {
-        showSystemInfo("Tylko Host może wybierać beat.", "warn");
-        return;
-      }
-
-      showSystemInfo(
-        `Beat #${index} wybrany w panelu. Zapis do pokoju podłączymy w następnym etapie.`
-      );
-
-      closeBeatPickerModal55B8B2();
-    });
-
-    jamBeatPickerGrid55B8B2.appendChild(button);
-  }
-};
-
-function updateBeatSquareAccess55B8B4() {
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) return;
-
-  const beatBox = findBeatNumberBox55B8B2(card);
-
-  if (!beatBox) return;
-
-  const canControl = canCurrentUserControlBeat55B8B4();
-
-  beatBox.classList.toggle("jam-btn-muted", !canControl);
-  beatBox.style.pointerEvents = canControl ? "" : "auto";
-  beatBox.title = canControl
-    ? "Kliknij, żeby wybrać beat"
-    : "Tylko Host może wybierać beat";
-}
-
-const originalRenderIntegratedLooper55B8B4 = renderIntegratedLooper55B8B2;
-
-renderIntegratedLooper55B8B2 = function renderIntegratedLooperHostOnly55B8B4() {
-  originalRenderIntegratedLooper55B8B4();
-  updateBeatSquareAccess55B8B4();
-};
-
-// =======================
-// ETAP 55B-8B5 — BEAT SQUARE STRICT HOST ONLY
-// Kwadrat wyboru beatu klikalny tylko dla aktualnego Hosta
-// =======================
-
-let jamBeatSquareBoundElement55B8B5 = null;
-
-function getFreshBeatSquare55B8B5() {
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) {
-    return null;
-  }
-
-  return findBeatNumberBox55B8B2(card);
-}
-
-function replaceBeatSquareWithoutOldListeners55B8B5(oldElement) {
-  if (!oldElement || !oldElement.parentNode) {
-    return oldElement;
-  }
-
-  const clone = oldElement.cloneNode(true);
-
-  oldElement.parentNode.replaceChild(clone, oldElement);
-
-  if (jamBeatNumberButton55B8B2 === oldElement) {
-    jamBeatNumberButton55B8B2 = clone;
-  }
-
-  return clone;
-}
-
-function bindBeatSquareStrictHostOnly55B8B5() {
-  let beatSquare = getFreshBeatSquare55B8B5();
-
-  if (!beatSquare) {
-    return;
-  }
-
-  if (jamBeatSquareBoundElement55B8B5 !== beatSquare) {
-    beatSquare = replaceBeatSquareWithoutOldListeners55B8B5(beatSquare);
-    jamBeatSquareBoundElement55B8B5 = beatSquare;
-
-    beatSquare.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!jamJoined) {
-        showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-        return;
-      }
-
-      if (!isCurrentUserHost()) {
-        showSystemInfo("Tylko Host może wybierać beat.", "warn");
-        return;
-      }
-
-      openBeatPickerModal55B8B2();
-    });
-  }
-
-  const canControl = Boolean(jamJoined && isCurrentUserHost());
-
-  beatSquare.classList.add("jam-beat-square-clickable-55b8b2");
-  beatSquare.classList.toggle("jam-btn-muted", !canControl);
-
-  beatSquare.style.cursor = canControl ? "pointer" : "not-allowed";
-  beatSquare.style.opacity = canControl ? "1" : "0.62";
-  beatSquare.title = canControl
-    ? "Kliknij, żeby wybrać beat"
-    : "Tylko Host może wybierać beat";
-}
-
-const originalUpdateMainCurrentBeatCard55B8B5 = updateMainCurrentBeatCard55B8B2;
-
-updateMainCurrentBeatCard55B8B2 = function updateMainCurrentBeatCardStrictHostOnly55B8B5() {
-  originalUpdateMainCurrentBeatCard55B8B5();
-  bindBeatSquareStrictHostOnly55B8B5();
-};
-
-const originalRenderIntegratedLooper55B8B5 = renderIntegratedLooper55B8B2;
-
-renderIntegratedLooper55B8B2 = function renderIntegratedLooperStrictHostOnly55B8B5() {
-  originalRenderIntegratedLooper55B8B5();
-  bindBeatSquareStrictHostOnly55B8B5();
-};
-
-// =======================
-// ETAP 55B-8C — CHOOSE BEAT WRITES TO ROOM_STATE
-// Host wybiera beat #1–#36 i zapisuje go w jam_room_state
-// =======================
-
-function normalizeBeatIndex55B8C(index) {
-  const parsed = Number(index || 1);
-
-  if (!Number.isFinite(parsed)) {
-    return 1;
-  }
-
-  if (parsed < 1) {
-    return 1;
-  }
-
-  if (parsed > JAM_BEAT_COUNT_55B8B2) {
-    return JAM_BEAT_COUNT_55B8B2;
-  }
-
-  return parsed;
-}
-
-function getNextBeatIndex55B8C(index) {
-  const safeIndex = normalizeBeatIndex55B8C(index);
-
-  return safeIndex >= JAM_BEAT_COUNT_55B8B2
-    ? 1
-    : safeIndex + 1;
-}
-
-function buildBeatPayload55B8C(index) {
-  const currentIndex = normalizeBeatIndex55B8C(index);
-  const nextIndex = getNextBeatIndex55B8C(currentIndex);
-
-  return {
-    current_beat_index: currentIndex,
-    current_beat_title: getBeatTitle55B8B2(currentIndex),
-    current_beat_url: getBeatAudioUrl55B8B2(currentIndex),
-
-    next_beat_index: nextIndex,
-    next_beat_title: getBeatTitle55B8B2(nextIndex),
-    next_beat_url: getBeatAudioUrl55B8B2(nextIndex),
-
-    beat_updated_by_session_id: JAM_SESSION_ID,
-    beat_updated_by_nick: jamUser ? jamUser.nick : "Host",
-    beat_updated_at: nowIso(),
-
-    updated_by_session_id: JAM_SESSION_ID,
-    updated_by_nick: jamUser ? jamUser.nick : "Host",
-    updated_at: nowIso()
-  };
-}
-
-async function saveBeatStateToRoom55B8C(index, sourceLabel = "Host") {
-  if (!jamSupabaseClient) {
-    showSystemInfo("Brak połączenia Supabase — nie zapisano beatu.", "warn");
-    return false;
-  }
-
-  if (!jamJoined) {
-    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-    return false;
-  }
-
-  if (!isCurrentUserHost()) {
-    showSystemInfo("Tylko Host może zmieniać beat.", "warn");
-    return false;
-  }
-
-  const payload = buildBeatPayload55B8C(index);
-
-  try {
-    const { data, error } = await jamSupabaseClient
-      .from("jam_room_state")
-      .update(payload)
-      .eq("room_id", JAM_ROOM_STATE_ID)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[JAM BEAT STATE] update error:", error);
-      showSystemInfo("Nie udało się zapisać beatu w room_state.", "warn");
-      return false;
-    }
-
-    applyRoomStateToLocalState(data, {
-      silent: true,
-      source: "beat state write"
-    });
-
-    renderIntegratedLooper55B8B2();
-
-    showSystemInfo(
-      `${sourceLabel}: ustawiono ${payload.current_beat_title}.`,
-      "success"
-    );
-
-    const messageId = createMessageId();
-    jamSeenRealtimeMessageIds.add(messageId);
-
-    await sendRealtimeBroadcast("jam_status", {
-      message_id: messageId,
-      type: "beat_change",
-      current_beat_index: payload.current_beat_index,
-      current_beat_title: payload.current_beat_title,
-      current_beat_url: payload.current_beat_url,
-      next_beat_index: payload.next_beat_index,
-      next_beat_title: payload.next_beat_title,
-      next_beat_url: payload.next_beat_url,
-      session_id: JAM_SESSION_ID,
-      user_id: jamUser ? jamUser.id : null,
-      nick: jamUser ? jamUser.nick : "Host",
-      created_at: nowIso()
-    });
-
-    return true;
-  } catch (error) {
-    console.error("[JAM BEAT STATE] update exception:", error);
-    showSystemInfo("Błąd zapisu beatu.", "warn");
-    return false;
-  }
-}
-
-async function chooseBeat55B8C(index) {
-  if (!jamJoined) {
-    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-    return;
-  }
-
-  if (!isCurrentUserHost()) {
-    showSystemInfo("Tylko Host może wybierać beat.", "warn");
-    return;
-  }
-
-  const saved = await saveBeatStateToRoom55B8C(index, "Choose Beat");
-
-  if (saved) {
-    closeBeatPickerModal55B8B2();
-  }
-}
-
-// Nadpisujemy grid wyboru beatu — od teraz klik realnie zapisuje do room_state.
-renderBeatPickerGrid55B8B2 = function renderBeatPickerGridWrite55B8C() {
-  ensureIntegratedLooperStyles55B8B2();
-
-  if (!jamBeatPickerGrid55B8B2) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-  const canControl = Boolean(jamJoined && isCurrentUserHost());
-
-  jamBeatPickerGrid55B8B2.innerHTML = "";
-
-  for (let index = 1; index <= JAM_BEAT_COUNT_55B8B2; index += 1) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "jam-btn jam-beat-picker-btn-55b8b2";
-    button.innerText = `#${index}`;
-    button.title = getBeatAudioUrl55B8B2(index);
-
-    if (index === beatState.currentIndex) {
-      button.classList.add("active");
-    }
-
-    button.disabled = !canControl;
-
-    if (!canControl) {
-      button.classList.add("jam-btn-muted");
-    }
-
-    button.addEventListener("click", () => {
-      runLockedAction(async () => {
-        await chooseBeat55B8C(index);
-      }, "wybierz beat", "host_placeholder");
-    });
-
-    jamBeatPickerGrid55B8B2.appendChild(button);
-  }
-};
-
-// Obsługa broadcastu beat_change — klient pobiera room_state i odświeża panel.
-const originalHandleRealtimeJamStatus55B8C = handleRealtimeJamStatus;
-
-handleRealtimeJamStatus = function handleRealtimeJamStatusWithBeatChange55B8C(payload) {
-  if (!payload || !payload.message_id) {
-    return;
-  }
-
-  if (payload.type === "beat_change") {
-    if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
-      return;
-    }
-
-    jamSeenRealtimeMessageIds.add(payload.message_id);
-
-    fetchJamRoomState({
-      silent: true,
-      reason: "beat change broadcast"
-    });
-
-    setTimeout(() => {
-      renderIntegratedLooper55B8B2();
-    }, 250);
-
-    return;
-  }
-
-  originalHandleRealtimeJamStatus55B8C(payload);
-};
-
-// Po każdym room_state update odświeżamy panel, żeby beat zmieniał się u wszystkich.
-const originalApplyRoomStateToLocalState55B8C = applyRoomStateToLocalState;
-
-applyRoomStateToLocalState = function applyRoomStateToLocalStateWithBeat55B8C(nextRoomState, options = {}) {
-  originalApplyRoomStateToLocalState55B8C(nextRoomState, options);
-
-  setTimeout(() => {
-    renderIntegratedLooper55B8B2();
-  }, 60);
-};
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    renderIntegratedLooper55B8B2();
-  }, 3600);
-});
-
-// =======================
-// ETAP 55B-8D — LOOPER CONFIG METADATA
-// Jam Room czyta nazwy, producentów, BPM i pliki z /looper/config.js
-// =======================
-
-const JAM_LOOPER_CONFIG_SRC_55B8D = "/looper/config.js";
-
-let jamLooperConfigLoaded55B8D = false;
-let jamLooperConfigLoading55B8D = false;
-let jamLooperConfigLoadPromise55B8D = null;
-
-function loadLooperConfig55B8D() {
+function loadLooperConfigFinal() {
   if (typeof beats !== "undefined" && Array.isArray(beats)) {
-    jamLooperConfigLoaded55B8D = true;
+    jamLooperConfigLoadedFinal = true;
     return Promise.resolve(true);
   }
 
-  if (jamLooperConfigLoaded55B8D) {
+  if (jamLooperConfigLoadedFinal) {
     return Promise.resolve(true);
   }
 
-  if (jamLooperConfigLoading55B8D && jamLooperConfigLoadPromise55B8D) {
-    return jamLooperConfigLoadPromise55B8D;
+  if (jamLooperConfigLoadingFinal && jamLooperConfigLoadPromiseFinal) {
+    return jamLooperConfigLoadPromiseFinal;
   }
 
-  jamLooperConfigLoading55B8D = true;
+  jamLooperConfigLoadingFinal = true;
 
-  jamLooperConfigLoadPromise55B8D = new Promise((resolve) => {
+  jamLooperConfigLoadPromiseFinal = new Promise((resolve) => {
     const existingScript = Array.from(document.querySelectorAll("script")).find((script) => {
       return script.src && script.src.includes("/looper/config.js");
     });
 
     if (existingScript) {
       existingScript.addEventListener("load", () => {
-        jamLooperConfigLoaded55B8D = true;
-        jamLooperConfigLoading55B8D = false;
+        jamLooperConfigLoadedFinal = true;
+        jamLooperConfigLoadingFinal = false;
         resolve(true);
       });
 
       existingScript.addEventListener("error", () => {
-        jamLooperConfigLoaded55B8D = false;
-        jamLooperConfigLoading55B8D = false;
+        jamLooperConfigLoadedFinal = false;
+        jamLooperConfigLoadingFinal = false;
         resolve(false);
       });
 
@@ -8262,29 +6606,29 @@ function loadLooperConfig55B8D() {
     }
 
     const script = document.createElement("script");
-    script.src = JAM_LOOPER_CONFIG_SRC_55B8D;
+    script.src = JAM_LOOPER_CONFIG_SRC_FINAL;
     script.async = false;
 
     script.onload = () => {
-      jamLooperConfigLoaded55B8D = true;
-      jamLooperConfigLoading55B8D = false;
+      jamLooperConfigLoadedFinal = true;
+      jamLooperConfigLoadingFinal = false;
       resolve(true);
     };
 
     script.onerror = () => {
       console.error("[JAM LOOPER CONFIG] Nie udało się załadować /looper/config.js");
-      jamLooperConfigLoaded55B8D = false;
-      jamLooperConfigLoading55B8D = false;
+      jamLooperConfigLoadedFinal = false;
+      jamLooperConfigLoadingFinal = false;
       resolve(false);
     };
 
     document.head.appendChild(script);
   });
 
-  return jamLooperConfigLoadPromise55B8D;
+  return jamLooperConfigLoadPromiseFinal;
 }
 
-function getLooperBeats55B8D() {
+function getLooperBeatsFinal() {
   if (typeof beats !== "undefined" && Array.isArray(beats)) {
     return beats;
   }
@@ -8292,85 +6636,85 @@ function getLooperBeats55B8D() {
   return [];
 }
 
-function getLooperBeatByIndex55B8D(index) {
-  const safeIndex = normalizeBeatIndex55B8C
-    ? normalizeBeatIndex55B8C(index)
-    : Number(index || 1);
+function normalizeBeatIndexFinal(index) {
+  const parsed = Number(index || 1);
 
-  const looperBeats = getLooperBeats55B8D();
+  if (!Number.isFinite(parsed)) return 1;
+  if (parsed < 1) return 1;
+  if (parsed > JAM_BEAT_COUNT_FINAL) return JAM_BEAT_COUNT_FINAL;
 
-  return looperBeats.find((beat) => {
+  return parsed;
+}
+
+function getNextBeatIndexFinal(index) {
+  const safeIndex = normalizeBeatIndexFinal(index);
+
+  return safeIndex >= JAM_BEAT_COUNT_FINAL
+    ? 1
+    : safeIndex + 1;
+}
+
+function getPreviousBeatIndexFinal(index) {
+  const safeIndex = normalizeBeatIndexFinal(index);
+
+  return safeIndex <= 1
+    ? JAM_BEAT_COUNT_FINAL
+    : safeIndex - 1;
+}
+
+function getLooperBeatByIndexFinal(index) {
+  const safeIndex = normalizeBeatIndexFinal(index);
+  const list = getLooperBeatsFinal();
+
+  return list.find((beat) => {
     return Number(beat.id) === Number(safeIndex);
   }) || null;
 }
 
-function getLooperAudioUrl55B8D(beat) {
-  if (!beat || !beat.file) {
-    const fallbackIndex = beat && beat.id ? beat.id : 1;
-    return `/looper/assets/audio/beat${fallbackIndex}.mp3`;
-  }
+function toLooperAssetUrlFinal(path, fallback = "") {
+  if (!path) return fallback;
 
-  const file = String(beat.file);
+  const value = String(path);
 
-  if (file.startsWith("/")) {
-    return file;
-  }
+  if (value.startsWith("/")) return value;
+  if (value.startsWith("looper/")) return `/${value}`;
+  if (value.startsWith("assets/")) return `/looper/${value}`;
 
-  if (file.startsWith("looper/")) {
-    return `/${file}`;
-  }
-
-  if (file.startsWith("assets/")) {
-    return `/looper/${file}`;
-  }
-
-  return `/looper/${file}`;
+  return `/looper/${value}`;
 }
 
-function getLooperImageUrl55B8D(beat) {
-  if (!beat || !beat.image) {
-    return "";
-  }
+function getBeatAudioUrlFinal(index) {
+  const beat = getLooperBeatByIndexFinal(index);
 
-  const image = String(beat.image);
-
-  if (image.startsWith("/")) {
-    return image;
-  }
-
-  if (image.startsWith("looper/")) {
-    return `/${image}`;
-  }
-
-  if (image.startsWith("assets/")) {
-    return `/looper/${image}`;
-  }
-
-  return `/looper/${image}`;
-}
-
-function getBeatTitle55B8B2(index) {
-  const beat = getLooperBeatByIndex55B8D(index);
-
-  if (beat && beat.title) {
-    return beat.title;
-  }
-
-  return `Beat ${String(Number(index)).padStart(2, "0")}`;
-}
-
-function getBeatAudioUrl55B8B2(index) {
-  const beat = getLooperBeatByIndex55B8D(index);
-
-  if (beat) {
-    return getLooperAudioUrl55B8D(beat);
+  if (beat && beat.file) {
+    return toLooperAssetUrlFinal(beat.file, `/looper/assets/audio/beat${Number(index)}.mp3`);
   }
 
   return `/looper/assets/audio/beat${Number(index)}.mp3`;
 }
 
-function getBeatProducer55B8D(index) {
-  const beat = getLooperBeatByIndex55B8D(index);
+function getBeatImageUrlFinal(index) {
+  const beat = getLooperBeatByIndexFinal(index);
+
+  if (beat && beat.image) {
+    return toLooperAssetUrlFinal(beat.image, "");
+  }
+
+  return "";
+}
+
+function getBeatTitleFinal(index) {
+  const beat = getLooperBeatByIndexFinal(index);
+
+  if (beat && beat.title) {
+    return String(beat.title).trim() || `Beat ${index}`;
+  }
+
+  return `Beat ${String(Number(index)).padStart(2, "0")}`;
+}
+
+function getBeatProducerFinal(index) {
+  const beat = getLooperBeatByIndexFinal(index);
 
   if (beat && beat.producer) {
     return String(beat.producer).trim() || "Unknown";
@@ -8379,8 +6723,8 @@ function getBeatProducer55B8D(index) {
   return "Unknown";
 }
 
-function getBeatBpm55B8D(index) {
-  const beat = getLooperBeatByIndex55B8D(index);
+function getBeatBpmFinal(index) {
+  const beat = getLooperBeatByIndexFinal(index);
 
   if (beat && beat.bpm !== null && beat.bpm !== undefined) {
     return beat.bpm;
@@ -8389,21 +6733,15 @@ function getBeatBpm55B8D(index) {
   return null;
 }
 
-function getBeatImage55B8D(index) {
-  const beat = getLooperBeatByIndex55B8D(index);
-
-  return getLooperImageUrl55B8D(beat);
-}
-
-function formatBeatBpm55B8D(bpmValue) {
-  if (bpmValue === null || bpmValue === undefined || bpmValue === "") {
+function formatBeatBpmFinal(value) {
+  if (value === null || value === undefined || value === "") {
     return "--";
   }
 
-  const parsed = Number(bpmValue);
+  const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    return String(bpmValue);
+    return String(value);
   }
 
   return Number.isInteger(parsed)
@@ -8411,89 +6749,46 @@ function formatBeatBpm55B8D(bpmValue) {
     : parsed.toFixed(2);
 }
 
-function getBeatState55B8B2() {
+function getBeatStateFinal() {
   const state = jamRoomState || {};
 
-  const currentIndex = Number(state.current_beat_index || 1);
-  const fallbackNextIndex =
-    currentIndex >= JAM_BEAT_COUNT_55B8B2
-      ? 1
-      : currentIndex + 1;
-
-  const nextIndex = Number(state.next_beat_index || fallbackNextIndex);
-
-  const currentBeat = getLooperBeatByIndex55B8D(currentIndex);
-  const nextBeat = getLooperBeatByIndex55B8D(nextIndex);
+  const currentIndex = normalizeBeatIndexFinal(state.current_beat_index || 1);
+  const nextIndex = normalizeBeatIndexFinal(
+    state.next_beat_index || getNextBeatIndexFinal(currentIndex)
+  );
 
   return {
     currentIndex,
-    currentTitle:
-      currentBeat?.title ||
-      state.current_beat_title ||
-      `Beat ${String(currentIndex).padStart(2, "0")}`,
-    currentProducer:
-      currentBeat?.producer ||
-      "Unknown",
-    currentBpm:
-      currentBeat?.bpm ?? null,
-    currentUrl:
-      currentBeat
-        ? getLooperAudioUrl55B8D(currentBeat)
-        : state.current_beat_url || `/looper/assets/audio/beat${currentIndex}.mp3`,
-    currentImage:
-      currentBeat
-        ? getLooperImageUrl55B8D(currentBeat)
-        : "",
+    currentTitle: getBeatTitleFinal(currentIndex),
+    currentProducer: getBeatProducerFinal(currentIndex),
+    currentBpm: getBeatBpmFinal(currentIndex),
+    currentUrl: getBeatAudioUrlFinal(currentIndex),
+    currentImage: getBeatImageUrlFinal(currentIndex),
 
     nextIndex,
-    nextTitle:
-      nextBeat?.title ||
-      state.next_beat_title ||
-      `Beat ${String(nextIndex).padStart(2, "0")}`,
-    nextProducer:
-      nextBeat?.producer ||
-      "Unknown",
-    nextBpm:
-      nextBeat?.bpm ?? null,
-    nextUrl:
-      nextBeat
-        ? getLooperAudioUrl55B8D(nextBeat)
-        : state.next_beat_url || `/looper/assets/audio/beat${nextIndex}.mp3`,
-    nextImage:
-      nextBeat
-        ? getLooperImageUrl55B8D(nextBeat)
-        : "",
+    nextTitle: getBeatTitleFinal(nextIndex),
+    nextProducer: getBeatProducerFinal(nextIndex),
+    nextBpm: getBeatBpmFinal(nextIndex),
+    nextUrl: getBeatAudioUrlFinal(nextIndex),
+    nextImage: getBeatImageUrlFinal(nextIndex),
 
     updatedBy: state.beat_updated_by_nick || "System",
     updatedAt: state.beat_updated_at || null
   };
 }
 
-function buildBeatPayload55B8C(index) {
-  const currentIndex = normalizeBeatIndex55B8C(index);
-  const nextIndex = getNextBeatIndex55B8C(currentIndex);
-
-  const currentBeat = getLooperBeatByIndex55B8D(currentIndex);
-  const nextBeat = getLooperBeatByIndex55B8D(nextIndex);
+function buildBeatPayloadFinal(index) {
+  const currentIndex = normalizeBeatIndexFinal(index);
+  const nextIndex = getNextBeatIndexFinal(currentIndex);
 
   return {
     current_beat_index: currentIndex,
-    current_beat_title:
-      currentBeat?.title ||
-      `Beat ${String(currentIndex).padStart(2, "0")}`,
-    current_beat_url:
-      currentBeat
-        ? getLooperAudioUrl55B8D(currentBeat)
-        : `/looper/assets/audio/beat${currentIndex}.mp3`,
+    current_beat_title: getBeatTitleFinal(currentIndex),
+    current_beat_url: getBeatAudioUrlFinal(currentIndex),
 
     next_beat_index: nextIndex,
-    next_beat_title:
-      nextBeat?.title ||
-      `Beat ${String(nextIndex).padStart(2, "0")}`,
-    next_beat_url:
-      nextBeat
-        ? getLooperAudioUrl55B8D(nextBeat)
-        : `/looper/assets/audio/beat${nextIndex}.mp3`,
+    next_beat_title: getBeatTitleFinal(nextIndex),
+    next_beat_url: getBeatAudioUrlFinal(nextIndex),
 
     beat_updated_by_session_id: JAM_SESSION_ID,
     beat_updated_by_nick: jamUser ? jamUser.nick : "Host",
@@ -8505,228 +6800,77 @@ function buildBeatPayload55B8C(index) {
   };
 }
 
-function ensureBeatMetaLine55B8D(card) {
-  if (!card) return null;
-
-  let metaLine = card.querySelector("#jamMainBeatMeta55B8D");
-
-  if (metaLine) {
-    return metaLine;
-  }
-
-  const trackMeta =
-    card.querySelector(".jam-track-meta") ||
-    card.querySelector(".jam-card-body") ||
-    card;
-
-  metaLine = document.createElement("p");
-  metaLine.id = "jamMainBeatMeta55B8D";
-  metaLine.className = "jam-small-label";
-  metaLine.style.marginTop = "6px";
-
-  const title =
-    trackMeta.querySelector("h3") ||
-    trackMeta.querySelector("h2");
-
-  if (title && title.parentNode) {
-    title.parentNode.insertBefore(metaLine, title.nextSibling);
-  } else {
-    trackMeta.appendChild(metaLine);
-  }
-
-  return metaLine;
-}
-
-function ensureBeatCover55B8D(card) {
-  if (!card) return null;
-
-  let cover = card.querySelector("#jamMainBeatCover55B8D");
-
-  if (cover) {
-    return cover;
-  }
-
-  const beatSquare = findBeatNumberBox55B8B2(card);
-
-  cover = document.createElement("div");
-  cover.id = "jamMainBeatCover55B8D";
-  cover.style.width = "92px";
-  cover.style.height = "92px";
-  cover.style.borderRadius = "16px";
-  cover.style.backgroundSize = "cover";
-  cover.style.backgroundPosition = "center";
-  cover.style.border = "1px solid rgba(234,162,33,0.22)";
-  cover.style.boxShadow = "0 10px 24px rgba(0,0,0,0.25)";
-
-  if (beatSquare && beatSquare.parentNode) {
-    beatSquare.parentNode.insertBefore(cover, beatSquare.nextSibling);
-  }
-
-  return cover;
-}
-
-function updateMainCurrentBeatCard55B8B2() {
-  const card = findCurrentBeatCard55B8B2();
-
-  if (!card) {
-    return;
-  }
-
-  ensureIntegratedLooperStyles55B8B3();
-
-  const beatState = getBeatState55B8B2();
-
-  const beatNumberBox = findBeatNumberBox55B8B2(card);
-
-  if (beatNumberBox) {
-    beatNumberBox.innerText = `#${beatState.currentIndex}`;
-    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
-    beatNumberBox.title = "Kliknij, żeby wybrać beat";
-
-    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
-      jamBeatNumberButton55B8B2 = beatNumberBox;
-
-      jamBeatNumberButton55B8B2.addEventListener("click", () => {
-        openBeatPickerModal55B8B2();
-      });
-    }
-  }
-
-  const title =
-    card.querySelector(".jam-track-meta h3") ||
-    card.querySelector("h3");
-
-  if (title) {
-    title.innerText = beatState.currentTitle.toUpperCase();
-  }
-
-  const metaLine = ensureBeatMetaLine55B8D(card);
-
-  if (metaLine) {
-    metaLine.innerText =
-      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
-  }
-
-  const cover = ensureBeatCover55B8D(card);
-
-  if (cover && beatState.currentImage) {
-    cover.style.backgroundImage = `url("${beatState.currentImage}")`;
-  }
-
-  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
-    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
-  });
-
-  if (hostLine) {
-    const host = getEffectiveHost ? getEffectiveHost() : null;
-    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
-  }
-
-  if (nowPlayingPerformerLine) {
-    const performerName =
-      jamActive && jamCurrentPerformer
-        ? jamCurrentPerformer.nick
-        : "nikt";
-
-    nowPlayingPerformerLine.innerHTML =
-      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
-  }
-}
-
-function updateIntegratedLooperPanel55B8B2() {
-  const panel = ensureIntegratedLooperPanel55B8B2();
-
-  if (!panel) {
-    return;
-  }
-
-  const beatState = getBeatState55B8B2();
-
-  const currentTitle = panel.querySelector("#jamIntegratedCurrentBeatTitle55B8B2");
-  const currentUrl = panel.querySelector("#jamIntegratedCurrentBeatUrl55B8B2");
-  const nextTitle = panel.querySelector("#jamIntegratedNextBeatTitle55B8B2");
-  const nextUrl = panel.querySelector("#jamIntegratedNextBeatUrl55B8B2");
-
-  if (currentTitle) {
-    currentTitle.innerText =
-      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
-  }
-
-  if (currentUrl) {
-    currentUrl.innerText =
-      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)} | ${beatState.currentUrl}`;
-  }
-
-  if (nextTitle) {
-    nextTitle.innerText =
-      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
-  }
-
-  if (nextUrl) {
-    nextUrl.innerText =
-      `Producent: ${beatState.nextProducer} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)} | ${beatState.nextUrl}`;
-  }
-
-  updateHostOnlyLooperControls55B8B3();
-  updatePitchValue55B8B3(
-    Number(document.querySelector("#jamPitchSlider55B8B3")?.value || 0)
-  );
-}
-
-async function initLooperConfigMetadata55B8D() {
-  const loaded = await loadLooperConfig55B8D();
-
-  if (!loaded) {
-    showSystemInfo("Nie udało się załadować metadanych z /looper/config.js.", "warn");
-    return;
-  }
-
-  renderIntegratedLooper55B8B2();
-
-  const beatState = getBeatState55B8B2();
-
-  if (isCurrentUserHost && isCurrentUserHost()) {
-    await saveBeatStateToRoom55B8C(beatState.currentIndex, "Config metadata");
-  }
-
-  showSystemInfo("Metadane beatów załadowane z config.js.", "success");
-}
-
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    initLooperConfigMetadata55B8D();
-  }, 4200);
-});
-
 // =======================
-// ETAP 55B-8D1-FINAL — CLEAN TOP PLAYER LAYOUT
-// Naprawiony układ: # + cover po lewej, meta po środku, następny beat po prawej.
-// Bez konfliktów z poprzednimi D1/D2/D3/D4.
+// HOST CONTROL GUARD
 // =======================
 
-let jamTopPlayer55B8D1Final = null;
+function isCurrentUserHostFinal() {
+  if (!jamJoined) return false;
 
-function ensureTopPlayerStyles55B8D1Final() {
-  if (document.querySelector("#jamTopPlayerStyles55B8D1Final")) {
+  if (typeof isCurrentUserHost === "function" && isCurrentUserHost()) {
+    return true;
+  }
+
+  const host =
+    typeof getEffectiveHost === "function"
+      ? getEffectiveHost()
+      : null;
+
+  return Boolean(host && host.sessionId === JAM_SESSION_ID);
+}
+
+// =======================
+// STYLES
+// =======================
+
+function ensureJamLooperPlayerStylesFinal() {
+  if (document.querySelector("#jamLooperPlayerStylesFinal")) {
     return;
   }
 
   const style = document.createElement("style");
-  style.id = "jamTopPlayerStyles55B8D1Final";
+  style.id = "jamLooperPlayerStylesFinal";
 
   style.innerHTML = `
-    #jamTopPlayer55B8D1Final {
+    .jam-current-beat-final-clean > .jam-now-playing,
+    .jam-current-beat-final-clean > .jam-track,
+    .jam-current-beat-final-clean > .jam-track-row,
+    .jam-current-beat-final-clean > .jam-track-meta,
+    .jam-current-beat-final-clean > .jam-integrated-looper-55b8b2,
+    .jam-current-beat-final-clean > #jamBeatPanel55B8B,
+    .jam-current-beat-final-clean #jamMainBeatCover55B8D,
+    .jam-current-beat-final-clean #jamMainBeatMeta55B8D,
+    .jam-current-beat-final-clean #jamMainNextBeatBox55B8D2,
+    .jam-current-beat-final-clean #jamCleanMainPlayer55B8D3,
+    .jam-current-beat-final-clean #jamTopPlayer55B8D1Final {
+      display: none !important;
+    }
+
+    #jamBeatPanel55B8B,
+    .jam-beat-panel {
+      display: none !important;
+    }
+
+    .jam-card:has(> h2) .jam-old-looper-final-hidden {
+      display: none !important;
+    }
+
+    #jamLooperPlayerFinal {
+      display: block;
+      margin-top: 14px;
+    }
+
+    .jam-looper-final-top {
       display: grid;
       grid-template-columns: 112px minmax(0, 1fr) minmax(230px, 320px);
       gap: 18px;
       align-items: center;
       width: 100%;
-      margin: 14px 0 16px;
       padding-bottom: 16px;
       border-bottom: 1px solid rgba(234,162,33,0.18);
     }
 
-    .jam-top-beat-square-55b8d1final {
+    .jam-looper-final-square {
       width: 104px;
       height: 104px;
       min-width: 104px;
@@ -8754,16 +6898,16 @@ function ensureTopPlayerStyles55B8D1Final() {
       user-select: none;
     }
 
-    .jam-top-beat-square-55b8d1final.not-host {
+    .jam-looper-final-square.not-host {
       cursor: not-allowed;
       opacity: 0.66;
     }
 
-    .jam-top-meta-55b8d1final {
+    .jam-looper-final-meta {
       min-width: 0;
     }
 
-    .jam-top-title-55b8d1final {
+    .jam-looper-final-title {
       margin: 0 0 8px;
       color: rgba(234,162,33,0.98);
       font-size: clamp(22px, 3vw, 34px);
@@ -8773,7 +6917,7 @@ function ensureTopPlayerStyles55B8D1Final() {
       text-transform: uppercase;
     }
 
-    .jam-top-main-meta-55b8d1final {
+    .jam-looper-final-main-meta {
       margin: 0 0 8px;
       color: rgba(255,255,255,0.86);
       font-size: 15px;
@@ -8782,14 +6926,14 @@ function ensureTopPlayerStyles55B8D1Final() {
       text-transform: uppercase;
     }
 
-    .jam-top-subline-55b8d1final {
+    .jam-looper-final-subline {
       margin: 0 0 4px;
       color: rgba(255,255,255,0.62);
       font-size: 13px;
       font-weight: 800;
     }
 
-    .jam-top-next-55b8d1final {
+    .jam-looper-final-next {
       min-height: 100px;
       padding: 14px;
       border-radius: 18px;
@@ -8801,7 +6945,7 @@ function ensureTopPlayerStyles55B8D1Final() {
       gap: 6px;
     }
 
-    .jam-top-next-55b8d1final p {
+    .jam-looper-final-next p {
       margin: 0;
       color: rgba(234,162,33,0.84);
       font-size: 12px;
@@ -8810,68 +6954,85 @@ function ensureTopPlayerStyles55B8D1Final() {
       text-transform: uppercase;
     }
 
-    .jam-top-next-55b8d1final strong {
+    .jam-looper-final-next strong {
       color: rgba(255,255,255,0.94);
       font-size: 18px;
       line-height: 1.1;
     }
 
-    .jam-top-next-55b8d1final span {
+    .jam-looper-final-next span {
       color: rgba(255,255,255,0.66);
       font-size: 12px;
       line-height: 1.3;
     }
 
-    /* Ukrywamy stare elementy tylko w głównym kaflu AKTUALNY BEAT */
-    .jam-current-beat-cleaned-55b8d1final > .jam-now-playing,
-    .jam-current-beat-cleaned-55b8d1final > .jam-track,
-    .jam-current-beat-cleaned-55b8d1final > .jam-track-row,
-    .jam-current-beat-cleaned-55b8d1final > .jam-track-meta,
-    .jam-current-beat-cleaned-55b8d1final #jamMainBeatCover55B8D,
-    .jam-current-beat-cleaned-55b8d1final #jamMainBeatMeta55B8D,
-    .jam-current-beat-cleaned-55b8d1final #jamMainNextBeatBox55B8D2,
-    .jam-current-beat-cleaned-55b8d1final #jamCleanMainPlayer55B8D3 {
+    .jam-looper-final-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .jam-looper-final-controls.host-hidden {
       display: none !important;
     }
 
-    /* W zintegrowanym panelu zostawiamy tylko sterowanie, bez zdublowanych boxów current/next */
-    #jamIntegratedLooperPanel55B8B2 .jam-beat-state-grid-55b8b2 {
-      display: none !important;
+    .jam-looper-final-hint {
+      margin-top: 12px;
+      color: rgba(255,255,255,0.58);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
 
-    #jamIntegratedLooperPanel55B8B2 {
-      display: block !important;
-      margin-top: 14px !important;
-      padding-top: 0 !important;
-      border-top: 0 !important;
+    .jam-looper-final-pitch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: min(100%, 280px);
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(234,162,33,0.24);
+      background: rgba(0,0,0,0.24);
     }
 
-    #jamIntegratedLooperPanel55B8B2 .jam-integrated-header-55b8b2 {
-      display: flex !important;
+    .jam-looper-final-pitch input {
+      flex: 1;
+      accent-color: rgba(234,162,33,0.96);
     }
 
-    #jamHostLooperControls55B8B3 {
-      margin-top: 12px !important;
+    .jam-looper-final-pitch span {
+      min-width: 48px;
+      text-align: right;
+      color: rgba(255,255,255,0.78);
+      font-size: 12px;
+      font-weight: 900;
     }
 
     @media (max-width: 860px) {
-      #jamTopPlayer55B8D1Final {
+      .jam-looper-final-top {
         grid-template-columns: 104px minmax(0, 1fr);
       }
 
-      .jam-top-next-55b8d1final {
+      .jam-looper-final-next {
         grid-column: 1 / -1;
       }
     }
 
     @media (max-width: 560px) {
-      #jamTopPlayer55B8D1Final {
+      .jam-looper-final-top {
         grid-template-columns: 1fr;
         text-align: center;
       }
 
-      .jam-top-beat-square-55b8d1final {
+      .jam-looper-final-square {
         margin: 0 auto;
+      }
+
+      .jam-looper-final-controls {
+        justify-content: center;
       }
     }
   `;
@@ -8879,7 +7040,11 @@ function ensureTopPlayerStyles55B8D1Final() {
   document.head.appendChild(style);
 }
 
-function findCurrentBeatCard55B8D1Final() {
+// =======================
+// DOM PLAYER
+// =======================
+
+function findCurrentBeatCardFinal() {
   const cards = Array.from(document.querySelectorAll(".jam-card"));
 
   return cards.find((card) => {
@@ -8888,90 +7053,103 @@ function findCurrentBeatCard55B8D1Final() {
   }) || null;
 }
 
-function getBeatImageSafe55B8D1Final(beatState) {
-  if (beatState && beatState.currentImage) {
-    return beatState.currentImage;
-  }
+function hideOldLooperCardsFinal() {
+  const cards = Array.from(document.querySelectorAll(".jam-card"));
 
-  if (
-    beatState &&
-    typeof getBeatImage55B8D === "function"
-  ) {
-    return getBeatImage55B8D(beatState.currentIndex);
-  }
+  cards.forEach((card) => {
+    const h2 = card.querySelector("h2");
 
-  return "";
+    if (!h2) return;
+
+    const title = h2.innerText.trim().toLowerCase();
+
+    if (
+      title === "funkcje loopera w pokoju" &&
+      card.innerText.includes("Docelowo host będzie sterował beatem")
+    ) {
+      card.style.display = "none";
+    }
+  });
 }
 
-function isCurrentUserHostStrict55B8D1Final() {
-  if (!jamJoined) {
-    return false;
-  }
+function ensureJamLooperPlayerFinal() {
+  ensureJamLooperPlayerStylesFinal();
 
-  if (typeof isCurrentUserHost === "function" && isCurrentUserHost()) {
-    return true;
-  }
-
-  const host =
-    typeof getEffectiveHost === "function"
-      ? getEffectiveHost()
-      : null;
-
-  return Boolean(
-    host &&
-    host.sessionId &&
-    host.sessionId === JAM_SESSION_ID
-  );
-}
-
-function ensureTopPlayer55B8D1Final() {
-  ensureTopPlayerStyles55B8D1Final();
-
-  const card = findCurrentBeatCard55B8D1Final();
+  const card = findCurrentBeatCardFinal();
 
   if (!card) {
     return null;
   }
 
-  card.classList.add("jam-current-beat-cleaned-55b8d1final");
+  hideOldLooperCardsFinal();
 
-  let player = card.querySelector("#jamTopPlayer55B8D1Final");
+  card.classList.add("jam-current-beat-final-clean");
+
+  let player = card.querySelector("#jamLooperPlayerFinal");
 
   if (player) {
-    jamTopPlayer55B8D1Final = player;
     return player;
   }
 
   player = document.createElement("div");
-  player.id = "jamTopPlayer55B8D1Final";
+  player.id = "jamLooperPlayerFinal";
 
   player.innerHTML = `
-    <button id="jamTopBeatSquare55B8D1Final" class="jam-top-beat-square-55b8d1final" type="button">
-      #1
-    </button>
+    <div class="jam-looper-final-top">
+      <button id="jamLooperBeatSquareFinal" class="jam-looper-final-square" type="button">
+        #1
+      </button>
 
-    <div class="jam-top-meta-55b8d1final">
-      <h3 id="jamTopBeatTitle55B8D1Final" class="jam-top-title-55b8d1final">
-        Beat
-      </h3>
+      <div class="jam-looper-final-meta">
+        <h3 id="jamLooperBeatTitleFinal" class="jam-looper-final-title">Beat</h3>
 
-      <p id="jamTopBeatMeta55B8D1Final" class="jam-top-main-meta-55b8d1final">
-        Producent: -- | BPM: --
-      </p>
+        <p id="jamLooperBeatMetaFinal" class="jam-looper-final-main-meta">
+          Producent: -- | BPM: --
+        </p>
 
-      <p id="jamTopBeatPerformer55B8D1Final" class="jam-top-subline-55b8d1final">
-        Aktualnie skreczuje: nikt
-      </p>
+        <p id="jamLooperPerformerFinal" class="jam-looper-final-subline">
+          Aktualnie skreczuje: nikt
+        </p>
 
-      <p id="jamTopBeatHost55B8D1Final" class="jam-top-subline-55b8d1final">
-        Host: brak
-      </p>
+        <p id="jamLooperHostFinal" class="jam-looper-final-subline">
+          Host: brak
+        </p>
+      </div>
+
+      <div class="jam-looper-final-next">
+        <p>Następny beat</p>
+        <strong id="jamLooperNextTitleFinal">#-- — Beat</strong>
+        <span id="jamLooperNextMetaFinal">Producent: -- | BPM: --</span>
+      </div>
     </div>
 
-    <div class="jam-top-next-55b8d1final">
-      <p>Następny beat</p>
-      <strong id="jamTopNextTitle55B8D1Final">#-- — Beat</strong>
-      <span id="jamTopNextMeta55B8D1Final">Producent: -- | BPM: --</span>
+    <div id="jamLooperControlsFinal" class="jam-looper-final-controls">
+      <button class="jam-btn" type="button" id="jamPrevBeatFinal">PREVIOUS BEAT</button>
+      <button class="jam-btn" type="button" id="jamChooseBeatFinal">CHOOSE BEAT</button>
+      <button class="jam-btn" type="button" id="jamNextBeatFinal">NEXT BEAT</button>
+
+      <button class="jam-btn jam-btn-primary" type="button" id="jamStartBeatFinal">START</button>
+      <button class="jam-btn jam-btn-danger" type="button" id="jamStopBeatFinal">STOP</button>
+
+      <button class="jam-btn" type="button" id="jamLoopInfinityFinal">INFINITY</button>
+      <button class="jam-btn" type="button" id="jamLoop1Final">LOOP 1X</button>
+      <button class="jam-btn" type="button" id="jamLoop2Final">LOOP 2X</button>
+      <button class="jam-btn" type="button" id="jamLoop4Final">LOOP 4X</button>
+      <button class="jam-btn" type="button" id="jamLoop6Final">LOOP 6X</button>
+      <button class="jam-btn" type="button" id="jamLoop8Final">LOOP 8X</button>
+
+      <button class="jam-btn" type="button" id="jamPitchMinusFinal">PITCH -</button>
+
+      <div class="jam-looper-final-pitch">
+        <input id="jamPitchSliderFinal" type="range" min="-12" max="12" step="1" value="0">
+        <span id="jamPitchValueFinal">0%</span>
+      </div>
+
+      <button class="jam-btn" type="button" id="jamPitchPlusFinal">PITCH +</button>
+    </div>
+
+    <div id="jamLooperHintFinal" class="jam-looper-final-hint">
+      Sterowanie beatem widoczne jest tylko dla Hosta.
     </div>
   `;
 
@@ -8983,69 +7161,150 @@ function ensureTopPlayer55B8D1Final() {
     card.prepend(player);
   }
 
-  jamTopPlayer55B8D1Final = player;
+  bindJamLooperPlayerEventsFinal(player);
 
-  const square = player.querySelector("#jamTopBeatSquare55B8D1Final");
-
-  if (square) {
-    square.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      if (!jamJoined) {
-        showSystemInfo("Najpierw dołącz do pokoju.", "warn");
-        return;
-      }
-
-      if (!isCurrentUserHostStrict55B8D1Final()) {
-        showSystemInfo("Tylko Host może wybierać beat.", "warn");
-        return;
-      }
-
-      openBeatPickerModal55B8B2();
-    });
-  }
+  jamLooperPlayerMountedFinal = true;
 
   return player;
 }
 
-function renderTopPlayer55B8D1Final() {
-  const player = ensureTopPlayer55B8D1Final();
+function getPitchValueFinal() {
+  const slider = document.querySelector("#jamPitchSliderFinal");
 
-  if (!player) {
-    return;
+  return slider ? Number(slider.value || 0) : 0;
+}
+
+function updatePitchValueFinal(value) {
+  const safeValue = Math.max(-12, Math.min(12, Number(value || 0)));
+  const slider = document.querySelector("#jamPitchSliderFinal");
+  const label = document.querySelector("#jamPitchValueFinal");
+
+  if (slider) {
+    slider.value = String(safeValue);
   }
 
-  const beatState =
-    typeof getBeatState55B8B2 === "function"
-      ? getBeatState55B8B2()
-      : {
-          currentIndex: 1,
-          currentTitle: "Beat",
-          currentProducer: "Unknown",
-          currentBpm: null,
-          nextIndex: 2,
-          nextTitle: "Beat",
-          nextProducer: "Unknown",
-          nextBpm: null,
-          currentImage: ""
-        };
+  if (label) {
+    label.innerText = `${safeValue}%`;
+  }
+}
 
-  const isHost = isCurrentUserHostStrict55B8D1Final();
+function changePitchFinal(delta) {
+  updatePitchValueFinal(getPitchValueFinal() + Number(delta || 0));
+}
 
-  const square = player.querySelector("#jamTopBeatSquare55B8D1Final");
-  const title = player.querySelector("#jamTopBeatTitle55B8D1Final");
-  const meta = player.querySelector("#jamTopBeatMeta55B8D1Final");
-  const performer = player.querySelector("#jamTopBeatPerformer55B8D1Final");
-  const hostLine = player.querySelector("#jamTopBeatHost55B8D1Final");
-  const nextTitle = player.querySelector("#jamTopNextTitle55B8D1Final");
-  const nextMeta = player.querySelector("#jamTopNextMeta55B8D1Final");
+function bindJamLooperPlayerEventsFinal(player) {
+  if (!player) return;
 
-  const image = getBeatImageSafe55B8D1Final(beatState);
+  const square = player.querySelector("#jamLooperBeatSquareFinal");
+  const chooseBtn = player.querySelector("#jamChooseBeatFinal");
+  const prevBtn = player.querySelector("#jamPrevBeatFinal");
+  const nextBtn = player.querySelector("#jamNextBeatFinal");
+  const startBtn = player.querySelector("#jamStartBeatFinal");
+  const stopBtn = player.querySelector("#jamStopBeatFinal");
+  const pitchMinus = player.querySelector("#jamPitchMinusFinal");
+  const pitchPlus = player.querySelector("#jamPitchPlusFinal");
+  const pitchSlider = player.querySelector("#jamPitchSliderFinal");
+
+  const openPicker = () => {
+    if (!jamJoined) {
+      showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+      return;
+    }
+
+    if (!isCurrentUserHostFinal()) {
+      showSystemInfo("Tylko Host może wybierać beat.", "warn");
+      return;
+    }
+
+    openBeatPickerModalFinal();
+  };
+
+  if (square) square.onclick = openPicker;
+  if (chooseBtn) chooseBtn.onclick = openPicker;
+
+  if (prevBtn) {
+    prevBtn.onclick = () => {
+      runLockedAction(async () => {
+        const beatState = getBeatStateFinal();
+        await saveBeatStateToRoomFinal(getPreviousBeatIndexFinal(beatState.currentIndex), "Previous Beat");
+      }, "previous beat", "host_placeholder");
+    };
+  }
+
+  if (nextBtn) {
+    nextBtn.onclick = () => {
+      runLockedAction(async () => {
+        const beatState = getBeatStateFinal();
+        await saveBeatStateToRoomFinal(getNextBeatIndexFinal(beatState.currentIndex), "Next Beat");
+      }, "next beat", "host_placeholder");
+    };
+  }
+
+  if (startBtn) {
+    startBtn.onclick = () => {
+      showSystemInfo("START audio podłączymy w kolejnym etapie.");
+    };
+  }
+
+  if (stopBtn) {
+    stopBtn.onclick = () => {
+      showSystemInfo("STOP audio podłączymy w kolejnym etapie.");
+    };
+  }
+
+  [
+    ["#jamLoopInfinityFinal", "INFINITY"],
+    ["#jamLoop1Final", "LOOP 1X"],
+    ["#jamLoop2Final", "LOOP 2X"],
+    ["#jamLoop4Final", "LOOP 4X"],
+    ["#jamLoop6Final", "LOOP 6X"],
+    ["#jamLoop8Final", "LOOP 8X"]
+  ].forEach(([selector, label]) => {
+    const button = player.querySelector(selector);
+
+    if (button) {
+      button.onclick = () => {
+        showSystemInfo(`${label} podłączymy do lokalnego playera.`);
+      };
+    }
+  });
+
+  if (pitchMinus) {
+    pitchMinus.onclick = () => changePitchFinal(-1);
+  }
+
+  if (pitchPlus) {
+    pitchPlus.onclick = () => changePitchFinal(1);
+  }
+
+  if (pitchSlider) {
+    pitchSlider.oninput = () => updatePitchValueFinal(Number(pitchSlider.value || 0));
+  }
+}
+
+function renderJamLooperPlayerFinal() {
+  const player = ensureJamLooperPlayerFinal();
+
+  if (!player) return;
+
+  const beatState = getBeatStateFinal();
+  const isHost = isCurrentUserHostFinal();
+
+  const square = player.querySelector("#jamLooperBeatSquareFinal");
+  const title = player.querySelector("#jamLooperBeatTitleFinal");
+  const meta = player.querySelector("#jamLooperBeatMetaFinal");
+  const performer = player.querySelector("#jamLooperPerformerFinal");
+  const hostLine = player.querySelector("#jamLooperHostFinal");
+  const nextTitle = player.querySelector("#jamLooperNextTitleFinal");
+  const nextMeta = player.querySelector("#jamLooperNextMetaFinal");
+  const controls = player.querySelector("#jamLooperControlsFinal");
+  const hint = player.querySelector("#jamLooperHintFinal");
 
   if (square) {
     square.innerText = `#${beatState.currentIndex}`;
-    square.style.backgroundImage = image ? `url("${image}")` : "";
+    square.style.backgroundImage = beatState.currentImage
+      ? `url("${beatState.currentImage}")`
+      : "";
     square.classList.toggle("not-host", !isHost);
     square.title = isHost
       ? "Kliknij, żeby wybrać beat"
@@ -9058,7 +7317,7 @@ function renderTopPlayer55B8D1Final() {
 
   if (meta) {
     meta.innerText =
-      `Producent: ${beatState.currentProducer || "Unknown"} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
+      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpmFinal(beatState.currentBpm)}`;
   }
 
   if (performer) {
@@ -9086,52 +7345,258 @@ function renderTopPlayer55B8D1Final() {
 
   if (nextMeta) {
     nextMeta.innerText =
-      `Producent: ${beatState.nextProducer || "Unknown"} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)}`;
+      `Producent: ${beatState.nextProducer} | BPM: ${formatBeatBpmFinal(beatState.nextBpm)}`;
   }
 
-  const controls = document.querySelector("#jamHostLooperControls55B8B3");
-  const hint = document.querySelector("#jamListenerBeatHint55B8B3");
-
   if (controls) {
-    controls.classList.toggle("is-host-visible", isHost);
-    controls.style.display = isHost ? "flex" : "none";
+    controls.classList.toggle("host-hidden", !isHost);
   }
 
   if (hint) {
     hint.style.display = isHost ? "none" : "";
   }
+
+  updatePitchValueFinal(getPitchValueFinal());
 }
 
-function scheduleTopPlayerRender55B8D1Final() {
-  setTimeout(() => {
-    renderTopPlayer55B8D1Final();
-  }, 40);
+// =======================
+// BEAT PICKER MODAL
+// =======================
+
+function ensureBeatPickerModalFinal() {
+  if (jamBeatPickerModalFinal) {
+    return jamBeatPickerModalFinal;
+  }
+
+  jamBeatPickerModalFinal = document.createElement("div");
+  jamBeatPickerModalFinal.id = "jamBeatPickerModalFinal";
+  jamBeatPickerModalFinal.className = "jam-modal hidden";
+
+  jamBeatPickerModalFinal.innerHTML = `
+    <div class="jam-modal-box">
+      <h2>Wybierz beat</h2>
+
+      <p>
+        Wybór beatu #1–#36. Zmiana jest zapisywana do room_state i widoczna u wszystkich.
+      </p>
+
+      <div id="jamBeatPickerGridFinal" style="
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 12px;
+      "></div>
+
+      <div class="jam-modal-actions">
+        <button id="closeBeatPickerModalFinal" class="jam-btn" type="button">
+          ZAMKNIJ
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(jamBeatPickerModalFinal);
+
+  jamBeatPickerGridFinal =
+    jamBeatPickerModalFinal.querySelector("#jamBeatPickerGridFinal");
+
+  const closeBtn =
+    jamBeatPickerModalFinal.querySelector("#closeBeatPickerModalFinal");
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeBeatPickerModalFinal();
+    });
+  }
+
+  jamBeatPickerModalFinal.addEventListener("click", (event) => {
+    if (event.target === jamBeatPickerModalFinal) {
+      closeBeatPickerModalFinal();
+    }
+  });
+
+  return jamBeatPickerModalFinal;
 }
 
-const previousRenderJamState55B8D1Final = renderJamState;
+function openBeatPickerModalFinal() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
 
-renderJamState = function renderJamStateWithTopPlayer55B8D1Final() {
-  previousRenderJamState55B8D1Final();
-  scheduleTopPlayerRender55B8D1Final();
+  if (!isCurrentUserHostFinal()) {
+    showSystemInfo("Tylko Host może wybierać beat.", "warn");
+    return;
+  }
+
+  ensureBeatPickerModalFinal();
+  renderBeatPickerGridFinal();
+
+  jamBeatPickerModalFinal.classList.remove("hidden");
+}
+
+function closeBeatPickerModalFinal() {
+  if (jamBeatPickerModalFinal) {
+    jamBeatPickerModalFinal.classList.add("hidden");
+  }
+}
+
+function renderBeatPickerGridFinal() {
+  if (!jamBeatPickerGridFinal) return;
+
+  const beatState = getBeatStateFinal();
+
+  jamBeatPickerGridFinal.innerHTML = "";
+
+  for (let index = 1; index <= JAM_BEAT_COUNT_FINAL; index += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "jam-btn";
+    button.innerText = `#${index}`;
+    button.title = `${getBeatTitleFinal(index)} — ${getBeatAudioUrlFinal(index)}`;
+
+    if (index === beatState.currentIndex) {
+      button.classList.add("jam-btn-primary");
+    }
+
+    button.addEventListener("click", () => {
+      runLockedAction(async () => {
+        await saveBeatStateToRoomFinal(index, "Choose Beat");
+        closeBeatPickerModalFinal();
+      }, "wybierz beat", "host_placeholder");
+    });
+
+    jamBeatPickerGridFinal.appendChild(button);
+  }
+}
+
+// =======================
+// SAVE BEAT STATE
+// =======================
+
+async function saveBeatStateToRoomFinal(index, sourceLabel = "Host") {
+  if (!jamSupabaseClient) {
+    showSystemInfo("Brak połączenia Supabase — nie zapisano beatu.", "warn");
+    return false;
+  }
+
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return false;
+  }
+
+  if (!isCurrentUserHostFinal()) {
+    showSystemInfo("Tylko Host może zmieniać beat.", "warn");
+    return false;
+  }
+
+  const payload = buildBeatPayloadFinal(index);
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM BEAT STATE FINAL] update error:", error);
+      showSystemInfo("Nie udało się zapisać beatu w room_state.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "beat state write"
+    });
+
+    renderJamLooperPlayerFinal();
+
+    showSystemInfo(
+      `${sourceLabel}: ustawiono ${payload.current_beat_title}.`,
+      "success"
+    );
+
+    const messageId = createMessageId();
+    jamSeenRealtimeMessageIds.add(messageId);
+
+    await sendRealtimeBroadcast("jam_status", {
+      message_id: messageId,
+      type: "beat_change",
+      current_beat_index: payload.current_beat_index,
+      current_beat_title: payload.current_beat_title,
+      current_beat_url: payload.current_beat_url,
+      next_beat_index: payload.next_beat_index,
+      next_beat_title: payload.next_beat_title,
+      next_beat_url: payload.next_beat_url,
+      session_id: JAM_SESSION_ID,
+      user_id: jamUser ? jamUser.id : null,
+      nick: jamUser ? jamUser.nick : "Host",
+      created_at: nowIso()
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM BEAT STATE FINAL] update exception:", error);
+    showSystemInfo("Błąd zapisu beatu.", "warn");
+    return false;
+  }
+}
+
+// =======================
+// REALTIME / RENDER HOOKS
+// =======================
+
+const previousHandleRealtimeJamStatusFinal = handleRealtimeJamStatus;
+
+handleRealtimeJamStatus = function handleRealtimeJamStatusFinal(payload) {
+  if (payload && payload.type === "beat_change") {
+    fetchJamRoomState({
+      silent: true,
+      reason: "beat change broadcast"
+    });
+
+    setTimeout(() => {
+      renderJamLooperPlayerFinal();
+    }, 250);
+
+    return;
+  }
+
+  previousHandleRealtimeJamStatusFinal(payload);
 };
 
-const previousApplyRoomStateToLocalState55B8D1Final = applyRoomStateToLocalState;
+const previousRenderJamStateFinal = renderJamState;
 
-applyRoomStateToLocalState = function applyRoomStateWithTopPlayer55B8D1Final(nextRoomState, options = {}) {
-  previousApplyRoomStateToLocalState55B8D1Final(nextRoomState, options);
-  scheduleTopPlayerRender55B8D1Final();
+renderJamState = function renderJamStateWithLooperPlayerFinal() {
+  previousRenderJamStateFinal();
+
+  setTimeout(() => {
+    renderJamLooperPlayerFinal();
+  }, 40);
+};
+
+const previousApplyRoomStateToLocalStateFinal = applyRoomStateToLocalState;
+
+applyRoomStateToLocalState = function applyRoomStateWithLooperPlayerFinal(nextRoomState, options = {}) {
+  previousApplyRoomStateToLocalStateFinal(nextRoomState, options);
+
+  setTimeout(() => {
+    renderJamLooperPlayerFinal();
+  }, 40);
 };
 
 window.addEventListener("load", () => {
-  setTimeout(() => {
-    renderTopPlayer55B8D1Final();
-  }, 1200);
+  loadLooperConfigFinal().then(() => {
+    renderJamLooperPlayerFinal();
 
-  setTimeout(() => {
-    renderTopPlayer55B8D1Final();
-  }, 3200);
+    setTimeout(() => {
+      renderJamLooperPlayerFinal();
+    }, 1200);
 
-  setTimeout(() => {
-    renderTopPlayer55B8D1Final();
-  }, 5200);
+    setTimeout(() => {
+      renderJamLooperPlayerFinal();
+    }, 3200);
+  });
 });
