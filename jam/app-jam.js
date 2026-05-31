@@ -6453,3 +6453,97 @@ window.addEventListener("load", () => {
     });
   }, 1800);
 });
+
+// =======================
+// ETAP 55B-7F — REACTIONS PERSISTENCE FIX
+// Reakcje zapisują się do jam_room_chat tak jak tekst
+// =======================
+
+addReaction = async function addReactionTable55B7F(reaction) {
+  if (!jamJoined) {
+    showSystemInfo("Dołącz do pokoju, żeby wysyłać reakcje.", "warn");
+    return;
+  }
+
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  clearLocalMuteIfDbMuteExpired55B6D();
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Reakcje zablokowane jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  const cleanReaction = sanitizeText(reaction, 12);
+
+  if (!cleanReaction) {
+    return;
+  }
+
+  if (checkReactionSpam(cleanReaction)) {
+    return;
+  }
+
+  const messageId = createMessageId();
+  const createdAt = nowIso();
+
+  const reactionMessage = {
+    id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    author: jamUser.nick,
+    message: cleanReaction,
+    created_at: createdAt
+  };
+
+  const saved = await insertChatMessage55B7E(reactionMessage);
+
+  if (!saved) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  const nextMessages = sortChatMessages55B7E([
+    ...(Array.isArray(jamChatMessages) ? jamChatMessages : []),
+    reactionMessage
+  ]).slice(-JAM_CHAT_MAX_MESSAGES);
+
+  forceRenderChatMessages55B7C(nextMessages);
+
+  await sendRealtimeBroadcast("chat_message", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    nick: jamUser.nick,
+    message: cleanReaction,
+    created_at: createdAt,
+    source: "jam_room_chat",
+    kind: "reaction"
+  });
+};
+
+// Dodatkowe zabezpieczenie:
+// po każdym czyszczeniu chatu wymuszamy ponowny odczyt pustej tabeli,
+// żeby żadna stara lokalna reakcja nie wróciła z DOM-u.
+const originalClearChatInRoomState55B7F = clearChatInRoomState;
+
+clearChatInRoomState = async function clearChatInRoomStateWithReactionFix55B7F() {
+  await originalClearChatInRoomState55B7F();
+
+  setTimeout(() => {
+    fetchJamChatMessages55B7E({
+      silent: true
+    });
+  }, 400);
+};
