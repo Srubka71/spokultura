@@ -5722,3 +5722,203 @@ function initJamRoom() {
 window.addEventListener("load", () => {
   initJamRoom();
 });
+
+// =======================
+// ETAP 55B-7C — CHAT CLEAR SYNC FIX
+// Wyczyść chat ma czyścić u wszystkich użytkowników
+// =======================
+
+function forceRenderChatMessages55B7C(messages) {
+  if (!chatFeed) return;
+
+  const normalizedMessages = normalizeChatMessages(messages);
+
+  jamChatMessages = normalizedMessages;
+  jamChatKnownMessageIds = new Set(
+    jamChatMessages.map((message) => message.id)
+  );
+
+  chatFeed.innerHTML = "";
+
+  if (!jamChatMessages.length) {
+    const row = createElement("div", "jam-chat-row");
+    row.innerHTML = "<strong>System:</strong> Chat jest pusty.";
+    chatFeed.appendChild(row);
+    return;
+  }
+
+  jamChatMessages.forEach((message) => {
+    appendChatMessageToFeed(message, false);
+  });
+
+  chatFeed.scrollTop = chatFeed.scrollHeight;
+}
+
+// Nadpisujemy applyChatMessagesFromRoomState,
+// żeby pusty chat_json zawsze wymuszał wyczyszczenie widoku.
+applyChatMessagesFromRoomState = function applyChatMessagesFromRoomStateForce55B7C(rawMessages) {
+  const normalizedMessages = normalizeChatMessages(rawMessages);
+
+  if (!normalizedMessages.length) {
+    forceRenderChatMessages55B7C([]);
+    return;
+  }
+
+  const currentSignature = JSON.stringify(
+    jamChatMessages.map((message) => message.id)
+  );
+
+  const nextSignature = JSON.stringify(
+    normalizedMessages.map((message) => message.id)
+  );
+
+  if (currentSignature === nextSignature) {
+    return;
+  }
+
+  forceRenderChatMessages55B7C(normalizedMessages);
+};
+
+// Nadpisujemy wysyłanie wiadomości:
+// wiadomość zapisuje się do room_state.chat_json,
+// więc nowa osoba po wejściu też widzi aktualny chat.
+sendLocalChatMessage = async function sendLocalChatMessageSynced55B7C() {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
+
+  if (!chatInput) return;
+
+  await fetchJamRestrictions({
+    silent: true
+  });
+
+  clearLocalMuteIfDbMuteExpired55B6D();
+
+  if (isCurrentUserMuted() || isCurrentUserLocallyMuted55B6C()) {
+    const dbRemaining = getCurrentUserMuteRemainingText();
+    const localRemaining = getLocalMuteRemainingText55B6C();
+    const remaining = dbRemaining || localRemaining || "chwilę";
+
+    showSystemInfo(
+      `Masz MUTE. Chat zablokowany jeszcze: ${remaining}.`,
+      "warn"
+    );
+
+    return;
+  }
+
+  const message = sanitizeText(chatInput.value, 120);
+
+  if (!message) {
+    return;
+  }
+
+  if (checkChatSpam(message)) {
+    return;
+  }
+
+  const messageId = createMessageId();
+  const createdAt = nowIso();
+
+  const chatMessage = {
+    id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    author: jamUser.nick,
+    message: message,
+    created_at: createdAt
+  };
+
+  jamSeenRealtimeMessageIds.add(messageId);
+  chatInput.value = "";
+
+  const saved = await appendChatMessageToRoomState(chatMessage);
+
+  await sendRealtimeBroadcast("chat_message", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser.id,
+    nick: jamUser.nick,
+    message: message,
+    created_at: createdAt,
+    saved: saved
+  });
+};
+
+// Nadpisujemy czyszczenie:
+// Host czyści chat_json i wysyła broadcast,
+// a każdy klient wymusza lokalne wyczyszczenie widoku.
+clearChatInRoomState = async function clearChatInRoomStateSynced55B7C() {
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wyczyścić chat.", "warn");
+    return;
+  }
+
+  const confirmed = confirm("Wyczyścić chat dla wszystkich w Jam Roomie?");
+
+  if (!confirmed) {
+    return;
+  }
+
+  const saved = await saveChatMessagesToRoomState([]);
+
+  if (!saved) {
+    showSystemInfo("Nie udało się wyczyścić chatu.", "warn");
+    return;
+  }
+
+  forceRenderChatMessages55B7C([]);
+
+  showSystemInfo("Chat wyczyszczony.", "success");
+
+  const messageId = createMessageId();
+  jamSeenRealtimeMessageIds.add(messageId);
+
+  await sendRealtimeBroadcast("chat_clear", {
+    message_id: messageId,
+    session_id: JAM_SESSION_ID,
+    user_id: jamUser ? jamUser.id : null,
+    nick: jamUser ? jamUser.nick : "System",
+    created_at: nowIso()
+  });
+};
+
+// Nadpisujemy obsługę broadcastu chat_clear.
+// Druga osoba nie tylko pobiera room_state,
+// ale od razu czyści lokalny widok czatu.
+handleRealtimeChatClear = function handleRealtimeChatClearSynced55B7C(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  forceRenderChatMessages55B7C([]);
+
+  fetchJamRoomState({
+    silent: true,
+    reason: "chat clear broadcast"
+  });
+};
+
+// Nadpisujemy obsługę broadcastu wiadomości,
+// żeby po wiadomości każdy pobierał chat_json z room_state.
+handleRealtimeChatMessage = function handleRealtimeChatMessageSynced55B7C(payload) {
+  if (!payload || !payload.message_id) return;
+
+  if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+    return;
+  }
+
+  jamSeenRealtimeMessageIds.add(payload.message_id);
+
+  fetchJamRoomState({
+    silent: true,
+    reason: "chat message broadcast"
+  });
+};
+
