@@ -7895,3 +7895,91 @@ renderIntegratedLooper55B8B2 = function renderIntegratedLooperHostOnly55B8B4() {
   originalRenderIntegratedLooper55B8B4();
   updateBeatSquareAccess55B8B4();
 };
+
+// =======================
+// ETAP 55B-8B5 — BEAT SQUARE STRICT HOST ONLY
+// Kwadrat wyboru beatu klikalny tylko dla aktualnego Hosta
+// =======================
+
+let jamBeatSquareBoundElement55B8B5 = null;
+
+function getFreshBeatSquare55B8B5() {
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) {
+    return null;
+  }
+
+  return findBeatNumberBox55B8B2(card);
+}
+
+function replaceBeatSquareWithoutOldListeners55B8B5(oldElement) {
+  if (!oldElement || !oldElement.parentNode) {
+    return oldElement;
+  }
+
+  const clone = oldElement.cloneNode(true);
+
+  oldElement.parentNode.replaceChild(clone, oldElement);
+
+  if (jamBeatNumberButton55B8B2 === oldElement) {
+    jamBeatNumberButton55B8B2 = clone;
+  }
+
+  return clone;
+}
+
+function bindBeatSquareStrictHostOnly55B8B5() {
+  let beatSquare = getFreshBeatSquare55B8B5();
+
+  if (!beatSquare) {
+    return;
+  }
+
+  if (jamBeatSquareBoundElement55B8B5 !== beatSquare) {
+    beatSquare = replaceBeatSquareWithoutOldListeners55B8B5(beatSquare);
+    jamBeatSquareBoundElement55B8B5 = beatSquare;
+
+    beatSquare.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!jamJoined) {
+        showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+        return;
+      }
+
+      if (!isCurrentUserHost()) {
+        showSystemInfo("Tylko Host może wybierać beat.", "warn");
+        return;
+      }
+
+      openBeatPickerModal55B8B2();
+    });
+  }
+
+  const canControl = Boolean(jamJoined && isCurrentUserHost());
+
+  beatSquare.classList.add("jam-beat-square-clickable-55b8b2");
+  beatSquare.classList.toggle("jam-btn-muted", !canControl);
+
+  beatSquare.style.cursor = canControl ? "pointer" : "not-allowed";
+  beatSquare.style.opacity = canControl ? "1" : "0.62";
+  beatSquare.title = canControl
+    ? "Kliknij, żeby wybrać beat"
+    : "Tylko Host może wybierać beat";
+}
+
+const originalUpdateMainCurrentBeatCard55B8B5 = updateMainCurrentBeatCard55B8B2;
+
+updateMainCurrentBeatCard55B8B2 = function updateMainCurrentBeatCardStrictHostOnly55B8B5() {
+  originalUpdateMainCurrentBeatCard55B8B5();
+  bindBeatSquareStrictHostOnly55B8B5();
+};
+
+const originalRenderIntegratedLooper55B8B5 = renderIntegratedLooper55B8B2;
+
+renderIntegratedLooper55B8B2 = function renderIntegratedLooperStrictHostOnly55B8B5() {
+  originalRenderIntegratedLooper55B8B5();
+  bindBeatSquareStrictHostOnly55B8B5();
+};
