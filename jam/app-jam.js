@@ -7983,3 +7983,232 @@ renderIntegratedLooper55B8B2 = function renderIntegratedLooperStrictHostOnly55B8
   originalRenderIntegratedLooper55B8B5();
   bindBeatSquareStrictHostOnly55B8B5();
 };
+
+// =======================
+// ETAP 55B-8C — CHOOSE BEAT WRITES TO ROOM_STATE
+// Host wybiera beat #1–#36 i zapisuje go w jam_room_state
+// =======================
+
+function normalizeBeatIndex55B8C(index) {
+  const parsed = Number(index || 1);
+
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  if (parsed < 1) {
+    return 1;
+  }
+
+  if (parsed > JAM_BEAT_COUNT_55B8B2) {
+    return JAM_BEAT_COUNT_55B8B2;
+  }
+
+  return parsed;
+}
+
+function getNextBeatIndex55B8C(index) {
+  const safeIndex = normalizeBeatIndex55B8C(index);
+
+  return safeIndex >= JAM_BEAT_COUNT_55B8B2
+    ? 1
+    : safeIndex + 1;
+}
+
+function buildBeatPayload55B8C(index) {
+  const currentIndex = normalizeBeatIndex55B8C(index);
+  const nextIndex = getNextBeatIndex55B8C(currentIndex);
+
+  return {
+    current_beat_index: currentIndex,
+    current_beat_title: getBeatTitle55B8B2(currentIndex),
+    current_beat_url: getBeatAudioUrl55B8B2(currentIndex),
+
+    next_beat_index: nextIndex,
+    next_beat_title: getBeatTitle55B8B2(nextIndex),
+    next_beat_url: getBeatAudioUrl55B8B2(nextIndex),
+
+    beat_updated_by_session_id: JAM_SESSION_ID,
+    beat_updated_by_nick: jamUser ? jamUser.nick : "Host",
+    beat_updated_at: nowIso(),
+
+    updated_by_session_id: JAM_SESSION_ID,
+    updated_by_nick: jamUser ? jamUser.nick : "Host",
+    updated_at: nowIso()
+  };
+}
+
+async function saveBeatStateToRoom55B8C(index, sourceLabel = "Host") {
+  if (!jamSupabaseClient) {
+    showSystemInfo("Brak połączenia Supabase — nie zapisano beatu.", "warn");
+    return false;
+  }
+
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return false;
+  }
+
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może zmieniać beat.", "warn");
+    return false;
+  }
+
+  const payload = buildBeatPayload55B8C(index);
+
+  try {
+    const { data, error } = await jamSupabaseClient
+      .from("jam_room_state")
+      .update(payload)
+      .eq("room_id", JAM_ROOM_STATE_ID)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[JAM BEAT STATE] update error:", error);
+      showSystemInfo("Nie udało się zapisać beatu w room_state.", "warn");
+      return false;
+    }
+
+    applyRoomStateToLocalState(data, {
+      silent: true,
+      source: "beat state write"
+    });
+
+    renderIntegratedLooper55B8B2();
+
+    showSystemInfo(
+      `${sourceLabel}: ustawiono ${payload.current_beat_title}.`,
+      "success"
+    );
+
+    const messageId = createMessageId();
+    jamSeenRealtimeMessageIds.add(messageId);
+
+    await sendRealtimeBroadcast("jam_status", {
+      message_id: messageId,
+      type: "beat_change",
+      current_beat_index: payload.current_beat_index,
+      current_beat_title: payload.current_beat_title,
+      current_beat_url: payload.current_beat_url,
+      next_beat_index: payload.next_beat_index,
+      next_beat_title: payload.next_beat_title,
+      next_beat_url: payload.next_beat_url,
+      session_id: JAM_SESSION_ID,
+      user_id: jamUser ? jamUser.id : null,
+      nick: jamUser ? jamUser.nick : "Host",
+      created_at: nowIso()
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[JAM BEAT STATE] update exception:", error);
+    showSystemInfo("Błąd zapisu beatu.", "warn");
+    return false;
+  }
+}
+
+async function chooseBeat55B8C(index) {
+  if (!jamJoined) {
+    showSystemInfo("Najpierw dołącz do pokoju.", "warn");
+    return;
+  }
+
+  if (!isCurrentUserHost()) {
+    showSystemInfo("Tylko Host może wybierać beat.", "warn");
+    return;
+  }
+
+  const saved = await saveBeatStateToRoom55B8C(index, "Choose Beat");
+
+  if (saved) {
+    closeBeatPickerModal55B8B2();
+  }
+}
+
+// Nadpisujemy grid wyboru beatu — od teraz klik realnie zapisuje do room_state.
+renderBeatPickerGrid55B8B2 = function renderBeatPickerGridWrite55B8C() {
+  ensureIntegratedLooperStyles55B8B2();
+
+  if (!jamBeatPickerGrid55B8B2) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+  const canControl = Boolean(jamJoined && isCurrentUserHost());
+
+  jamBeatPickerGrid55B8B2.innerHTML = "";
+
+  for (let index = 1; index <= JAM_BEAT_COUNT_55B8B2; index += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "jam-btn jam-beat-picker-btn-55b8b2";
+    button.innerText = `#${index}`;
+    button.title = getBeatAudioUrl55B8B2(index);
+
+    if (index === beatState.currentIndex) {
+      button.classList.add("active");
+    }
+
+    button.disabled = !canControl;
+
+    if (!canControl) {
+      button.classList.add("jam-btn-muted");
+    }
+
+    button.addEventListener("click", () => {
+      runLockedAction(async () => {
+        await chooseBeat55B8C(index);
+      }, "wybierz beat", "host_placeholder");
+    });
+
+    jamBeatPickerGrid55B8B2.appendChild(button);
+  }
+};
+
+// Obsługa broadcastu beat_change — klient pobiera room_state i odświeża panel.
+const originalHandleRealtimeJamStatus55B8C = handleRealtimeJamStatus;
+
+handleRealtimeJamStatus = function handleRealtimeJamStatusWithBeatChange55B8C(payload) {
+  if (!payload || !payload.message_id) {
+    return;
+  }
+
+  if (payload.type === "beat_change") {
+    if (jamSeenRealtimeMessageIds.has(payload.message_id)) {
+      return;
+    }
+
+    jamSeenRealtimeMessageIds.add(payload.message_id);
+
+    fetchJamRoomState({
+      silent: true,
+      reason: "beat change broadcast"
+    });
+
+    setTimeout(() => {
+      renderIntegratedLooper55B8B2();
+    }, 250);
+
+    return;
+  }
+
+  originalHandleRealtimeJamStatus55B8C(payload);
+};
+
+// Po każdym room_state update odświeżamy panel, żeby beat zmieniał się u wszystkich.
+const originalApplyRoomStateToLocalState55B8C = applyRoomStateToLocalState;
+
+applyRoomStateToLocalState = function applyRoomStateToLocalStateWithBeat55B8C(nextRoomState, options = {}) {
+  originalApplyRoomStateToLocalState55B8C(nextRoomState, options);
+
+  setTimeout(() => {
+    renderIntegratedLooper55B8B2();
+  }, 60);
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    renderIntegratedLooper55B8B2();
+  }, 3600);
+});
