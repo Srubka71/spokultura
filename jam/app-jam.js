@@ -8884,6 +8884,332 @@ window.addEventListener("load", () => {
 });
 
 // =======================
+// ETAP 55B-8D2 — MAIN PLAYER LAYOUT FIX
+// Jeden główny player: cover+# po lewej, meta po środku, następny beat po prawej
+// Usuwa zdublowane dolne okienko "Aktualny beat"
+// =======================
+
+function ensureMainPlayerLayoutStyles55B8D2() {
+  if (document.querySelector("#jamMainPlayerLayoutStyles55B8D2")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "jamMainPlayerLayoutStyles55B8D2";
+
+  style.innerHTML = `
+    .jam-main-player-layout-55b8d2 {
+      display: grid !important;
+      grid-template-columns: 112px minmax(0, 1fr) minmax(220px, 320px) !important;
+      gap: 18px !important;
+      align-items: center !important;
+      width: 100% !important;
+      margin-top: 12px !important;
+      margin-bottom: 14px !important;
+    }
+
+    .jam-beat-square-clickable-55b8b2 {
+      width: 104px !important;
+      height: 104px !important;
+      min-width: 104px !important;
+      min-height: 104px !important;
+      border-radius: 18px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+      color: rgba(234,162,33,0.95) !important;
+      font-size: 34px !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      text-shadow:
+        0 2px 10px rgba(0,0,0,0.95),
+        0 0 14px rgba(0,0,0,0.85) !important;
+      border: 1px solid rgba(234,162,33,0.34) !important;
+      box-shadow:
+        inset 0 0 0 999px rgba(0,0,0,0.28),
+        inset 0 -36px 44px rgba(0,0,0,0.42),
+        0 12px 26px rgba(0,0,0,0.28) !important;
+      overflow: hidden !important;
+      flex: 0 0 auto !important;
+    }
+
+    .jam-track-meta {
+      min-width: 0 !important;
+    }
+
+    .jam-track-meta h3 {
+      margin: 0 0 8px !important;
+      color: rgba(234,162,33,0.98) !important;
+      font-size: clamp(22px, 3vw, 34px) !important;
+      line-height: 1.02 !important;
+      letter-spacing: 0.7px !important;
+      text-transform: uppercase !important;
+    }
+
+    #jamMainBeatMeta55B8D {
+      margin: 0 0 8px !important;
+      color: rgba(255,255,255,0.82) !important;
+      font-size: 15px !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.4px !important;
+      text-transform: uppercase !important;
+    }
+
+    .jam-main-next-beat-55b8d2 {
+      justify-self: stretch !important;
+      min-height: 98px !important;
+      padding: 14px !important;
+      border-radius: 18px !important;
+      border: 1px solid rgba(234,162,33,0.34) !important;
+      background: rgba(0,0,0,0.26) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      gap: 6px !important;
+    }
+
+    .jam-main-next-beat-55b8d2 .jam-small-label {
+      margin: 0 !important;
+      color: rgba(234,162,33,0.82) !important;
+    }
+
+    .jam-main-next-beat-55b8d2 strong {
+      color: rgba(255,255,255,0.94) !important;
+      font-size: 18px !important;
+      line-height: 1.1 !important;
+    }
+
+    .jam-main-next-beat-55b8d2 span {
+      color: rgba(255,255,255,0.66) !important;
+      font-size: 12px !important;
+      line-height: 1.25 !important;
+    }
+
+    .jam-integrated-looper-55b8b2 {
+      margin-top: 14px !important;
+      padding-top: 14px !important;
+      border-top: 1px solid rgba(234,162,33,0.18) !important;
+    }
+
+    .jam-integrated-header-55b8b2 {
+      margin-bottom: 10px !important;
+    }
+
+    .jam-beat-state-grid-55b8b2 {
+      display: none !important;
+    }
+
+    #jamMainBeatCover55B8D {
+      display: none !important;
+    }
+
+    @media (max-width: 820px) {
+      .jam-main-player-layout-55b8d2 {
+        grid-template-columns: 92px minmax(0, 1fr) !important;
+      }
+
+      .jam-main-next-beat-55b8d2 {
+        grid-column: 1 / -1 !important;
+      }
+
+      .jam-beat-square-clickable-55b8b2 {
+        width: 92px !important;
+        height: 92px !important;
+        min-width: 92px !important;
+        min-height: 92px !important;
+        font-size: 30px !important;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .jam-main-player-layout-55b8d2 {
+        grid-template-columns: 1fr !important;
+        text-align: center !important;
+      }
+
+      .jam-beat-square-clickable-55b8b2 {
+        margin: 0 auto !important;
+      }
+
+      .jam-track-meta h3,
+      #jamMainBeatMeta55B8D {
+        text-align: center !important;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function getCurrentBeatCardBody55B8D2(card) {
+  if (!card) return null;
+
+  return (
+    card.querySelector(".jam-now-playing") ||
+    card.querySelector(".jam-track-row") ||
+    card.querySelector(".jam-track") ||
+    card
+  );
+}
+
+function ensureMainNextBeatBox55B8D2(card) {
+  if (!card) return null;
+
+  let box = card.querySelector("#jamMainNextBeatBox55B8D2");
+
+  if (box) {
+    return box;
+  }
+
+  box = document.createElement("div");
+  box.id = "jamMainNextBeatBox55B8D2";
+  box.className = "jam-main-next-beat-55b8d2";
+
+  box.innerHTML = `
+    <p class="jam-small-label">Następny beat</p>
+    <strong id="jamMainNextBeatTitle55B8D2">#-- — Beat --</strong>
+    <span id="jamMainNextBeatMeta55B8D2">Producent: -- | BPM: --</span>
+  `;
+
+  const body = getCurrentBeatCardBody55B8D2(card);
+
+  if (body) {
+    body.appendChild(box);
+  } else {
+    card.appendChild(box);
+  }
+
+  return box;
+}
+
+function restructureMainBeatCard55B8D2() {
+  ensureMainPlayerLayoutStyles55B8D2();
+
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) {
+    return;
+  }
+
+  removeLegacyBeatCover55B8D1(card);
+
+  const body = getCurrentBeatCardBody55B8D2(card);
+
+  if (body) {
+    body.classList.add("jam-main-player-layout-55b8d2");
+  }
+
+  ensureMainNextBeatBox55B8D2(card);
+}
+
+function updateMainNextBeatBox55B8D2() {
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) return;
+
+  const box = ensureMainNextBeatBox55B8D2(card);
+
+  if (!box) return;
+
+  const beatState = getBeatState55B8B2();
+
+  const title = box.querySelector("#jamMainNextBeatTitle55B8D2");
+  const meta = box.querySelector("#jamMainNextBeatMeta55B8D2");
+
+  if (title) {
+    title.innerText =
+      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
+  }
+
+  if (meta) {
+    meta.innerText =
+      `Producent: ${beatState.nextProducer} | BPM: ${formatBeatBpm55B8D(beatState.nextBpm)}`;
+  }
+}
+
+function removeDuplicatedCurrentBeatBox55B8D2() {
+  const panel = document.querySelector("#jamIntegratedLooperPanel55B8B2");
+
+  if (!panel) return;
+
+  const boxes = Array.from(panel.querySelectorAll(".jam-beat-state-box-55b8b2"));
+
+  boxes.forEach((box) => {
+    const label = box.querySelector(".jam-small-label");
+    const text = label ? label.innerText.trim().toLowerCase() : "";
+
+    if (text === "aktualny beat") {
+      box.remove();
+    }
+  });
+
+  const grid = panel.querySelector(".jam-beat-state-grid-55b8b2");
+
+  if (grid && !grid.querySelector(".jam-beat-state-box-55b8b2")) {
+    grid.remove();
+  }
+}
+
+const originalUpdateMainCurrentBeatCard55B8D2 = updateMainCurrentBeatCard55B8B2;
+
+updateMainCurrentBeatCard55B8B2 = function updateMainCurrentBeatCardLayout55B8D2() {
+  restructureMainBeatCard55B8D2();
+
+  originalUpdateMainCurrentBeatCard55B8D2();
+
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) return;
+
+  const beatState = getBeatState55B8B2();
+  const beatSquare = findBeatNumberBox55B8B2(card);
+
+  if (beatSquare) {
+    beatSquare.innerText = `#${beatState.currentIndex}`;
+    beatSquare.style.backgroundImage = beatState.currentImage
+      ? `url("${beatState.currentImage}")`
+      : "";
+  }
+
+  const title =
+    card.querySelector(".jam-track-meta h3") ||
+    card.querySelector("h3");
+
+  if (title) {
+    title.innerText = beatState.currentTitle;
+  }
+
+  const metaLine = ensureBeatMetaLine55B8D(card);
+
+  if (metaLine) {
+    metaLine.innerText =
+      `Producent: ${beatState.currentProducer} | BPM: ${formatBeatBpm55B8D(beatState.currentBpm)}`;
+  }
+
+  updateMainNextBeatBox55B8D2();
+  removeDuplicatedCurrentBeatBox55B8D2();
+};
+
+const originalRenderIntegratedLooper55B8D2 = renderIntegratedLooper55B8B2;
+
+renderIntegratedLooper55B8B2 = function renderIntegratedLooperLayout55B8D2() {
+  originalRenderIntegratedLooper55B8D2();
+
+  restructureMainBeatCard55B8D2();
+  updateMainNextBeatBox55B8D2();
+  removeDuplicatedCurrentBeatBox55B8D2();
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    renderIntegratedLooper55B8B2();
+  }, 5000);
+});
+
+// =======================
 // ETAP 55B-8D3 — CLEAN MAIN PLAYER REPAIR
 // Naprawia błędny layout: # + cover osobno, meta osobno, next beat osobno
 // =======================
