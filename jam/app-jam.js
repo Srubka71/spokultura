@@ -7336,3 +7336,463 @@ window.addEventListener("load", () => {
     renderIntegratedLooper55B8B2();
   }, 2600);
 });
+
+// =======================
+// ETAP 55B-8B3 — INTEGRATED LOOPER PANEL FIX
+// Ścieżki beat02.mp3, panel host-only, START/STOP, loop 6x/8x, pitch slider, widoczny kwadrat #
+// =======================
+
+function getBeatAudioUrl55B8B2(index) {
+  return `/looper/assets/audio/beat${String(Number(index)).padStart(2, "0")}.mp3`;
+}
+
+function ensureIntegratedLooperStyles55B8B3() {
+  if (document.querySelector("#jamIntegratedLooperStyles55B8B3")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "jamIntegratedLooperStyles55B8B3";
+
+  style.innerHTML = `
+    .jam-beat-square-clickable-55b8b2 {
+      min-width: 92px !important;
+      min-height: 92px !important;
+      width: 92px !important;
+      height: 92px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 16px !important;
+      border: 1px solid rgba(234,162,33,0.32) !important;
+      background:
+        radial-gradient(circle at center, rgba(234,162,33,0.10), rgba(0,0,0,0.24)) !important;
+      color: rgba(234,162,33,0.86) !important;
+      font-size: 34px !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      cursor: pointer !important;
+      text-align: center !important;
+      flex: 0 0 auto !important;
+    }
+
+    .jam-beat-square-clickable-55b8b2:hover {
+      transform: translateY(-1px) scale(1.015);
+      border-color: rgba(234,162,33,0.72) !important;
+      box-shadow:
+        0 0 0 1px rgba(234,162,33,0.18),
+        0 12px 32px rgba(234,162,33,0.10);
+    }
+
+    .jam-host-looper-controls-55b8b3 {
+      display: none;
+    }
+
+    .jam-host-looper-controls-55b8b3.is-host-visible {
+      display: flex;
+    }
+
+    .jam-listener-beat-hint-55b8b3 {
+      margin-top: 10px;
+      color: rgba(255,255,255,0.58);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .jam-pitch-mini-55b8b2 input[type="range"] {
+      accent-color: rgba(234,162,33,0.95);
+      cursor: pointer;
+    }
+
+    .jam-pitch-mini-55b8b2 input[type="range"]:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function getBeatState55B8B2() {
+  const state = jamRoomState || {};
+
+  const currentIndex = Number(state.current_beat_index || 1);
+  const fallbackNextIndex =
+    currentIndex >= JAM_BEAT_COUNT_55B8B2
+      ? 1
+      : currentIndex + 1;
+
+  const nextIndex = Number(state.next_beat_index || fallbackNextIndex);
+
+  return {
+    currentIndex,
+    currentTitle:
+      state.current_beat_title ||
+      getBeatTitle55B8B2(currentIndex),
+    currentUrl:
+      state.current_beat_url && !String(state.current_beat_url).includes("beat-")
+        ? state.current_beat_url
+        : getBeatAudioUrl55B8B2(currentIndex),
+
+    nextIndex,
+    nextTitle:
+      state.next_beat_title ||
+      getBeatTitle55B8B2(nextIndex),
+    nextUrl:
+      state.next_beat_url && !String(state.next_beat_url).includes("beat-")
+        ? state.next_beat_url
+        : getBeatAudioUrl55B8B2(nextIndex),
+
+    updatedBy: state.beat_updated_by_nick || "System",
+    updatedAt: state.beat_updated_at || null
+  };
+}
+
+function findBeatNumberBox55B8B2(card) {
+  if (!card) return null;
+
+  let preferred =
+    card.querySelector(".jam-track-number") ||
+    card.querySelector(".jam-beat-number") ||
+    card.querySelector(".jam-track-index");
+
+  if (preferred) {
+    return preferred;
+  }
+
+  const oldBox = Array.from(card.querySelectorAll("div, button, span")).find((element) => {
+    return /^#\d+/.test(element.innerText.trim());
+  });
+
+  if (oldBox) {
+    return oldBox;
+  }
+
+  const meta =
+    card.querySelector(".jam-track-meta") ||
+    card.querySelector(".jam-card-body") ||
+    card.querySelector("h3") ||
+    card.firstElementChild;
+
+  const beatBox = document.createElement("button");
+  beatBox.type = "button";
+  beatBox.className = "jam-track-number jam-beat-square-clickable-55b8b2";
+  beatBox.innerText = "#1";
+
+  if (meta && meta.parentNode) {
+    meta.parentNode.insertBefore(beatBox, meta);
+  } else {
+    card.prepend(beatBox);
+  }
+
+  return beatBox;
+}
+
+function replaceIntegratedLooperPanelMarkup55B8B3() {
+  const currentBeatCard = findCurrentBeatCard55B8B2();
+
+  if (!currentBeatCard) {
+    return null;
+  }
+
+  if (jamIntegratedLooperPanel55B8B2) {
+    jamIntegratedLooperPanel55B8B2.remove();
+    jamIntegratedLooperPanel55B8B2 = null;
+  }
+
+  jamIntegratedLooperPanel55B8B2 = document.createElement("div");
+  jamIntegratedLooperPanel55B8B2.id = "jamIntegratedLooperPanel55B8B2";
+  jamIntegratedLooperPanel55B8B2.className = "jam-integrated-looper-55b8b2";
+
+  jamIntegratedLooperPanel55B8B2.innerHTML = `
+    <div class="jam-integrated-header-55b8b2">
+      <h3>Funkcje Loopera w pokoju</h3>
+      <span>Beat / loop / pitch — panel wspólny</span>
+    </div>
+
+    <div class="jam-beat-state-grid-55b8b2">
+      <div class="jam-beat-state-box-55b8b2">
+        <p class="jam-small-label">Aktualny beat</p>
+        <strong id="jamIntegratedCurrentBeatTitle55B8B2">#-- — Beat --</strong>
+        <span id="jamIntegratedCurrentBeatUrl55B8B2">Brak ścieżki audio</span>
+      </div>
+
+      <div class="jam-beat-state-box-55b8b2">
+        <p class="jam-small-label">Następny beat</p>
+        <strong id="jamIntegratedNextBeatTitle55B8B2">#-- — Beat --</strong>
+        <span id="jamIntegratedNextBeatUrl55B8B2">Brak ścieżki audio</span>
+      </div>
+    </div>
+
+    <div id="jamListenerBeatHint55B8B3" class="jam-listener-beat-hint-55b8b3">
+      Sterowanie beatem widoczne jest tylko dla Hosta.
+    </div>
+
+    <div id="jamHostLooperControls55B8B3" class="jam-looper-controls-55b8b2 jam-host-looper-controls-55b8b3">
+      <button class="jam-btn" type="button" id="jamPrevBeatBtn55B8B2">PREVIOUS BEAT</button>
+      <button class="jam-btn" type="button" id="jamChooseBeatBtn55B8B2">CHOOSE BEAT</button>
+      <button class="jam-btn" type="button" id="jamNextBeatBtn55B8B2">NEXT BEAT</button>
+
+      <button class="jam-btn jam-btn-primary" type="button" id="jamStartBeatBtn55B8B3">START</button>
+      <button class="jam-btn jam-btn-danger" type="button" id="jamStopBeatBtn55B8B2">STOP</button>
+
+      <button class="jam-btn" type="button" id="jamLoopInfinityBtn55B8B3">INFINITY</button>
+      <button class="jam-btn" type="button" id="jamLoop1Btn55B8B3">LOOP 1X</button>
+      <button class="jam-btn" type="button" id="jamLoop2Btn55B8B3">LOOP 2X</button>
+      <button class="jam-btn" type="button" id="jamLoop4Btn55B8B3">LOOP 4X</button>
+      <button class="jam-btn" type="button" id="jamLoop6Btn55B8B3">LOOP 6X</button>
+      <button class="jam-btn" type="button" id="jamLoop8Btn55B8B3">LOOP 8X</button>
+
+      <button class="jam-btn" type="button" id="jamPitchMinusBtn55B8B3">PITCH -</button>
+
+      <div class="jam-pitch-mini-55b8b2">
+        <input id="jamPitchSlider55B8B3" type="range" min="-12" max="12" step="1" value="0">
+        <span id="jamPitchValue55B8B3">0%</span>
+      </div>
+
+      <button class="jam-btn" type="button" id="jamPitchPlusBtn55B8B3">PITCH +</button>
+    </div>
+  `;
+
+  currentBeatCard.appendChild(jamIntegratedLooperPanel55B8B2);
+
+  bindIntegratedLooperControls55B8B3();
+
+  return jamIntegratedLooperPanel55B8B2;
+}
+
+function bindIntegratedLooperControls55B8B3() {
+  if (!jamIntegratedLooperPanel55B8B2) {
+    return;
+  }
+
+  const chooseBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamChooseBeatBtn55B8B2");
+  const prevBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPrevBeatBtn55B8B2");
+  const nextBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamNextBeatBtn55B8B2");
+  const startBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamStartBeatBtn55B8B3");
+  const stopBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamStopBeatBtn55B8B2");
+
+  const pitchMinusBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPitchMinusBtn55B8B3");
+  const pitchPlusBtn = jamIntegratedLooperPanel55B8B2.querySelector("#jamPitchPlusBtn55B8B3");
+  const pitchSlider = jamIntegratedLooperPanel55B8B2.querySelector("#jamPitchSlider55B8B3");
+
+  if (chooseBtn) {
+    chooseBtn.addEventListener("click", () => {
+      openBeatPickerModal55B8B2();
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      showSystemInfo("PREVIOUS BEAT podłączymy w następnym etapie.");
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      showSystemInfo("NEXT BEAT podłączymy w następnym etapie.");
+    });
+  }
+
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
+      showSystemInfo("START audio podłączymy w etapie lokalnego playera.");
+    });
+  }
+
+  if (stopBtn) {
+    stopBtn.addEventListener("click", () => {
+      showSystemInfo("STOP audio podłączymy w etapie lokalnego playera.");
+    });
+  }
+
+  if (pitchSlider) {
+    pitchSlider.addEventListener("input", () => {
+      updatePitchValue55B8B3(Number(pitchSlider.value || 0));
+    });
+  }
+
+  if (pitchMinusBtn) {
+    pitchMinusBtn.addEventListener("click", () => {
+      changePitch55B8B3(-1);
+    });
+  }
+
+  if (pitchPlusBtn) {
+    pitchPlusBtn.addEventListener("click", () => {
+      changePitch55B8B3(1);
+    });
+  }
+
+  [
+    ["#jamLoopInfinityBtn55B8B3", "INFINITY"],
+    ["#jamLoop1Btn55B8B3", "LOOP 1X"],
+    ["#jamLoop2Btn55B8B3", "LOOP 2X"],
+    ["#jamLoop4Btn55B8B3", "LOOP 4X"],
+    ["#jamLoop6Btn55B8B3", "LOOP 6X"],
+    ["#jamLoop8Btn55B8B3", "LOOP 8X"]
+  ].forEach(([selector, label]) => {
+    const btn = jamIntegratedLooperPanel55B8B2.querySelector(selector);
+
+    if (btn) {
+      btn.addEventListener("click", () => {
+        showSystemInfo(`${label} podłączymy do lokalnego playera w kolejnym etapie.`);
+      });
+    }
+  });
+}
+
+function updatePitchValue55B8B3(value) {
+  const slider = document.querySelector("#jamPitchSlider55B8B3");
+  const label = document.querySelector("#jamPitchValue55B8B3");
+
+  const safeValue = Math.max(-12, Math.min(12, Number(value || 0)));
+
+  if (slider) {
+    slider.value = String(safeValue);
+  }
+
+  if (label) {
+    label.innerText = `${safeValue}%`;
+  }
+}
+
+function changePitch55B8B3(delta) {
+  const slider = document.querySelector("#jamPitchSlider55B8B3");
+
+  const current = slider ? Number(slider.value || 0) : 0;
+
+  updatePitchValue55B8B3(current + Number(delta || 0));
+}
+
+function ensureIntegratedLooperPanel55B8B2() {
+  ensureIntegratedLooperStyles55B8B2();
+  ensureIntegratedLooperStyles55B8B3();
+
+  if (jamIntegratedLooperPanel55B8B2) {
+    return jamIntegratedLooperPanel55B8B2;
+  }
+
+  return replaceIntegratedLooperPanelMarkup55B8B3();
+}
+
+function updateHostOnlyLooperControls55B8B3() {
+  const controls = document.querySelector("#jamHostLooperControls55B8B3");
+  const hint = document.querySelector("#jamListenerBeatHint55B8B3");
+
+  const isHost = isCurrentUserHost();
+
+  if (controls) {
+    controls.classList.toggle("is-host-visible", isHost);
+  }
+
+  if (hint) {
+    hint.style.display = isHost ? "none" : "";
+  }
+}
+
+function updateMainCurrentBeatCard55B8B2() {
+  const card = findCurrentBeatCard55B8B2();
+
+  if (!card) {
+    return;
+  }
+
+  ensureIntegratedLooperStyles55B8B3();
+
+  const beatState = getBeatState55B8B2();
+
+  const beatNumberBox = findBeatNumberBox55B8B2(card);
+
+  if (beatNumberBox) {
+    beatNumberBox.innerText = `#${beatState.currentIndex}`;
+    beatNumberBox.classList.add("jam-beat-square-clickable-55b8b2");
+    beatNumberBox.title = "Kliknij, żeby wybrać beat";
+
+    if (jamBeatNumberButton55B8B2 !== beatNumberBox) {
+      jamBeatNumberButton55B8B2 = beatNumberBox;
+
+      jamBeatNumberButton55B8B2.addEventListener("click", () => {
+        openBeatPickerModal55B8B2();
+      });
+    }
+  }
+
+  const title =
+    card.querySelector(".jam-track-meta h3") ||
+    card.querySelector("h3");
+
+  if (title) {
+    title.innerText = beatState.currentTitle.toUpperCase();
+  }
+
+  const hostLine = Array.from(card.querySelectorAll("p")).find((paragraph) => {
+    return paragraph.innerText.trim().toLowerCase().startsWith("host:");
+  });
+
+  if (hostLine) {
+    const host = getEffectiveHost ? getEffectiveHost() : null;
+    hostLine.innerHTML = `<strong>Host:</strong> ${host ? host.nick : "brak"}`;
+  }
+
+  if (nowPlayingPerformerLine) {
+    const performerName =
+      jamActive && jamCurrentPerformer
+        ? jamCurrentPerformer.nick
+        : "nikt";
+
+    nowPlayingPerformerLine.innerHTML =
+      `<strong>Aktualnie skreczuje:</strong> ${performerName}`;
+  }
+}
+
+function updateIntegratedLooperPanel55B8B2() {
+  const panel = ensureIntegratedLooperPanel55B8B2();
+
+  if (!panel) {
+    return;
+  }
+
+  const beatState = getBeatState55B8B2();
+
+  const currentTitle = panel.querySelector("#jamIntegratedCurrentBeatTitle55B8B2");
+  const currentUrl = panel.querySelector("#jamIntegratedCurrentBeatUrl55B8B2");
+  const nextTitle = panel.querySelector("#jamIntegratedNextBeatTitle55B8B2");
+  const nextUrl = panel.querySelector("#jamIntegratedNextBeatUrl55B8B2");
+
+  if (currentTitle) {
+    currentTitle.innerText =
+      `#${String(beatState.currentIndex).padStart(2, "0")} — ${beatState.currentTitle}`;
+  }
+
+  if (currentUrl) {
+    currentUrl.innerText = beatState.currentUrl || getBeatAudioUrl55B8B2(beatState.currentIndex);
+  }
+
+  if (nextTitle) {
+    nextTitle.innerText =
+      `#${String(beatState.nextIndex).padStart(2, "0")} — ${beatState.nextTitle}`;
+  }
+
+  if (nextUrl) {
+    nextUrl.innerText = beatState.nextUrl || getBeatAudioUrl55B8B2(beatState.nextIndex);
+  }
+
+  updateHostOnlyLooperControls55B8B3();
+  updatePitchValue55B8B3(
+    Number(document.querySelector("#jamPitchSlider55B8B3")?.value || 0)
+  );
+}
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    if (jamIntegratedLooperPanel55B8B2) {
+      jamIntegratedLooperPanel55B8B2.remove();
+      jamIntegratedLooperPanel55B8B2 = null;
+    }
+
+    renderIntegratedLooper55B8B2();
+  }, 3200);
+});
