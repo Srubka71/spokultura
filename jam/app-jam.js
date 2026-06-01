@@ -8394,3 +8394,362 @@ window.addEventListener("load", () => {
     updateJamLocalAudioUiFinal();
   }, 3600);
 });
+
+// =======================
+// ETAP 55B-11 — LOCAL LOOP + PITCH + BPM
+// Loop infinity / 1x / 2x / 4x / 6x / 8x + pitch playbackRate + BPM display
+// =======================
+
+let jamLocalLoopModeFinal = "infinity";
+let jamLocalLoopCountFinal = 0;
+let jamLocalLoopTargetFinal = Infinity;
+let jamLocalPitchPercentFinal = 0;
+
+function getJamPitchRateFinal() {
+  return 1 + Number(jamLocalPitchPercentFinal || 0) / 100;
+}
+
+function getCurrentBeatBaseBpmFinal() {
+  const beatState =
+    typeof getBeatStateFinal === "function"
+      ? getBeatStateFinal()
+      : null;
+
+  if (!beatState || beatState.currentBpm === null || beatState.currentBpm === undefined) {
+    return null;
+  }
+
+  const parsed = Number(beatState.currentBpm);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getCurrentBeatEffectiveBpmFinal() {
+  const baseBpm = getCurrentBeatBaseBpmFinal();
+
+  if (baseBpm === null) {
+    return null;
+  }
+
+  return baseBpm * getJamPitchRateFinal();
+}
+
+function formatEffectiveBpmFinal(value) {
+  if (value === null || value === undefined) {
+    return "--";
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return "--";
+  }
+
+  return parsed.toFixed(2);
+}
+
+function updatePitchValueFinal(value) {
+  const safeValue = Math.max(-20, Math.min(20, Number(value || 0)));
+
+  jamLocalPitchPercentFinal = safeValue;
+
+  const slider = document.querySelector("#jamPitchSliderFinal");
+  const label = document.querySelector("#jamPitchValueFinal");
+
+  if (slider) {
+    slider.min = "-20";
+    slider.max = "20";
+    slider.step = "1";
+    slider.value = String(safeValue);
+  }
+
+  if (label) {
+    label.innerText = `${safeValue}%`;
+  }
+
+  if (jamLocalAudioFinal) {
+    jamLocalAudioFinal.playbackRate = getJamPitchRateFinal();
+  }
+
+  renderJamLooperPlayerFinal();
+  updateJamLocalAudioUiFinal();
+}
+
+function changePitchFinal(delta) {
+  updatePitchValueFinal(jamLocalPitchPercentFinal + Number(delta || 0));
+}
+
+function setJamLoopModeFinal(mode) {
+  jamLocalLoopModeFinal = mode;
+  jamLocalLoopCountFinal = 0;
+
+  if (mode === "infinity") {
+    jamLocalLoopTargetFinal = Infinity;
+    showSystemInfo("INFINITY LOOP", "success");
+  } else {
+    jamLocalLoopTargetFinal = Number(mode);
+    showSystemInfo(`LOOP ${jamLocalLoopTargetFinal}X`, "success");
+  }
+
+  updateJamLoopButtonsFinal();
+  updateJamLocalAudioUiFinal();
+}
+
+function updateJamLoopButtonsFinal() {
+  const map = {
+    infinity: "#jamLoopInfinityFinal",
+    1: "#jamLoop1Final",
+    2: "#jamLoop2Final",
+    4: "#jamLoop4Final",
+    6: "#jamLoop6Final",
+    8: "#jamLoop8Final"
+  };
+
+  Object.entries(map).forEach(([mode, selector]) => {
+    const btn = document.querySelector(selector);
+
+    if (!btn) return;
+
+    const active =
+      String(jamLocalLoopModeFinal) === String(mode);
+
+    btn.classList.toggle("jam-btn-primary", active);
+  });
+}
+
+function updateJamLocalAudioUiFinal() {
+  const startBtn = document.querySelector("#jamStartBeatFinal");
+  const stopBtn = document.querySelector("#jamStopBeatFinal");
+  const status = ensureJamAudioStatusFinal();
+
+  const effectiveBpm = getCurrentBeatEffectiveBpmFinal();
+
+  if (startBtn) {
+    startBtn.disabled = jamLocalAudioLoadingFinal;
+    startBtn.classList.toggle("jam-btn-muted", jamLocalAudioLoadingFinal);
+    startBtn.innerText = jamLocalAudioPlayingFinal
+      ? "PLAYING"
+      : jamLocalAudioLoadingFinal
+        ? "LOADING"
+        : "START";
+  }
+
+  if (stopBtn) {
+    stopBtn.disabled = !jamLocalAudioPlayingFinal && !jamLocalAudioLoadingFinal;
+    stopBtn.classList.toggle("jam-btn-muted", stopBtn.disabled);
+  }
+
+  if (status) {
+    const loopLabel =
+      jamLocalLoopModeFinal === "infinity"
+        ? "INFINITY"
+        : `${jamLocalLoopModeFinal}X`;
+
+    const bpmText = formatEffectiveBpmFinal(effectiveBpm);
+
+    if (jamLocalAudioLoadingFinal) {
+      status.innerText = "Audio: ładowanie...";
+    } else if (jamLocalAudioPlayingFinal) {
+      status.innerText =
+        `Audio: gra lokalnie — ${getCurrentBeatLabelForPlayerFinal()} | Loop: ${loopLabel} | Pitch: ${jamLocalPitchPercentFinal}% | BPM: ${bpmText}`;
+    } else if (jamLocalAudioUrlFinal) {
+      status.innerText =
+        `Audio: zatrzymane lokalnie | Loop: ${loopLabel} | Pitch: ${jamLocalPitchPercentFinal}% | BPM: ${bpmText}`;
+    } else {
+      status.innerText =
+        `Audio: gotowe lokalnie | Loop: ${loopLabel} | Pitch: ${jamLocalPitchPercentFinal}% | BPM: ${bpmText}`;
+    }
+  }
+
+  updateJamLoopButtonsFinal();
+}
+
+function bindJamLoopPitchButtonsFinal() {
+  const pitchMinus = document.querySelector("#jamPitchMinusFinal");
+  const pitchPlus = document.querySelector("#jamPitchPlusFinal");
+  const pitchSlider = document.querySelector("#jamPitchSliderFinal");
+
+  if (pitchMinus && pitchMinus.dataset.pitchBoundFinal !== "true") {
+    pitchMinus.dataset.pitchBoundFinal = "true";
+    pitchMinus.onclick = () => changePitchFinal(-1);
+  }
+
+  if (pitchPlus && pitchPlus.dataset.pitchBoundFinal !== "true") {
+    pitchPlus.dataset.pitchBoundFinal = "true";
+    pitchPlus.onclick = () => changePitchFinal(1);
+  }
+
+  if (pitchSlider && pitchSlider.dataset.pitchBoundFinal !== "true") {
+    pitchSlider.dataset.pitchBoundFinal = "true";
+    pitchSlider.min = "-20";
+    pitchSlider.max = "20";
+    pitchSlider.step = "1";
+    pitchSlider.value = String(jamLocalPitchPercentFinal);
+
+    pitchSlider.oninput = () => {
+      updatePitchValueFinal(Number(pitchSlider.value || 0));
+    };
+  }
+
+  const loopButtons = [
+    ["#jamLoopInfinityFinal", "infinity"],
+    ["#jamLoop1Final", 1],
+    ["#jamLoop2Final", 2],
+    ["#jamLoop4Final", 4],
+    ["#jamLoop6Final", 6],
+    ["#jamLoop8Final", 8]
+  ];
+
+  loopButtons.forEach(([selector, mode]) => {
+    const btn = document.querySelector(selector);
+
+    if (!btn || btn.dataset.loopBoundFinal === "true") return;
+
+    btn.dataset.loopBoundFinal = "true";
+    btn.onclick = () => setJamLoopModeFinal(mode);
+  });
+
+  updatePitchValueFinal(jamLocalPitchPercentFinal);
+  updateJamLoopButtonsFinal();
+}
+
+function updateJamLooperBpmDisplayFinal() {
+  const meta = document.querySelector("#jamLooperBeatMetaFinal");
+
+  if (!meta) {
+    return;
+  }
+
+  const beatState = getBeatStateFinal();
+  const baseBpm = getCurrentBeatBaseBpmFinal();
+  const effectiveBpm = getCurrentBeatEffectiveBpmFinal();
+
+  const bpmText =
+    baseBpm === null
+      ? "--"
+      : `${formatEffectiveBpmFinal(effectiveBpm)} (${formatBeatBpmFinal(baseBpm)} base)`;
+
+  meta.innerText =
+    `Producent: ${beatState.currentProducer} | BPM: ${bpmText}`;
+}
+
+const previousRenderJamLooperPlayerFinal55B11 = renderJamLooperPlayerFinal;
+
+renderJamLooperPlayerFinal = function renderJamLooperPlayerLoopPitch55B11() {
+  previousRenderJamLooperPlayerFinal55B11();
+
+  bindJamLoopPitchButtonsFinal();
+  updateJamLooperBpmDisplayFinal();
+  updateJamLocalAudioUiFinal();
+};
+
+const previousStartJamLocalAudioFinal55B11 = startJamLocalAudioFinal;
+
+startJamLocalAudioFinal = async function startJamLocalAudioLoopPitch55B11() {
+  await previousStartJamLocalAudioFinal55B11();
+
+  if (jamLocalAudioFinal) {
+    jamLocalAudioFinal.loop = jamLocalLoopModeFinal === "infinity";
+    jamLocalAudioFinal.playbackRate = getJamPitchRateFinal();
+  }
+
+  jamLocalLoopCountFinal = 0;
+  updateJamLocalAudioUiFinal();
+};
+
+const previousLoadJamLocalAudioFinal55B11 = loadJamLocalAudioFinal;
+
+loadJamLocalAudioFinal = async function loadJamLocalAudioLoopPitch55B11(url) {
+  const loaded = await previousLoadJamLocalAudioFinal55B11(url);
+
+  if (loaded && jamLocalAudioFinal) {
+    jamLocalAudioFinal.loop = jamLocalLoopModeFinal === "infinity";
+    jamLocalAudioFinal.playbackRate = getJamPitchRateFinal();
+  }
+
+  return loaded;
+};
+
+function handleJamAudioEndedLoopFinal() {
+  if (!jamLocalAudioFinal) return;
+
+  if (jamLocalLoopModeFinal === "infinity") {
+    jamLocalAudioFinal.currentTime = 0;
+
+    jamLocalAudioFinal.play().catch((error) => {
+      console.error("[JAM LOOP] infinity replay error:", error);
+      jamLocalAudioPlayingFinal = false;
+      updateJamLocalAudioUiFinal();
+    });
+
+    return;
+  }
+
+  jamLocalLoopCountFinal += 1;
+
+  if (jamLocalLoopCountFinal < Number(jamLocalLoopTargetFinal)) {
+    jamLocalAudioFinal.currentTime = 0;
+
+    jamLocalAudioFinal.play().catch((error) => {
+      console.error("[JAM LOOP] finite replay error:", error);
+      jamLocalAudioPlayingFinal = false;
+      updateJamLocalAudioUiFinal();
+    });
+
+    updateJamLocalAudioUiFinal();
+    return;
+  }
+
+  jamLocalLoopCountFinal = 0;
+
+  runLockedAction(async () => {
+    const beatState = getBeatStateFinal();
+    await saveBeatStateToRoomFinal(getNextBeatIndexFinal(beatState.currentIndex), "Auto Next Beat");
+  }, "auto next beat", "host_placeholder");
+}
+
+function rebindJamAudioEndedForLoopFinal() {
+  const audio = ensureJamLocalAudioFinal();
+
+  if (audio.dataset.loopEndedBoundFinal === "true") {
+    return;
+  }
+
+  audio.dataset.loopEndedBoundFinal = "true";
+
+  audio.addEventListener("ended", () => {
+    if (!jamLocalAudioPlayingFinal) {
+      return;
+    }
+
+    handleJamAudioEndedLoopFinal();
+  });
+}
+
+const previousEnsureJamLocalAudioFinal55B11 = ensureJamLocalAudioFinal;
+
+ensureJamLocalAudioFinal = function ensureJamLocalAudioLoopPitch55B11() {
+  const audio = previousEnsureJamLocalAudioFinal55B11();
+
+  rebindJamAudioEndedForLoopFinal();
+
+  audio.loop = jamLocalLoopModeFinal === "infinity";
+  audio.playbackRate = getJamPitchRateFinal();
+
+  return audio;
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    ensureJamLocalAudioFinal();
+    bindJamLoopPitchButtonsFinal();
+    setJamLoopModeFinal("infinity");
+    updateJamLocalAudioUiFinal();
+  }, 1800);
+
+  setTimeout(() => {
+    bindJamLoopPitchButtonsFinal();
+    updateJamLooperBpmDisplayFinal();
+    updateJamLocalAudioUiFinal();
+  }, 3800);
+});
