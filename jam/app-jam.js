@@ -8511,102 +8511,181 @@ window.addEventListener("load", () => {
 });
 
 // =======================
-// ETAP 55B-11B — PITCH PLAYBACKRATE ONLY + 0% RESET
-// Lokalny pitch bez render-loopów, bez BPM, bez auto-next
+// ETAP 55B-11B-FIX — PITCH UI + PLAYBACKRATE ONLY
+// Poprawny układ: [suwak pitch] / [PITCH -] [0%] [PITCH +]
+// Bez BPM, bez finite loopów, bez render-loopów
 // =======================
 
-let jamPitchPercent55B11B = 0;
+let jamPitchRate55B11BFix = 1;
 
-function getJamPitchRate55B11B() {
-  return 1 + Number(jamPitchPercent55B11B || 0) / 100;
+function getJamPitchPercent55B11BFix() {
+  return Math.round((jamPitchRate55B11BFix - 1) * 100);
 }
 
-function ensurePitchLayoutStyles55B11B() {
-  if (document.querySelector("#jamPitchLayoutStyles55B11B")) {
+function clampJamPitchRate55B11BFix(value) {
+  const parsed = Number(value || 1);
+
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  return Math.max(0.8, Math.min(1.2, parsed));
+}
+
+function applyJamPitchRate55B11BFix() {
+  const audio = ensureJamLocalAudioFinal();
+
+  if (!audio) {
+    return;
+  }
+
+  audio.playbackRate = jamPitchRate55B11BFix;
+}
+
+function ensurePitchPanelStyles55B11BFix() {
+  if (document.querySelector("#jamPitchPanelStyles55B11BFix")) {
     return;
   }
 
   const style = document.createElement("style");
-  style.id = "jamPitchLayoutStyles55B11B";
+  style.id = "jamPitchPanelStyles55B11BFix";
 
   style.innerHTML = `
-    .jam-pitch-wrap-55b11b {
-      width: min(100%, 340px);
+    .jam-pitch-panel-55b11bfix {
+      width: min(100%, 360px);
       display: flex;
       flex-direction: column;
-      gap: 7px;
-      padding: 9px 10px;
+      gap: 8px;
+      padding: 10px;
       border-radius: 16px;
       border: 1px solid rgba(234,162,33,0.24);
       background: rgba(0,0,0,0.22);
     }
 
-    .jam-pitch-wrap-55b11b input[type="range"] {
+    .jam-pitch-panel-55b11bfix input[type="range"] {
       width: 100%;
       accent-color: rgba(234,162,33,0.96);
       cursor: pointer;
     }
 
-    .jam-pitch-actions-55b11b {
+    .jam-pitch-actions-55b11bfix {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 7px;
+      gap: 8px;
       align-items: center;
     }
 
-    .jam-pitch-actions-55b11b .jam-btn {
-      min-height: 34px;
+    .jam-pitch-actions-55b11bfix .jam-btn {
+      min-height: 36px;
       padding: 7px 10px;
       justify-content: center;
       font-size: 12px;
     }
 
-    #jamPitchReset55B11B {
+    #jamPitchReset55B11BFix {
       border-color: rgba(234,162,33,0.62);
       color: rgba(234,162,33,0.98);
       font-weight: 900;
     }
 
-    #jamPitchValueFinal {
-      display: none !important;
+    #jamPitchReset55B11BFix.active-zero {
+      background: rgba(234,162,33,0.16);
+      box-shadow:
+        0 0 0 1px rgba(234,162,33,0.18),
+        0 0 22px rgba(234,162,33,0.12);
     }
 
-    .jam-looper-final-pitch {
-      display: contents !important;
+    .jam-loop-group-55b11bfix {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .jam-loop-group-55b11bfix .jam-btn {
+      min-height: 36px;
+    }
+
+    .jam-pitch-readout-55b11bfix {
+      color: rgba(255,255,255,0.62);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      text-align: center;
     }
   `;
 
   document.head.appendChild(style);
 }
 
-function ensurePitchControlsLayout55B11B() {
-  ensurePitchLayoutStyles55B11B();
+function ensureLoopPitchLayout55B11BFix() {
+  ensurePitchPanelStyles55B11BFix();
 
   const controls = document.querySelector("#jamLooperControlsFinal");
+
+  if (!controls) {
+    return;
+  }
+
+  const loopButtons = [
+    document.querySelector("#jamLoopInfinityFinal"),
+    document.querySelector("#jamLoop1Final"),
+    document.querySelector("#jamLoop2Final"),
+    document.querySelector("#jamLoop4Final"),
+    document.querySelector("#jamLoop6Final"),
+    document.querySelector("#jamLoop8Final")
+  ].filter(Boolean);
+
+  let loopGroup = document.querySelector("#jamLoopGroup55B11BFix");
+
+  if (!loopGroup) {
+    loopGroup = document.createElement("div");
+    loopGroup.id = "jamLoopGroup55B11BFix";
+    loopGroup.className = "jam-loop-group-55b11bfix";
+
+    const firstLoopButton = loopButtons[0];
+
+    if (firstLoopButton && firstLoopButton.parentNode) {
+      firstLoopButton.parentNode.insertBefore(loopGroup, firstLoopButton);
+    } else {
+      controls.appendChild(loopGroup);
+    }
+  }
+
+  loopButtons.forEach((button) => {
+    loopGroup.appendChild(button);
+  });
+
   const slider = document.querySelector("#jamPitchSliderFinal");
   const minusBtn = document.querySelector("#jamPitchMinusFinal");
   const plusBtn = document.querySelector("#jamPitchPlusFinal");
 
-  if (!controls || !slider || !minusBtn || !plusBtn) {
+  if (!slider || !minusBtn || !plusBtn) {
     return;
   }
 
-  let wrap = document.querySelector("#jamPitchWrap55B11B");
+  let pitchPanel = document.querySelector("#jamPitchPanel55B11BFix");
 
-  if (!wrap) {
-    wrap = document.createElement("div");
-    wrap.id = "jamPitchWrap55B11B";
-    wrap.className = "jam-pitch-wrap-55b11b";
+  if (!pitchPanel) {
+    pitchPanel = document.createElement("div");
+    pitchPanel.id = "jamPitchPanel55B11BFix";
+    pitchPanel.className = "jam-pitch-panel-55b11bfix";
+
+    const pitchReadout = document.createElement("div");
+    pitchReadout.id = "jamPitchReadout55B11BFix";
+    pitchReadout.className = "jam-pitch-readout-55b11bfix";
+    pitchReadout.innerText = "Pitch: 0%";
 
     const actions = document.createElement("div");
-    actions.id = "jamPitchActions55B11B";
-    actions.className = "jam-pitch-actions-55b11b";
+    actions.id = "jamPitchActions55B11BFix";
+    actions.className = "jam-pitch-actions-55b11bfix";
 
-    let resetBtn = document.querySelector("#jamPitchReset55B11B");
+    let resetBtn = document.querySelector("#jamPitchReset55B11BFix");
 
     if (!resetBtn) {
       resetBtn = document.createElement("button");
-      resetBtn.id = "jamPitchReset55B11B";
+      resetBtn.id = "jamPitchReset55B11BFix";
       resetBtn.type = "button";
       resetBtn.className = "jam-btn";
       resetBtn.innerText = "0%";
@@ -8615,19 +8694,20 @@ function ensurePitchControlsLayout55B11B() {
     const oldPitchBox = slider.closest(".jam-looper-final-pitch");
 
     if (oldPitchBox && oldPitchBox.parentNode) {
-      oldPitchBox.parentNode.insertBefore(wrap, oldPitchBox);
+      oldPitchBox.parentNode.insertBefore(pitchPanel, oldPitchBox);
     } else {
-      controls.appendChild(wrap);
+      controls.appendChild(pitchPanel);
     }
 
-    wrap.appendChild(slider);
-    wrap.appendChild(actions);
+    pitchPanel.appendChild(slider);
+    pitchPanel.appendChild(pitchReadout);
+    pitchPanel.appendChild(actions);
 
     actions.appendChild(minusBtn);
     actions.appendChild(resetBtn);
     actions.appendChild(plusBtn);
 
-    if (oldPitchBox && oldPitchBox.parentNode && oldPitchBox.children.length === 0) {
+    if (oldPitchBox && oldPitchBox.children.length === 0) {
       oldPitchBox.remove();
     }
   }
@@ -8635,44 +8715,36 @@ function ensurePitchControlsLayout55B11B() {
   minusBtn.innerText = "PITCH -";
   plusBtn.innerText = "PITCH +";
 
-  const resetBtn = document.querySelector("#jamPitchReset55B11B");
-
-  if (resetBtn && resetBtn.dataset.pitchResetBound55B11B !== "true") {
-    resetBtn.dataset.pitchResetBound55B11B = "true";
-
-    resetBtn.onclick = () => {
-      setJamPitchPercent55B11B(0, true);
-    };
-  }
+  slider.min = "0.8";
+  slider.max = "1.2";
+  slider.step = "0.01";
+  slider.value = String(jamPitchRate55B11BFix);
 }
 
-function setJamPitchPercent55B11B(value, showMessage = false) {
-  const safeValue = Math.max(-20, Math.min(20, Number(value || 0)));
-
-  jamPitchPercent55B11B = safeValue;
-
-  const audio = ensureJamLocalAudioFinal();
+function updatePitchUi55B11BFix() {
   const slider = document.querySelector("#jamPitchSliderFinal");
-  const resetBtn = document.querySelector("#jamPitchReset55B11B");
+  const resetBtn = document.querySelector("#jamPitchReset55B11BFix");
+  const readout = document.querySelector("#jamPitchReadout55B11BFix");
   const status = ensureJamAudioStatusFinal();
 
+  const percent = getJamPitchPercent55B11BFix();
+
   if (slider) {
-    slider.min = "-20";
-    slider.max = "20";
-    slider.step = "1";
-    slider.value = String(safeValue);
+    slider.value = String(jamPitchRate55B11BFix);
   }
 
   if (resetBtn) {
-    resetBtn.innerText = `${safeValue}%`;
-    resetBtn.classList.toggle("jam-btn-primary", safeValue === 0);
+    resetBtn.innerText = "0%";
+    resetBtn.classList.toggle("active-zero", percent === 0);
+    resetBtn.classList.toggle("jam-btn-primary", percent === 0);
+    resetBtn.title = "Reset pitch do 0%";
   }
 
-  if (audio) {
-    audio.playbackRate = getJamPitchRate55B11B();
+  if (readout) {
+    readout.innerText = `Pitch: ${percent > 0 ? "+" : ""}${percent}%`;
   }
 
-  if (status) {
+  if (status && !jamLocalAudioLoadingFinal) {
     const baseText = jamLocalAudioPlayingFinal
       ? `Audio: gra lokalnie — ${getCurrentBeatLabelForPlayerFinal()}`
       : jamLocalAudioUrlFinal
@@ -8683,115 +8755,126 @@ function setJamPitchPercent55B11B(value, showMessage = false) {
       ? "Infinity loop ON"
       : "Infinity loop OFF";
 
-    status.innerText = `${baseText} | ${loopText} | Pitch: ${safeValue}%`;
+    status.innerText =
+      `${baseText} | ${loopText} | Pitch: ${percent > 0 ? "+" : ""}${percent}%`;
   }
+}
+
+function setJamPitchRate55B11BFix(nextRate, showMessage = false) {
+  jamPitchRate55B11BFix = clampJamPitchRate55B11BFix(nextRate);
+
+  applyJamPitchRate55B11BFix();
+  updatePitchUi55B11BFix();
 
   if (showMessage) {
+    const percent = getJamPitchPercent55B11BFix();
+
     showSystemInfo(
-      safeValue === 0
+      percent === 0
         ? "Pitch reset 0%"
-        : `Pitch: ${safeValue}%`,
+        : `Pitch: ${percent > 0 ? "+" : ""}${percent}%`,
       "success"
     );
   }
 }
 
-function changeJamPitchPercent55B11B(delta) {
-  setJamPitchPercent55B11B(
-    jamPitchPercent55B11B + Number(delta || 0),
+function changeJamPitch55B11BFix(deltaRate) {
+  setJamPitchRate55B11BFix(
+    jamPitchRate55B11BFix + Number(deltaRate || 0),
     true
   );
 }
 
-function bindPitchControls55B11B() {
-  ensurePitchControlsLayout55B11B();
+function bindPitchControls55B11BFix() {
+  ensureLoopPitchLayout55B11BFix();
 
   const slider = document.querySelector("#jamPitchSliderFinal");
   const minusBtn = document.querySelector("#jamPitchMinusFinal");
   const plusBtn = document.querySelector("#jamPitchPlusFinal");
+  const resetBtn = document.querySelector("#jamPitchReset55B11BFix");
 
-  if (slider && slider.dataset.pitchBound55B11B !== "true") {
-    slider.dataset.pitchBound55B11B = "true";
-
-    slider.min = "-20";
-    slider.max = "20";
-    slider.step = "1";
-    slider.value = String(jamPitchPercent55B11B);
+  if (slider && slider.dataset.pitchBound55B11BFix !== "true") {
+    slider.dataset.pitchBound55B11BFix = "true";
 
     slider.oninput = () => {
-      setJamPitchPercent55B11B(Number(slider.value || 0), false);
+      setJamPitchRate55B11BFix(Number(slider.value || 1), false);
     };
   }
 
-  if (minusBtn && minusBtn.dataset.pitchMinusBound55B11B !== "true") {
-    minusBtn.dataset.pitchMinusBound55B11B = "true";
+  if (minusBtn && minusBtn.dataset.pitchMinusBound55B11BFix !== "true") {
+    minusBtn.dataset.pitchMinusBound55B11BFix = "true";
 
     minusBtn.onclick = () => {
-      changeJamPitchPercent55B11B(-1);
+      changeJamPitch55B11BFix(-0.01);
     };
   }
 
-  if (plusBtn && plusBtn.dataset.pitchPlusBound55B11B !== "true") {
-    plusBtn.dataset.pitchPlusBound55B11B = "true";
+  if (plusBtn && plusBtn.dataset.pitchPlusBound55B11BFix !== "true") {
+    plusBtn.dataset.pitchPlusBound55B11BFix = "true";
 
     plusBtn.onclick = () => {
-      changeJamPitchPercent55B11B(1);
+      changeJamPitch55B11BFix(0.01);
     };
   }
 
-  setJamPitchPercent55B11B(jamPitchPercent55B11B, false);
+  if (resetBtn && resetBtn.dataset.pitchResetBound55B11BFix !== "true") {
+    resetBtn.dataset.pitchResetBound55B11BFix = "true";
+
+    resetBtn.onclick = () => {
+      setJamPitchRate55B11BFix(1, true);
+    };
+  }
+
+  applyJamPitchRate55B11BFix();
+  updatePitchUi55B11BFix();
 }
 
-const previousEnsureJamLocalAudioFinal55B11B = ensureJamLocalAudioFinal;
+const previousEnsureJamLocalAudioFinal55B11BFix = ensureJamLocalAudioFinal;
 
-ensureJamLocalAudioFinal = function ensureJamLocalAudioPitch55B11B() {
-  const audio = previousEnsureJamLocalAudioFinal55B11B();
+ensureJamLocalAudioFinal = function ensureJamLocalAudioPitch55B11BFix() {
+  const audio = previousEnsureJamLocalAudioFinal55B11BFix();
 
-  audio.playbackRate = getJamPitchRate55B11B();
+  audio.playbackRate = jamPitchRate55B11BFix;
 
   return audio;
 };
 
-const previousStartJamLocalAudioFinal55B11B = startJamLocalAudioFinal;
+const previousStartJamLocalAudioFinal55B11BFix = startJamLocalAudioFinal;
 
-startJamLocalAudioFinal = async function startJamLocalAudioPitch55B11B() {
-  await previousStartJamLocalAudioFinal55B11B();
+startJamLocalAudioFinal = async function startJamLocalAudioPitch55B11BFix() {
+  await previousStartJamLocalAudioFinal55B11BFix();
 
-  const audio = ensureJamLocalAudioFinal();
-  audio.playbackRate = getJamPitchRate55B11B();
-
-  setJamPitchPercent55B11B(jamPitchPercent55B11B, false);
+  applyJamPitchRate55B11BFix();
+  updatePitchUi55B11BFix();
 };
 
-const previousLoadJamLocalAudioFinal55B11B = loadJamLocalAudioFinal;
+const previousLoadJamLocalAudioFinal55B11BFix = loadJamLocalAudioFinal;
 
-loadJamLocalAudioFinal = async function loadJamLocalAudioPitch55B11B(url) {
-  const loaded = await previousLoadJamLocalAudioFinal55B11B(url);
+loadJamLocalAudioFinal = async function loadJamLocalAudioPitch55B11BFix(url) {
+  const loaded = await previousLoadJamLocalAudioFinal55B11BFix(url);
 
-  const audio = ensureJamLocalAudioFinal();
-  audio.playbackRate = getJamPitchRate55B11B();
-
-  setJamPitchPercent55B11B(jamPitchPercent55B11B, false);
+  applyJamPitchRate55B11BFix();
+  updatePitchUi55B11BFix();
 
   return loaded;
 };
 
-const previousRenderJamLooperPlayerFinal55B11B = renderJamLooperPlayerFinal;
+const previousRenderJamLooperPlayerFinal55B11BFix = renderJamLooperPlayerFinal;
 
-renderJamLooperPlayerFinal = function renderJamLooperPlayerPitch55B11B() {
-  previousRenderJamLooperPlayerFinal55B11B();
+renderJamLooperPlayerFinal = function renderJamLooperPlayerPitch55B11BFix() {
+  previousRenderJamLooperPlayerFinal55B11BFix();
 
   setTimeout(() => {
-    bindPitchControls55B11B();
+    bindPitchControls55B11BFix();
   }, 30);
 };
 
 window.addEventListener("load", () => {
   setTimeout(() => {
-    bindPitchControls55B11B();
+    bindPitchControls55B11BFix();
   }, 1800);
 
   setTimeout(() => {
-    bindPitchControls55B11B();
+    bindPitchControls55B11BFix();
   }, 3600);
 });
