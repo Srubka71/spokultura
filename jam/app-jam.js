@@ -8394,3 +8394,118 @@ window.addEventListener("load", () => {
     updateJamLocalAudioUiFinal();
   }, 3600);
 });
+
+// =======================
+// ETAP 55B-11A — INFINITY LOOP ONLY
+// Bezpieczne zapętlenie lokalnego audio bez render-loopów
+// =======================
+
+let jamInfinityLoopEnabled55B11A = true;
+
+function applyInfinityLoop55B11A() {
+  const audio = ensureJamLocalAudioFinal();
+
+  if (!audio) {
+    return;
+  }
+
+  audio.loop = Boolean(jamInfinityLoopEnabled55B11A);
+}
+
+function updateInfinityLoopUi55B11A() {
+  const infinityBtn = document.querySelector("#jamLoopInfinityFinal");
+  const status = ensureJamAudioStatusFinal();
+
+  if (infinityBtn) {
+    infinityBtn.classList.toggle("jam-btn-primary", jamInfinityLoopEnabled55B11A);
+    infinityBtn.innerText = jamInfinityLoopEnabled55B11A
+      ? "INFINITY ON"
+      : "INFINITY";
+  }
+
+  if (status && !jamLocalAudioPlayingFinal && !jamLocalAudioLoadingFinal) {
+    status.innerText = jamInfinityLoopEnabled55B11A
+      ? "Audio: gotowe lokalnie | Infinity loop ON"
+      : "Audio: gotowe lokalnie";
+  }
+}
+
+function bindInfinityLoopButton55B11A() {
+  const infinityBtn = document.querySelector("#jamLoopInfinityFinal");
+
+  if (!infinityBtn || infinityBtn.dataset.infinityBound55B11A === "true") {
+    return;
+  }
+
+  infinityBtn.dataset.infinityBound55B11A = "true";
+
+  infinityBtn.onclick = () => {
+    jamInfinityLoopEnabled55B11A = !jamInfinityLoopEnabled55B11A;
+
+    applyInfinityLoop55B11A();
+    updateInfinityLoopUi55B11A();
+
+    showSystemInfo(
+      jamInfinityLoopEnabled55B11A
+        ? "INFINITY LOOP ON"
+        : "INFINITY LOOP OFF",
+      "success"
+    );
+  };
+}
+
+const previousEnsureJamLocalAudioFinal55B11A = ensureJamLocalAudioFinal;
+
+ensureJamLocalAudioFinal = function ensureJamLocalAudioInfinity55B11A() {
+  const audio = previousEnsureJamLocalAudioFinal55B11A();
+
+  audio.loop = Boolean(jamInfinityLoopEnabled55B11A);
+
+  return audio;
+};
+
+const previousStartJamLocalAudioFinal55B11A = startJamLocalAudioFinal;
+
+startJamLocalAudioFinal = async function startJamLocalAudioInfinity55B11A() {
+  applyInfinityLoop55B11A();
+
+  await previousStartJamLocalAudioFinal55B11A();
+
+  applyInfinityLoop55B11A();
+  updateInfinityLoopUi55B11A();
+};
+
+const previousLoadJamLocalAudioFinal55B11A = loadJamLocalAudioFinal;
+
+loadJamLocalAudioFinal = async function loadJamLocalAudioInfinity55B11A(url) {
+  const loaded = await previousLoadJamLocalAudioFinal55B11A(url);
+
+  applyInfinityLoop55B11A();
+  updateInfinityLoopUi55B11A();
+
+  return loaded;
+};
+
+const previousBindJamLocalAudioButtonsFinal55B11A = bindJamLocalAudioButtonsFinal;
+
+bindJamLocalAudioButtonsFinal = function bindJamLocalAudioButtonsInfinity55B11A() {
+  previousBindJamLocalAudioButtonsFinal55B11A();
+
+  bindInfinityLoopButton55B11A();
+  applyInfinityLoop55B11A();
+  updateInfinityLoopUi55B11A();
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    bindInfinityLoopButton55B11A();
+    applyInfinityLoop55B11A();
+    updateInfinityLoopUi55B11A();
+  }, 1800);
+
+  setTimeout(() => {
+    bindInfinityLoopButton55B11A();
+    applyInfinityLoop55B11A();
+    updateInfinityLoopUi55B11A();
+  }, 3600);
+});
