@@ -8509,3 +8509,289 @@ window.addEventListener("load", () => {
     updateInfinityLoopUi55B11A();
   }, 3600);
 });
+
+// =======================
+// ETAP 55B-11B — PITCH PLAYBACKRATE ONLY + 0% RESET
+// Lokalny pitch bez render-loopów, bez BPM, bez auto-next
+// =======================
+
+let jamPitchPercent55B11B = 0;
+
+function getJamPitchRate55B11B() {
+  return 1 + Number(jamPitchPercent55B11B || 0) / 100;
+}
+
+function ensurePitchLayoutStyles55B11B() {
+  if (document.querySelector("#jamPitchLayoutStyles55B11B")) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = "jamPitchLayoutStyles55B11B";
+
+  style.innerHTML = `
+    .jam-pitch-wrap-55b11b {
+      width: min(100%, 340px);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 9px 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(234,162,33,0.24);
+      background: rgba(0,0,0,0.22);
+    }
+
+    .jam-pitch-wrap-55b11b input[type="range"] {
+      width: 100%;
+      accent-color: rgba(234,162,33,0.96);
+      cursor: pointer;
+    }
+
+    .jam-pitch-actions-55b11b {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .jam-pitch-actions-55b11b .jam-btn {
+      min-height: 34px;
+      padding: 7px 10px;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    #jamPitchReset55B11B {
+      border-color: rgba(234,162,33,0.62);
+      color: rgba(234,162,33,0.98);
+      font-weight: 900;
+    }
+
+    #jamPitchValueFinal {
+      display: none !important;
+    }
+
+    .jam-looper-final-pitch {
+      display: contents !important;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function ensurePitchControlsLayout55B11B() {
+  ensurePitchLayoutStyles55B11B();
+
+  const controls = document.querySelector("#jamLooperControlsFinal");
+  const slider = document.querySelector("#jamPitchSliderFinal");
+  const minusBtn = document.querySelector("#jamPitchMinusFinal");
+  const plusBtn = document.querySelector("#jamPitchPlusFinal");
+
+  if (!controls || !slider || !minusBtn || !plusBtn) {
+    return;
+  }
+
+  let wrap = document.querySelector("#jamPitchWrap55B11B");
+
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.id = "jamPitchWrap55B11B";
+    wrap.className = "jam-pitch-wrap-55b11b";
+
+    const actions = document.createElement("div");
+    actions.id = "jamPitchActions55B11B";
+    actions.className = "jam-pitch-actions-55b11b";
+
+    let resetBtn = document.querySelector("#jamPitchReset55B11B");
+
+    if (!resetBtn) {
+      resetBtn = document.createElement("button");
+      resetBtn.id = "jamPitchReset55B11B";
+      resetBtn.type = "button";
+      resetBtn.className = "jam-btn";
+      resetBtn.innerText = "0%";
+    }
+
+    const oldPitchBox = slider.closest(".jam-looper-final-pitch");
+
+    if (oldPitchBox && oldPitchBox.parentNode) {
+      oldPitchBox.parentNode.insertBefore(wrap, oldPitchBox);
+    } else {
+      controls.appendChild(wrap);
+    }
+
+    wrap.appendChild(slider);
+    wrap.appendChild(actions);
+
+    actions.appendChild(minusBtn);
+    actions.appendChild(resetBtn);
+    actions.appendChild(plusBtn);
+
+    if (oldPitchBox && oldPitchBox.parentNode && oldPitchBox.children.length === 0) {
+      oldPitchBox.remove();
+    }
+  }
+
+  minusBtn.innerText = "PITCH -";
+  plusBtn.innerText = "PITCH +";
+
+  const resetBtn = document.querySelector("#jamPitchReset55B11B");
+
+  if (resetBtn && resetBtn.dataset.pitchResetBound55B11B !== "true") {
+    resetBtn.dataset.pitchResetBound55B11B = "true";
+
+    resetBtn.onclick = () => {
+      setJamPitchPercent55B11B(0, true);
+    };
+  }
+}
+
+function setJamPitchPercent55B11B(value, showMessage = false) {
+  const safeValue = Math.max(-20, Math.min(20, Number(value || 0)));
+
+  jamPitchPercent55B11B = safeValue;
+
+  const audio = ensureJamLocalAudioFinal();
+  const slider = document.querySelector("#jamPitchSliderFinal");
+  const resetBtn = document.querySelector("#jamPitchReset55B11B");
+  const status = ensureJamAudioStatusFinal();
+
+  if (slider) {
+    slider.min = "-20";
+    slider.max = "20";
+    slider.step = "1";
+    slider.value = String(safeValue);
+  }
+
+  if (resetBtn) {
+    resetBtn.innerText = `${safeValue}%`;
+    resetBtn.classList.toggle("jam-btn-primary", safeValue === 0);
+  }
+
+  if (audio) {
+    audio.playbackRate = getJamPitchRate55B11B();
+  }
+
+  if (status) {
+    const baseText = jamLocalAudioPlayingFinal
+      ? `Audio: gra lokalnie — ${getCurrentBeatLabelForPlayerFinal()}`
+      : jamLocalAudioUrlFinal
+        ? "Audio: zatrzymane lokalnie"
+        : "Audio: gotowe lokalnie";
+
+    const loopText = jamInfinityLoopEnabled55B11A
+      ? "Infinity loop ON"
+      : "Infinity loop OFF";
+
+    status.innerText = `${baseText} | ${loopText} | Pitch: ${safeValue}%`;
+  }
+
+  if (showMessage) {
+    showSystemInfo(
+      safeValue === 0
+        ? "Pitch reset 0%"
+        : `Pitch: ${safeValue}%`,
+      "success"
+    );
+  }
+}
+
+function changeJamPitchPercent55B11B(delta) {
+  setJamPitchPercent55B11B(
+    jamPitchPercent55B11B + Number(delta || 0),
+    true
+  );
+}
+
+function bindPitchControls55B11B() {
+  ensurePitchControlsLayout55B11B();
+
+  const slider = document.querySelector("#jamPitchSliderFinal");
+  const minusBtn = document.querySelector("#jamPitchMinusFinal");
+  const plusBtn = document.querySelector("#jamPitchPlusFinal");
+
+  if (slider && slider.dataset.pitchBound55B11B !== "true") {
+    slider.dataset.pitchBound55B11B = "true";
+
+    slider.min = "-20";
+    slider.max = "20";
+    slider.step = "1";
+    slider.value = String(jamPitchPercent55B11B);
+
+    slider.oninput = () => {
+      setJamPitchPercent55B11B(Number(slider.value || 0), false);
+    };
+  }
+
+  if (minusBtn && minusBtn.dataset.pitchMinusBound55B11B !== "true") {
+    minusBtn.dataset.pitchMinusBound55B11B = "true";
+
+    minusBtn.onclick = () => {
+      changeJamPitchPercent55B11B(-1);
+    };
+  }
+
+  if (plusBtn && plusBtn.dataset.pitchPlusBound55B11B !== "true") {
+    plusBtn.dataset.pitchPlusBound55B11B = "true";
+
+    plusBtn.onclick = () => {
+      changeJamPitchPercent55B11B(1);
+    };
+  }
+
+  setJamPitchPercent55B11B(jamPitchPercent55B11B, false);
+}
+
+const previousEnsureJamLocalAudioFinal55B11B = ensureJamLocalAudioFinal;
+
+ensureJamLocalAudioFinal = function ensureJamLocalAudioPitch55B11B() {
+  const audio = previousEnsureJamLocalAudioFinal55B11B();
+
+  audio.playbackRate = getJamPitchRate55B11B();
+
+  return audio;
+};
+
+const previousStartJamLocalAudioFinal55B11B = startJamLocalAudioFinal;
+
+startJamLocalAudioFinal = async function startJamLocalAudioPitch55B11B() {
+  await previousStartJamLocalAudioFinal55B11B();
+
+  const audio = ensureJamLocalAudioFinal();
+  audio.playbackRate = getJamPitchRate55B11B();
+
+  setJamPitchPercent55B11B(jamPitchPercent55B11B, false);
+};
+
+const previousLoadJamLocalAudioFinal55B11B = loadJamLocalAudioFinal;
+
+loadJamLocalAudioFinal = async function loadJamLocalAudioPitch55B11B(url) {
+  const loaded = await previousLoadJamLocalAudioFinal55B11B(url);
+
+  const audio = ensureJamLocalAudioFinal();
+  audio.playbackRate = getJamPitchRate55B11B();
+
+  setJamPitchPercent55B11B(jamPitchPercent55B11B, false);
+
+  return loaded;
+};
+
+const previousRenderJamLooperPlayerFinal55B11B = renderJamLooperPlayerFinal;
+
+renderJamLooperPlayerFinal = function renderJamLooperPlayerPitch55B11B() {
+  previousRenderJamLooperPlayerFinal55B11B();
+
+  setTimeout(() => {
+    bindPitchControls55B11B();
+  }, 30);
+};
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    bindPitchControls55B11B();
+  }, 1800);
+
+  setTimeout(() => {
+    bindPitchControls55B11B();
+  }, 3600);
+});
