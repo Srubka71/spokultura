@@ -8511,18 +8511,18 @@ window.addEventListener("load", () => {
 });
 
 // =======================
-// ETAP 55B-11B-FIX — PITCH UI + PLAYBACKRATE ONLY
-// Poprawny układ: [suwak pitch] / [PITCH -] [0%] [PITCH +]
-// Bez BPM, bez finite loopów, bez render-loopów
+// ETAP 55B-11B-FIX2 — COMBINED LOOP + PITCH PANEL
+// Bez toastów przy pitchu, bez zbędnego starego pitch boxa.
+// Loop buttons + pitch w jednym wspólnym panelu.
 // =======================
 
-let jamPitchRate55B11BFix = 1;
+let jamPitchRate55B11BFix2 = 1;
 
-function getJamPitchPercent55B11BFix() {
-  return Math.round((jamPitchRate55B11BFix - 1) * 100);
+function getJamPitchPercent55B11BFix2() {
+  return Math.round((jamPitchRate55B11BFix2 - 1) * 100);
 }
 
-function clampJamPitchRate55B11BFix(value) {
+function clampJamPitchRate55B11BFix2(value) {
   const parsed = Number(value || 1);
 
   if (!Number.isFinite(parsed)) {
@@ -8532,101 +8532,109 @@ function clampJamPitchRate55B11BFix(value) {
   return Math.max(0.8, Math.min(1.2, parsed));
 }
 
-function applyJamPitchRate55B11BFix() {
+function applyJamPitchRate55B11BFix2() {
   const audio = ensureJamLocalAudioFinal();
 
-  if (!audio) {
-    return;
-  }
+  if (!audio) return;
 
-  audio.playbackRate = jamPitchRate55B11BFix;
+  audio.playbackRate = jamPitchRate55B11BFix2;
 }
 
-function ensurePitchPanelStyles55B11BFix() {
-  if (document.querySelector("#jamPitchPanelStyles55B11BFix")) {
+function ensureLoopPitchPanelStyles55B11BFix2() {
+  if (document.querySelector("#jamLoopPitchPanelStyles55B11BFix2")) {
     return;
   }
 
   const style = document.createElement("style");
-  style.id = "jamPitchPanelStyles55B11BFix";
+  style.id = "jamLoopPitchPanelStyles55B11BFix2";
 
   style.innerHTML = `
-    .jam-pitch-panel-55b11bfix {
+    #jamPitchValueFinal {
+      display: none !important;
+    }
+
+    .jam-looper-final-pitch {
+      display: none !important;
+    }
+
+    .jam-loop-pitch-panel-55b11bfix2 {
       width: min(100%, 360px);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
       padding: 10px;
       border-radius: 16px;
       border: 1px solid rgba(234,162,33,0.24);
       background: rgba(0,0,0,0.22);
     }
 
-    .jam-pitch-panel-55b11bfix input[type="range"] {
-      width: 100%;
-      accent-color: rgba(234,162,33,0.96);
-      cursor: pointer;
-    }
-
-    .jam-pitch-actions-55b11bfix {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .jam-pitch-actions-55b11bfix .jam-btn {
-      min-height: 36px;
-      padding: 7px 10px;
-      justify-content: center;
-      font-size: 12px;
-    }
-
-    #jamPitchReset55B11BFix {
-      border-color: rgba(234,162,33,0.62);
-      color: rgba(234,162,33,0.98);
-      font-weight: 900;
-    }
-
-    #jamPitchReset55B11BFix.active-zero {
-      background: rgba(234,162,33,0.16);
-      box-shadow:
-        0 0 0 1px rgba(234,162,33,0.18),
-        0 0 22px rgba(234,162,33,0.12);
-    }
-
-    .jam-loop-group-55b11bfix {
+    .jam-loop-group-55b11bfix2 {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
     }
 
-    .jam-loop-group-55b11bfix .jam-btn {
+    .jam-loop-group-55b11bfix2 .jam-btn {
       min-height: 36px;
     }
 
-    .jam-pitch-readout-55b11bfix {
-      color: rgba(255,255,255,0.62);
+    .jam-pitch-slider-wrap-55b11bfix2 {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .jam-pitch-slider-wrap-55b11bfix2 input[type="range"] {
+      width: 100%;
+      accent-color: rgba(234,162,33,0.96);
+      cursor: pointer;
+    }
+
+    .jam-pitch-readout-55b11bfix2 {
+      color: rgba(255,255,255,0.70);
       font-size: 12px;
       font-weight: 900;
       letter-spacing: 0.5px;
       text-transform: uppercase;
       text-align: center;
     }
+
+    .jam-pitch-actions-55b11bfix2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .jam-pitch-actions-55b11bfix2 .jam-btn {
+      min-height: 36px;
+      padding: 7px 10px;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    #jamPitchReset55B11BFix2 {
+      font-weight: 900;
+    }
+
+    #jamPitchReset55B11BFix2.active-zero {
+      background: rgba(234,162,33,0.16);
+      box-shadow:
+        0 0 0 1px rgba(234,162,33,0.18),
+        0 0 22px rgba(234,162,33,0.12);
+    }
   `;
 
   document.head.appendChild(style);
 }
 
-function ensureLoopPitchLayout55B11BFix() {
-  ensurePitchPanelStyles55B11BFix();
+function ensureCombinedLoopPitchLayout55B11BFix2() {
+  ensureLoopPitchPanelStyles55B11BFix2();
 
   const controls = document.querySelector("#jamLooperControlsFinal");
-
-  if (!controls) {
-    return;
-  }
+  if (!controls) return;
 
   const loopButtons = [
     document.querySelector("#jamLoopInfinityFinal"),
@@ -8637,26 +8645,6 @@ function ensureLoopPitchLayout55B11BFix() {
     document.querySelector("#jamLoop8Final")
   ].filter(Boolean);
 
-  let loopGroup = document.querySelector("#jamLoopGroup55B11BFix");
-
-  if (!loopGroup) {
-    loopGroup = document.createElement("div");
-    loopGroup.id = "jamLoopGroup55B11BFix";
-    loopGroup.className = "jam-loop-group-55b11bfix";
-
-    const firstLoopButton = loopButtons[0];
-
-    if (firstLoopButton && firstLoopButton.parentNode) {
-      firstLoopButton.parentNode.insertBefore(loopGroup, firstLoopButton);
-    } else {
-      controls.appendChild(loopGroup);
-    }
-  }
-
-  loopButtons.forEach((button) => {
-    loopGroup.appendChild(button);
-  });
-
   const slider = document.querySelector("#jamPitchSliderFinal");
   const minusBtn = document.querySelector("#jamPitchMinusFinal");
   const plusBtn = document.querySelector("#jamPitchPlusFinal");
@@ -8665,52 +8653,56 @@ function ensureLoopPitchLayout55B11BFix() {
     return;
   }
 
-  let pitchPanel = document.querySelector("#jamPitchPanel55B11BFix");
+  let panel = document.querySelector("#jamLoopPitchPanel55B11BFix2");
 
-  if (!pitchPanel) {
-    pitchPanel = document.createElement("div");
-    pitchPanel.id = "jamPitchPanel55B11BFix";
-    pitchPanel.className = "jam-pitch-panel-55b11bfix";
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "jamLoopPitchPanel55B11BFix2";
+    panel.className = "jam-loop-pitch-panel-55b11bfix2";
 
-    const pitchReadout = document.createElement("div");
-    pitchReadout.id = "jamPitchReadout55B11BFix";
-    pitchReadout.className = "jam-pitch-readout-55b11bfix";
-    pitchReadout.innerText = "Pitch: 0%";
+    const loopGroup = document.createElement("div");
+    loopGroup.id = "jamLoopGroup55B11BFix2";
+    loopGroup.className = "jam-loop-group-55b11bfix2";
+
+    const sliderWrap = document.createElement("div");
+    sliderWrap.id = "jamPitchSliderWrap55B11BFix2";
+    sliderWrap.className = "jam-pitch-slider-wrap-55b11bfix2";
+
+    const readout = document.createElement("div");
+    readout.id = "jamPitchReadout55B11BFix2";
+    readout.className = "jam-pitch-readout-55b11bfix2";
+    readout.innerText = "Pitch: 0%";
 
     const actions = document.createElement("div");
-    actions.id = "jamPitchActions55B11BFix";
-    actions.className = "jam-pitch-actions-55b11bfix";
+    actions.id = "jamPitchActions55B11BFix2";
+    actions.className = "jam-pitch-actions-55b11bfix2";
 
-    let resetBtn = document.querySelector("#jamPitchReset55B11BFix");
+    const resetBtn = document.createElement("button");
+    resetBtn.id = "jamPitchReset55B11BFix2";
+    resetBtn.type = "button";
+    resetBtn.className = "jam-btn";
+    resetBtn.innerText = "0%";
 
-    if (!resetBtn) {
-      resetBtn = document.createElement("button");
-      resetBtn.id = "jamPitchReset55B11BFix";
-      resetBtn.type = "button";
-      resetBtn.className = "jam-btn";
-      resetBtn.innerText = "0%";
-    }
+    controls.appendChild(panel);
 
-    const oldPitchBox = slider.closest(".jam-looper-final-pitch");
+    panel.appendChild(loopGroup);
+    panel.appendChild(sliderWrap);
+    panel.appendChild(actions);
 
-    if (oldPitchBox && oldPitchBox.parentNode) {
-      oldPitchBox.parentNode.insertBefore(pitchPanel, oldPitchBox);
-    } else {
-      controls.appendChild(pitchPanel);
-    }
-
-    pitchPanel.appendChild(slider);
-    pitchPanel.appendChild(pitchReadout);
-    pitchPanel.appendChild(actions);
+    sliderWrap.appendChild(slider);
+    sliderWrap.appendChild(readout);
 
     actions.appendChild(minusBtn);
     actions.appendChild(resetBtn);
     actions.appendChild(plusBtn);
-
-    if (oldPitchBox && oldPitchBox.children.length === 0) {
-      oldPitchBox.remove();
-    }
   }
+
+  const loopGroup = document.querySelector("#jamLoopGroup55B11BFix2");
+  loopButtons.forEach((button) => {
+    if (button && loopGroup) {
+      loopGroup.appendChild(button);
+    }
+  });
 
   minusBtn.innerText = "PITCH -";
   plusBtn.innerText = "PITCH +";
@@ -8718,26 +8710,26 @@ function ensureLoopPitchLayout55B11BFix() {
   slider.min = "0.8";
   slider.max = "1.2";
   slider.step = "0.01";
-  slider.value = String(jamPitchRate55B11BFix);
+  slider.value = String(jamPitchRate55B11BFix2);
 }
 
-function updatePitchUi55B11BFix() {
+function updatePitchUi55B11BFix2() {
   const slider = document.querySelector("#jamPitchSliderFinal");
-  const resetBtn = document.querySelector("#jamPitchReset55B11BFix");
-  const readout = document.querySelector("#jamPitchReadout55B11BFix");
+  const resetBtn = document.querySelector("#jamPitchReset55B11BFix2");
+  const readout = document.querySelector("#jamPitchReadout55B11BFix2");
   const status = ensureJamAudioStatusFinal();
 
-  const percent = getJamPitchPercent55B11BFix();
+  const percent = getJamPitchPercent55B11BFix2();
 
   if (slider) {
-    slider.value = String(jamPitchRate55B11BFix);
+    slider.value = String(jamPitchRate55B11BFix2);
   }
 
   if (resetBtn) {
     resetBtn.innerText = "0%";
+    resetBtn.title = "Reset pitch do 0%";
     resetBtn.classList.toggle("active-zero", percent === 0);
     resetBtn.classList.toggle("jam-btn-primary", percent === 0);
-    resetBtn.title = "Reset pitch do 0%";
   }
 
   if (readout) {
@@ -8760,121 +8752,109 @@ function updatePitchUi55B11BFix() {
   }
 }
 
-function setJamPitchRate55B11BFix(nextRate, showMessage = false) {
-  jamPitchRate55B11BFix = clampJamPitchRate55B11BFix(nextRate);
+function setJamPitchRate55B11BFix2(nextRate) {
+  jamPitchRate55B11BFix2 = clampJamPitchRate55B11BFix2(nextRate);
 
-  applyJamPitchRate55B11BFix();
-  updatePitchUi55B11BFix();
-
-  if (showMessage) {
-    const percent = getJamPitchPercent55B11BFix();
-
-    showSystemInfo(
-      percent === 0
-        ? "Pitch reset 0%"
-        : `Pitch: ${percent > 0 ? "+" : ""}${percent}%`,
-      "success"
-    );
-  }
+  applyJamPitchRate55B11BFix2();
+  updatePitchUi55B11BFix2();
 }
 
-function changeJamPitch55B11BFix(deltaRate) {
-  setJamPitchRate55B11BFix(
-    jamPitchRate55B11BFix + Number(deltaRate || 0),
-    true
+function changeJamPitch55B11BFix2(deltaRate) {
+  setJamPitchRate55B11BFix2(
+    jamPitchRate55B11BFix2 + Number(deltaRate || 0)
   );
 }
 
-function bindPitchControls55B11BFix() {
-  ensureLoopPitchLayout55B11BFix();
+function bindPitchControls55B11BFix2() {
+  ensureCombinedLoopPitchLayout55B11BFix2();
 
   const slider = document.querySelector("#jamPitchSliderFinal");
   const minusBtn = document.querySelector("#jamPitchMinusFinal");
   const plusBtn = document.querySelector("#jamPitchPlusFinal");
-  const resetBtn = document.querySelector("#jamPitchReset55B11BFix");
+  const resetBtn = document.querySelector("#jamPitchReset55B11BFix2");
 
-  if (slider && slider.dataset.pitchBound55B11BFix !== "true") {
-    slider.dataset.pitchBound55B11BFix = "true";
+  if (slider && slider.dataset.pitchBound55B11BFix2 !== "true") {
+    slider.dataset.pitchBound55B11BFix2 = "true";
 
     slider.oninput = () => {
-      setJamPitchRate55B11BFix(Number(slider.value || 1), false);
+      setJamPitchRate55B11BFix2(Number(slider.value || 1));
     };
   }
 
-  if (minusBtn && minusBtn.dataset.pitchMinusBound55B11BFix !== "true") {
-    minusBtn.dataset.pitchMinusBound55B11BFix = "true";
+  if (minusBtn && minusBtn.dataset.pitchMinusBound55B11BFix2 !== "true") {
+    minusBtn.dataset.pitchMinusBound55B11BFix2 = "true";
 
     minusBtn.onclick = () => {
-      changeJamPitch55B11BFix(-0.01);
+      changeJamPitch55B11BFix2(-0.01);
     };
   }
 
-  if (plusBtn && plusBtn.dataset.pitchPlusBound55B11BFix !== "true") {
-    plusBtn.dataset.pitchPlusBound55B11BFix = "true";
+  if (plusBtn && plusBtn.dataset.pitchPlusBound55B11BFix2 !== "true") {
+    plusBtn.dataset.pitchPlusBound55B11BFix2 = "true";
 
     plusBtn.onclick = () => {
-      changeJamPitch55B11BFix(0.01);
+      changeJamPitch55B11BFix2(0.01);
     };
   }
 
-  if (resetBtn && resetBtn.dataset.pitchResetBound55B11BFix !== "true") {
-    resetBtn.dataset.pitchResetBound55B11BFix = "true";
+  if (resetBtn && resetBtn.dataset.pitchResetBound55B11BFix2 !== "true") {
+    resetBtn.dataset.pitchResetBound55B11BFix2 = "true";
 
     resetBtn.onclick = () => {
-      setJamPitchRate55B11BFix(1, true);
+      setJamPitchRate55B11BFix2(1);
     };
   }
 
-  applyJamPitchRate55B11BFix();
-  updatePitchUi55B11BFix();
+  applyJamPitchRate55B11BFix2();
+  updatePitchUi55B11BFix2();
 }
 
-const previousEnsureJamLocalAudioFinal55B11BFix = ensureJamLocalAudioFinal;
+const previousEnsureJamLocalAudioFinal55B11BFix2 = ensureJamLocalAudioFinal;
 
-ensureJamLocalAudioFinal = function ensureJamLocalAudioPitch55B11BFix() {
-  const audio = previousEnsureJamLocalAudioFinal55B11BFix();
+ensureJamLocalAudioFinal = function ensureJamLocalAudioPitch55B11BFix2() {
+  const audio = previousEnsureJamLocalAudioFinal55B11BFix2();
 
-  audio.playbackRate = jamPitchRate55B11BFix;
+  audio.playbackRate = jamPitchRate55B11BFix2;
 
   return audio;
 };
 
-const previousStartJamLocalAudioFinal55B11BFix = startJamLocalAudioFinal;
+const previousStartJamLocalAudioFinal55B11BFix2 = startJamLocalAudioFinal;
 
-startJamLocalAudioFinal = async function startJamLocalAudioPitch55B11BFix() {
-  await previousStartJamLocalAudioFinal55B11BFix();
+startJamLocalAudioFinal = async function startJamLocalAudioPitch55B11BFix2() {
+  await previousStartJamLocalAudioFinal55B11BFix2();
 
-  applyJamPitchRate55B11BFix();
-  updatePitchUi55B11BFix();
+  applyJamPitchRate55B11BFix2();
+  updatePitchUi55B11BFix2();
 };
 
-const previousLoadJamLocalAudioFinal55B11BFix = loadJamLocalAudioFinal;
+const previousLoadJamLocalAudioFinal55B11BFix2 = loadJamLocalAudioFinal;
 
-loadJamLocalAudioFinal = async function loadJamLocalAudioPitch55B11BFix(url) {
-  const loaded = await previousLoadJamLocalAudioFinal55B11BFix(url);
+loadJamLocalAudioFinal = async function loadJamLocalAudioPitch55B11BFix2(url) {
+  const loaded = await previousLoadJamLocalAudioFinal55B11BFix2(url);
 
-  applyJamPitchRate55B11BFix();
-  updatePitchUi55B11BFix();
+  applyJamPitchRate55B11BFix2();
+  updatePitchUi55B11BFix2();
 
   return loaded;
 };
 
-const previousRenderJamLooperPlayerFinal55B11BFix = renderJamLooperPlayerFinal;
+const previousRenderJamLooperPlayerFinal55B11BFix2 = renderJamLooperPlayerFinal;
 
-renderJamLooperPlayerFinal = function renderJamLooperPlayerPitch55B11BFix() {
-  previousRenderJamLooperPlayerFinal55B11BFix();
+renderJamLooperPlayerFinal = function renderJamLooperPlayerPitch55B11BFix2() {
+  previousRenderJamLooperPlayerFinal55B11BFix2();
 
   setTimeout(() => {
-    bindPitchControls55B11BFix();
+    bindPitchControls55B11BFix2();
   }, 30);
 };
 
 window.addEventListener("load", () => {
   setTimeout(() => {
-    bindPitchControls55B11BFix();
+    bindPitchControls55B11BFix2();
   }, 1800);
 
   setTimeout(() => {
-    bindPitchControls55B11BFix();
+    bindPitchControls55B11BFix2();
   }, 3600);
 });
