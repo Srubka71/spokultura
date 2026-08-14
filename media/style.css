@@ -1203,3 +1203,50 @@ body {
         height: 180px !important;
     }
 }
+
+/* =========================================================
+   POPRAWKA NAGŁÓWKA NA TELEFONACH (MENU POD LOGO)
+   ========================================================= */
+
+/* Zabezpieczenie całej strony przed przesuwaniem w poziomie */
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+@media (max-width: 768px) {
+    /* Ustawienie kontenera nagłówka w pionie (Logo na górze, nawigacja pod spodem) */
+    header, 
+    .header, 
+    .navbar, 
+    .nav-container {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 12px !important;
+        padding: 15px 10px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Układ linków nawigacji w jednym/dwóch rzędach pod logo */
+    nav, 
+    .nav-links, 
+    .menu {
+        display: flex !important;
+        flex-wrap: wrap !important; /* Zawija linki jeśli ekran jest bardzo wąski */
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 12px 18px !important; /* Odstępy między linkami */
+        width: 100% !important;
+    }
+
+    /* Rozmiar czcionki linków na mobilkach dla czytelności */
+    nav a, 
+    .nav-links a, 
+    .menu a {
+        font-size: 0.85rem !important;
+        white-space: nowrap; /* Zapobiega łamaniu wyrazów pojedynczych przycisków */
+    }
+}
