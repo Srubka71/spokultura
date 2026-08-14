@@ -901,3 +901,58 @@ body {
     transform: scale(1.15);
 }
 
+/* Siatka kafelków media */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+    align-items: stretch; /* Wymusza równe wysokości wszystkich kafelków w rzędzie */
+}
+
+/* Każdy kafelek ma elastyczny układ Flexbox */
+.media-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Rozciągnięcie do pełnej wysokości siatki */
+    border-radius: 12px;
+    overflow: hidden;
+    background: #181818;
+}
+
+/* Kontener na miniatury - stały stosunek proporcji (np. 16:9) */
+.media-card-image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9; /* Wymusza idealną proporcję 16:9 dla każdego obrazka */
+    overflow: hidden;
+    background-color: #000;
+}
+
+.media-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Wypełnia cały kontener bez zniekształceń */
+    object-position: center;
+    display: block;
+}
+
+/* Treść w kafelku zajmuje resztę wolnego miejsca */
+.media-card-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1; /* Wypełnia wolną przestrzeń, wyrównując dolne elementy (gwiazdki) */
+    padding: 16px;
+}
+
+/* Ograniczenie opisu do 3 linijek z wielokropkiem */
+.media-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 8px;
+    font-size: 0.9rem;
+    color: #ccc;
+}
