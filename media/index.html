@@ -15,6 +15,9 @@
     
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Cloudflare Turnstile SDK -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -94,8 +97,13 @@
                     <h3>Komentarze</h3>
                     
                     <form id="commentForm" class="comment-form">
-                        <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój podpis / Nick" required>
-                        <textarea id="commentText" class="comment-textarea" rows="3" placeholder="Dodaj swój komentarz..." required></textarea>
+                        <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój podpis / Nick" required maxlength="30">
+                        <textarea id="commentText" class="comment-textarea" rows="3" placeholder="Dodaj swój komentarz..." required maxlength="500"></textarea>
+                        
+                        <!-- CLOUDFLARE TURNSTILE WIDGET (Użyj swojego sitekey z Cloudflare) -->
+                        <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="dark"></div>
+                        
+                        <p id="commentError" style="color: #ff4444; font-size: 0.8rem; display: none;"></p>
                         <button type="submit" class="comment-submit-btn">DODAJ KOMENTARZ</button>
                     </form>
 
