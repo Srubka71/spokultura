@@ -55,7 +55,7 @@ const MEDIA_ITEMS = [
         { type: "image", url: "assets/images/rapair-04.jpg" }
     ],
  
-    id: 1,
+    id: 2,
     type: "PHOTO", // <-- Tutaj podajesz "album"
     title: "Graffiti Jam by Spokultura Edycja I",
     subtitle: "Osiedle Muchobór Wielki • 2025",
