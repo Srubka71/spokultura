@@ -2,172 +2,113 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="description"
-        content="Spokultura Media — zdjęcia, filmy i materiały ze świata Spokultury."
-    >
-
-    <title>Media — Spokultura</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPOKULTURA | Portal Media & Blog</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Base CSS -->
     <link rel="stylesheet" href="style.css">
-
+    
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
 
     <div class="page-overlay"></div>
 
-    <!-- =========================
-         HEADER
-    ========================== -->
-
+    <!-- HEADER -->
     <header class="site-header">
-
-        <a href="../" class="brand">
-            SPOKULTURA
-        </a>
-
+        <a href="#" class="brand">SPOKULTURA</a>
         <nav class="main-navigation">
-            <a href="../">HOME</a>
-            <a href="./" class="active">MEDIA</a>
+            <a href="#" class="active">Główna</a>
+            <a href="#">Artykuły</a>
+            <a href="#">O nas</a>
         </nav>
-
     </header>
 
-
-    <!-- =========================
-         MAIN
-    ========================== -->
-
+    <!-- MAIN CONTAINER -->
     <main class="media-container">
 
-        <section class="media-heading">
+        <header class="media-heading">
+            <h1 class="media-title">
+                <span>MEDIA & ARTICLES</span>
+            </h1>
+            <p class="media-introduction">Najnowsze wpisy, fotorelacje oraz ekskluzywne materiały wideo.</p>
+        </header>
 
-            <div class="media-title">
-                <span>MEDIA</span>
-                <small>BY SPOKULTURA</small>
-            </div>
-
-            <p class="media-introduction">
-                Zdjęcia, filmy i materiały ze Spokultury.
-            </p>
-
-        </section>
-
-
-        <!-- =========================
-             FILTERS
-        ========================== -->
-
+        <!-- TOOLBAR -->
         <section class="media-toolbar">
-
             <div class="media-filters">
-
-                <button
-                    class="filter-button active"
-                    data-filter="all"
-                >
-                    WSZYSTKIE
-                </button>
-
-                <button
-                    class="filter-button"
-                    data-filter="photo"
-                >
-                    PHOTO
-                </button>
-
-                <button
-                    class="filter-button"
-                    data-filter="video"
-                >
-                    VIDEO
-                </button>
-
+                <button class="filter-button active" data-filter="all">WSZYSTKIE</button>
+                <button class="filter-button" data-filter="photo">ZDJĘCIA</button>
+                <button class="filter-button" data-filter="video">WIDEO</button>
             </div>
-
 
             <div class="media-sort">
-
-                <label for="sortSelect">
-                    SORTUJ:
-                </label>
-
+                <label for="sortSelect">SORTUJ:</label>
                 <select id="sortSelect">
-
-                    <option value="date-desc">
-                        Od najnowszego do najstarszego
-                    </option>
-
-                    <option value="date-asc">
-                        Od najstarszego do najnowszego
-                    </option>
-
-                    <option value="rating-desc">
-                        Od najwyżej ocenianego
-                    </option>
-
-                    <option value="rating-asc">
-                        Od najniżej ocenianego
-                    </option>
-
+                    <option value="date-desc">Najnowsze</option>
+                    <option value="date-asc">Najstarsze</option>
+                    <option value="rating-desc">Najwyżej oceniane</option>
+                    <option value="rating-asc">Najniżej oceniane</option>
                 </select>
-
             </div>
-
         </section>
 
+        <!-- MEDIA LIST GRID -->
+        <div id="mediaGrid" class="media-list">
+            <!-- Kafelki generowane dynamicznie w JS -->
+        </div>
 
-        <!-- =========================
-             MEDIA LIST
-        ========================== -->
-
-        <section
-            id="mediaGrid"
-            class="media-list"
-            aria-live="polite"
-        ></section>
-
-
-        <!-- Brak wyników -->
-
-        <div
-            id="emptyState"
-            class="empty-state"
-            hidden
-        >
-            Brak materiałów spełniających wybrane kryteria.
+        <div id="emptyState" class="empty-state" hidden>
+            <p>Brak materiałów w wybranej kategorii.</p>
         </div>
 
     </main>
 
+    <!-- MODAL / ARTYKUŁ POP-UP -->
+    <div id="mediaModal" class="modal-overlay">
+        <div class="modal-container">
+            <button id="modalClose" class="modal-close" type="button">&times;</button>
+            
+            <img id="modalImg" class="modal-hero-img" src="" alt="Cover">
+            
+            <div class="modal-body">
+                <h2 id="modalTitle" class="modal-title"></h2>
+                <h3 id="modalSubtitle" class="modal-subtitle"></h3>
+                
+                <div class="rating-box" style="margin-bottom: 20px;">
+                    <span id="modalStars" class="stars"></span>
+                    <span id="modalRatingNum" class="rating-number"></span>
+                    <span id="modalVotesCount" class="rating-info"></span>
+                </div>
 
-    <!-- =========================
-         FOOTER
-    ========================== -->
+                <p id="modalText" class="modal-text"></p>
 
-    <footer class="site-footer">
+                <!-- SECJON KOMENTARZY -->
+                <section class="comments-section">
+                    <h3>Komentarze</h3>
+                    
+                    <form id="commentForm" class="comment-form">
+                        <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój podpis / Nick" required>
+                        <textarea id="commentText" class="comment-textarea" rows="3" placeholder="Dodaj swój komentarz..." required></textarea>
+                        <button type="submit" class="comment-submit-btn">DODAJ KOMENTARZ</button>
+                    </form>
 
-        <span>© Spokultura</span>
+                    <div id="commentsList" class="comments-list">
+                        <!-- Komentarze ładowane dynamicznie -->
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
 
-        <span>MEDIA</span>
-
-    </footer>
-
-
-    <!-- =========================
-         SCRIPTS
-    ========================== -->
-
-    <script src="config.js"></script>
+    <!-- SCRIPT DATA & APP LOGIC -->
+    <script src="data.js"></script>
     <script src="script.js"></script>
 
 </body>
