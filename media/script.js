@@ -1,6 +1,6 @@
 /**
  * Spokultura - Główny plik script.js
- * Obsługa: Oceny, Komentarze, Wyświetlenia, Wyszukiwarka, Filtry, Albumy (Galeria) oraz Modal
+ * Obsługa: Oceny, Komentarze, Wyświetlenia, Wyszukiwarka, Filtry, Albumy (Galeria) oraz Pełnoekranowy Podgląd (Lightbox)
  */
 (() => {
     'use strict';
@@ -103,6 +103,44 @@
         // Stan bieżącej galerii w otwartym modalu
         let currentGalleryIndex = 0;
         let currentGalleryItems = [];
+
+        /* PEŁNOEKRANOWY PODGLĄD ZDJĘCIA (LIGHTBOX) */
+        function openFullscreenImage(src, altText) {
+            let lightbox = document.getElementById("fullscreenLightbox");
+            
+            if (!lightbox) {
+                lightbox = document.createElement("div");
+                lightbox.id = "fullscreenLightbox";
+                lightbox.className = "fullscreen-lightbox";
+                lightbox.innerHTML = `
+                    <span class="lightbox-close" id="lightboxClose" title="Zamknij (Esc)">&times;</span>
+                    <div class="lightbox-content-wrapper">
+                        <img src="" alt="" class="lightbox-img" id="lightboxImg">
+                    </div>
+                `;
+                document.body.appendChild(lightbox);
+
+                // Zamknięcie po kliknięciu tła lub X
+                lightbox.addEventListener("click", (e) => {
+                    if (e.target === lightbox || e.target.classList.contains("lightbox-content-wrapper") || e.target.id === "lightboxClose") {
+                        closeFullscreenImage();
+                    }
+                });
+            }
+
+            const imgEl = lightbox.querySelector("#lightboxImg");
+            imgEl.src = src;
+            imgEl.alt = altText || "";
+
+            lightbox.classList.add("active");
+        }
+
+        function closeFullscreenImage() {
+            const lightbox = document.getElementById("fullscreenLightbox");
+            if (lightbox) {
+                lightbox.classList.remove("active");
+            }
+        }
 
         /* FETCH STATS FROM SUPABASE */
         async function loadStatsFromSupabase() {
@@ -359,7 +397,7 @@
                 }
             }
 
-            // Konstrukcja struktury galerii z przyciskami nawigacji i pakiem miniaturek
+            // Konstrukcja struktury galerii
             mediaContainer.innerHTML = `
                 <div class="modal-main-display"></div>
                 ${currentGalleryItems.length > 1 ? `
@@ -372,7 +410,7 @@
             const displayArea = mediaContainer.querySelector(".modal-main-display");
             const thumbsContainer = mediaContainer.querySelector(".modal-gallery-thumbs");
 
-            // Funkcja wyświetlająca wybrany plik z listy
+            // Funkcja wyświetlająca wybrany plik
             function renderActiveMedia(index) {
                 currentGalleryIndex = index;
                 const media = currentGalleryItems[index];
@@ -384,7 +422,15 @@
                             <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                         </div>`;
                 } else {
-                    displayArea.innerHTML = `<img src="${media.url}" alt="${escapeHTML(item.title)}" class="modal-main-img">`;
+                    displayArea.innerHTML = `<img src="${media.url}" alt="${escapeHTML(item.title)}" class="modal-main-img" title="Kliknij, aby powiększyć na pełny ekran">`;
+                    
+                    // KLIKNIĘCIE W GŁÓWNY OBRAZ -> PEŁNY EKRAN (LIGHTBOX)
+                    const imgEl = displayArea.querySelector(".modal-main-img");
+                    if (imgEl) {
+                        imgEl.addEventListener("click", () => {
+                            openFullscreenImage(media.url, item.title);
+                        });
+                    }
                 }
 
                 // Aktualizacja aktywnej miniaturki
@@ -399,7 +445,7 @@
                 }
             }
 
-            // Generowanie miniaturek na dole kafelka
+            // Generowanie miniaturek
             if (thumbsContainer) {
                 currentGalleryItems.forEach((media, index) => {
                     const thumb = document.createElement("div");
@@ -416,7 +462,7 @@
                 });
             }
 
-            // Obsługa kliknięć w strzałki ekranowe
+            // Obsługa kliknięć w strzałki
             const prevBtn = mediaContainer.querySelector(".modal-nav-arrow.prev");
             const nextBtn = mediaContainer.querySelector(".modal-nav-arrow.next");
 
@@ -436,13 +482,13 @@
                 });
             }
 
-            // Załadowanie pierwszego pliku na start
+            // Załadowanie pierwszego pliku
             renderActiveMedia(0);
 
-            // Zapis pozycji w URL (Hash)
+            // Hash URL
             history.replaceState(null, "", `#${item.id}`);
 
-            // Zliczanie wyświetleń (raz na sesję dla danego wpisu)
+            // Zliczanie wyświetleń
             const viewedSessionKey = `viewed_${item.id}`;
             if (!sessionStorage.getItem(viewedSessionKey)) {
                 sessionStorage.setItem(viewedSessionKey, "true");
@@ -464,10 +510,13 @@
 
         function closeModal() {
             if (!mediaModal) return;
+            
+            // Jeśli jest otwarty tryb pełnoekranowy zdjęcia, zamykamy go najpierw
+            closeFullscreenImage();
+
             mediaModal.classList.remove("active");
             document.body.style.overflow = "auto";
             
-            // Zatrzymanie odtwarzaczy wideo przy zamknięciu modalu
             const mediaContainer = document.getElementById("modalMediaContainer");
             if (mediaContainer) {
                 mediaContainer.innerHTML = '';
@@ -486,11 +535,23 @@
 
         // NAWIGACJA KLAWIATURĄ (Esc, Strzałka w lewo, Strzałka w prawo)
         document.addEventListener("keydown", (e) => {
+            const lightbox = document.getElementById("fullscreenLightbox");
+
+            // Klawisz ESC zamyka w pierwszej kolejności widok pełnoekranowy zdjęcia
+            if (e.key === "Escape") {
+                if (lightbox && lightbox.classList.contains("active")) {
+                    closeFullscreenImage();
+                    return;
+                }
+                if (mediaModal && mediaModal.classList.contains("active")) {
+                    closeModal();
+                    return;
+                }
+            }
+
             if (!mediaModal || !mediaModal.classList.contains("active")) return;
 
-            if (e.key === "Escape") {
-                closeModal();
-            } else if (e.key === "ArrowLeft" && currentGalleryItems.length > 1) {
+            if (e.key === "ArrowLeft" && currentGalleryItems.length > 1) {
                 const prevBtn = document.querySelector(".modal-nav-arrow.prev");
                 if (prevBtn) prevBtn.click();
             } else if (e.key === "ArrowRight" && currentGalleryItems.length > 1) {
