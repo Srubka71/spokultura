@@ -584,3 +584,183 @@ body {
         padding: 20px;
     }
 }
+
+/* ==========================================
+   NAPRAWIONY & RESPONSYWNY UKŁAD MODALU
+   ========================================== */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.88);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.modal.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.modal-content {
+    background: #18181c;
+    color: #fff;
+    width: 100%;
+    max-width: 920px;
+    max-height: 90vh; /* Modal nie przekroczy 90% wysokości ekranu */
+    border-radius: 12px;
+    overflow-y: auto; /* Płynne przewijanie całej zawartości */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+}
+
+/* Przycisk zamykania */
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    font-size: 30px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 20;
+    line-height: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* KONTENER MEDIÓW (ZDJĘCIE / WIDEO) */
+.modal-media-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+}
+
+/* Główny obszar wyświetlania z zachowaniem proporcji */
+.modal-main-display {
+    position: relative;
+    width: 100%;
+    height: 52vh; /* Sztywny limit wysokości podglądu */
+    min-height: 260px;
+    max-height: 520px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #080808;
+    overflow: hidden;
+}
+
+.modal-main-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; /* Pełna jakość i zachowanie oryginalnych proporcji */
+    display: block;
+}
+
+/* Responsywny odtwarzacz wideo */
+.video-responsive {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.video-responsive iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* STRZAŁKI PRZEWIJANIA (NAWIGACJA LEWO / PRAWO) */
+.modal-nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    border: none;
+    font-size: 1.8rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.modal-nav-arrow:hover {
+    background: #ff3e3e;
+    transform: translateY(-50%) scale(1.08);
+}
+
+.modal-nav-arrow.prev { left: 12px; }
+.modal-nav-arrow.next { right: 12px; }
+
+/* PASEK MINIATUREK (PODGLĄD ALBUMU) */
+.modal-gallery-thumbs {
+    display: flex;
+    gap: 10px;
+    padding: 10px 14px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    background: #111114;
+    border-top: 1px solid #222;
+}
+
+.gallery-thumb {
+    width: 70px;
+    height: 48px;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    opacity: 0.5;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    background: #222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-size: 0.75rem;
+}
+
+.gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gallery-thumb:hover, 
+.gallery-thumb.active {
+    opacity: 1;
+    border-color: #ff3e3e;
+}
+
+/* TEKST I KOMENTARZE */
+.modal-info-section {
+    padding: 20px;
+}
+
