@@ -152,7 +152,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    /* GENERATE STARS */
+    /* GLOBAL DELEGATION FOR STAR CLICKS */
+    document.addEventListener("click", (e) => {
+        const starEl = e.target.closest(".star-clickable");
+        if (starEl) {
+            e.stopPropagation();
+            e.preventDefault();
+            const mediaId = starEl.dataset.mediaId;
+            const score = Number(starEl.dataset.star);
+            if (mediaId && score) {
+                submitRating(mediaId, score);
+            }
+        }
+    });
+
+    /* GENERATE STARS HTML */
     function generateStarsHTML(rating, mediaId) {
         const fullStars = Math.floor(rating);
         const hasHalf = rating % 1 >= 0.5;
@@ -269,16 +283,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 card.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg)";
             });
 
-            // Otwieranie modalu przy kliknięciu w dowolne miejsce kafelka
-            card.addEventListener("click", () => openModal(item));
-
-            // Kliknięcie w gwiazdkę
-            card.querySelectorAll(".star-clickable").forEach(starEl => {
-                starEl.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    const score = Number(starEl.dataset.star);
-                    submitRating(item.id, score);
-                });
+            // Kliknięcie w kafelek (otwieranie modalu)
+            card.addEventListener("click", (e) => {
+                if (e.target.closest(".star-clickable")) return; // pomiń jeśli kliknięto w gwiazdkę
+                openModal(item);
             });
 
             mediaGrid.appendChild(card);
@@ -297,7 +305,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         if (commentError) commentError.style.display = "none";
 
-        // OCHRONA PRZED NABIJAJĄCYMI SIĘ WYŚWIETLENIAMI (Zapis w sessionStorage)
+        // USTAWIANIE UNIKALNEGO HASH W URL DLA UDOSTĘPNIANIA
+        history.replaceState(null, "", `#${item.id}`);
+
+        // Zapis w sessionStorage (1 wyświetlenie na sesję)
         const viewedSessionKey = `viewed_${item.id}`;
         if (!sessionStorage.getItem(viewedSessionKey)) {
             sessionStorage.setItem(viewedSessionKey, "true");
@@ -321,6 +332,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         mediaModal.classList.remove("active");
         document.body.style.overflow = "auto";
         activeMediaItem = null;
+        // Czyszczenie hash z URL
+        history.replaceState(null, "", window.location.pathname + window.location.search);
     }
 
     modalClose.addEventListener("click", closeModal);
@@ -328,11 +341,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (e.target === mediaModal) closeModal();
     });
 
-    /* UDOSTĘPNIANIE LINKU */
+    /* UDOSTĘPNIANIE PRECYZYJNEGO LINKU DO DANEGO WPISU */
     shareBtn.addEventListener("click", () => {
+        if (!activeMediaItem) return;
+        
+        const shareUrl = `${window.location.origin}${window.location.pathname}#${activeMediaItem.id}`;
+        
         if (navigator.clipboard) {
-            navigator.clipboard.writeText(window.location.href).then(() => {
-                showToast("Skopiowano link! 🔗");
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast("Unikalny link skopiowany! 🔗");
             });
         }
     });
@@ -348,13 +365,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalRatingNum.textContent = `${rating.toFixed(1)} / 5`;
         modalVotesCount.textContent = `(${totalVotes} głosów | ${cCount} komentarzy)`;
         modalViewsCount.textContent = `👁️ ${vCount} wyświetleń`;
-
-        modalStars.querySelectorAll(".star-clickable").forEach(starEl => {
-            starEl.addEventListener("click", () => {
-                const score = Number(starEl.dataset.star);
-                submitRating(mediaId, score);
-            });
-        });
     }
 
     /* LOAD & SUBMIT COMMENTS */
@@ -478,4 +488,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     // START
     await loadStatsFromSupabase();
     renderMedia();
+
+    // SPRAWDZENIE LINKU Z HASH (Automatyczne otwarcie modalu po wejściu w udostępniony link)
+    if (window.location.hash) {
+        const hashId = window.location.hash.substring(1);
+        const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
+        const targetItem = rawItems.find(item => item.id === hashId);
+        if (targetItem) {
+            openModal(targetItem);
+        }
+    }
 });
