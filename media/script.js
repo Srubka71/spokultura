@@ -9,6 +9,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
+    /* FILTR SLOW OBRAŹLIWYCH (PROSTA LISTA BAD WORDS) */
+    const FORBIDDEN_WORDS = [
+        "kurw", "chuj", "pizd", "jeb", "skurw", "suka", "dziwka", "pedał", 
+        "debil", "idiota", "cipa", "kutas", "spierdalaj", "fuck", "shit"
+    ];
+
+    function containsProfanity(text) {
+        if (!text) return false;
+        const normalizedText = text.toLowerCase()
+            .replace(/0/g, 'o')
+            .replace(/1/g, 'i')
+            .replace(/3/g, 'e')
+            .replace(/@/g, 'a')
+            .replace(/\$/g, 's');
+
+        return FORBIDDEN_WORDS.some(word => normalizedText.includes(word));
+    }
+
     /* VISITOR ID */
     function getVisitorId() {
         let visitorId = localStorage.getItem("spokultura_visitor_id");
@@ -43,18 +61,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const commentAuthor = document.getElementById("commentAuthor");
     const commentText = document.getElementById("commentText");
     const commentsList = document.getElementById("commentsList");
+    const commentError = document.getElementById("commentError");
 
     let currentFilter = "all";
     let currentSort = "date-desc";
     let supabaseRatings = {};
+    let commentCounts = {};
     let userVotes = {};
     let activeMediaItem = null;
 
-    /* FETCH RATINGS FROM SUPABASE */
-    async function loadRatingsFromSupabase() {
+    /* FETCH RATINGS & COMMENT COUNTS FROM SUPABASE */
+    async function loadStatsFromSupabase() {
         if (!supabaseClient) return;
 
         try {
+            // Oceny
             const { data: ratingsData } = await supabaseClient
                 .from("media_ratings")
                 .select("media_id, average_rating, total_votes");
@@ -68,6 +89,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
 
+            // Liczba komentarzy
+            const { data: commentsData } = await supabaseClient
+                .from("media_comments")
+                .select("media_id");
+
+            if (commentsData) {
+                commentCounts = {};
+                commentsData.forEach(row => {
+                    commentCounts[row.media_id] = (commentCounts[row.media_id] || 0) + 1;
+                });
+            }
+
+            // Głos użytkownika
             const { data: votesData } = await supabaseClient
                 .from("media_votes")
                 .select("media_id, score")
@@ -98,7 +132,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }, { onConflict: "media_id, visitor_id" });
 
             if (!error) {
-                await loadRatingsFromSupabase();
+                await loadStatsFromSupabase();
                 renderMedia();
                 if (activeMediaItem && activeMediaItem.id === mediaId) {
                     updateModalRatingUI(mediaId);
@@ -127,15 +161,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /* RENDER MEDIA CARDS */
     function renderMedia() {
-        // Zabezpieczenie przed brakiem danych z config.js
         const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
 
         let items = rawItems.map(item => {
             const dbData = supabaseRatings[item.id];
+            const cCount = commentCounts[item.id] || 0;
             return {
                 ...item,
                 rating: dbData ? dbData.rating : (item.rating || 0),
                 totalVotes: dbData ? dbData.totalVotes : 0,
+                commentsCount: cCount,
                 userScore: userVotes[item.id] || null
             };
         });
@@ -184,7 +219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="rating-box">
                         <span class="stars">${generateStarsHTML(rating, item.id)}</span>
                         <span class="rating-number">${rating.toFixed(1)}</span>
-                        <span class="rating-info">(${item.totalVotes} głosów)</span>
+                        <span class="rating-info">(${item.totalVotes} głosów | ${item.commentsCount} komentarzy)</span>
                     </div>
                 </div>
 
@@ -193,10 +228,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             `;
 
-            // OTWIERANIE MODALU PO KLIKNIĘCIU W KAFELEK
             card.addEventListener("click", () => openModal(item));
 
-            // KLIKANIE GWIAZDEK NA KAFELKU
             card.querySelectorAll(".star-clickable").forEach(starEl => {
                 starEl.addEventListener("click", (e) => {
                     e.stopPropagation();
@@ -218,6 +251,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalTitle.textContent = item.title;
         modalSubtitle.textContent = item.subtitle || "";
         modalText.textContent = item.description || "Brak dodatkowego opisu.";
+        
+        if (commentError) commentError.style.display = "none";
 
         updateModalRatingUI(item.id);
         await loadComments(item.id);
@@ -241,10 +276,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const dbData = supabaseRatings[mediaId];
         const rating = dbData ? dbData.rating : 0;
         const totalVotes = dbData ? dbData.totalVotes : 0;
+        const cCount = commentCounts[mediaId] || 0;
 
         modalStars.innerHTML = generateStarsHTML(rating, mediaId);
         modalRatingNum.textContent = `${rating.toFixed(1)} / 5`;
-        modalVotesCount.textContent = `(${totalVotes} głosów)`;
+        modalVotesCount.textContent = `(${totalVotes} głosów | ${cCount} komentarzy)`;
 
         modalStars.querySelectorAll(".star-clickable").forEach(starEl => {
             starEl.addEventListener("click", () => {
@@ -300,10 +336,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         e.preventDefault();
         if (!activeMediaItem || !supabaseClient) return;
 
+        commentError.style.display = "none";
+
         const author = commentAuthor.value.trim() || "Anonim";
         const text = commentText.value.trim();
 
-        if (!text) return;
+        // 1. Walidacja słów obraźliwych
+        if (containsProfanity(author) || containsProfanity(text)) {
+            commentError.textContent = "Twój nick lub komentarz zawiera zabronione słowa.";
+            commentError.style.display = "block";
+            return;
+        }
+
+        // 2. Walidacja Cloudflare Turnstile
+        const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]');
+        if (!turnstileResponse || !turnstileResponse.value) {
+            commentError.textContent = "Proszę ukończyć weryfikację anty-botową Turnstile.";
+            commentError.style.display = "block";
+            return;
+        }
 
         try {
             const { error } = await supabaseClient
@@ -316,9 +367,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!error) {
                 commentText.value = "";
+                if (window.turnstile) turnstile.reset();
+                await loadStatsFromSupabase();
+                renderMedia();
+                updateModalRatingUI(activeMediaItem.id);
                 await loadComments(activeMediaItem.id);
             } else {
-                alert("Nie udało się dodać komentarza.");
+                commentError.textContent = "Błąd zapisu komentarza.";
+                commentError.style.display = "block";
             }
         } catch (err) {
             console.error("Błąd dodawania komentarza:", err);
@@ -349,6 +405,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // START
-    await loadRatingsFromSupabase();
+    await loadStatsFromSupabase();
     renderMedia();
 });
