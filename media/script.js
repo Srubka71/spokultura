@@ -1,5 +1,5 @@
 /**
- * Spokultura - Bezkonfliktowy plik script.js
+ * Spokultura - Bezkonfliktowy plik script.js (Obsługa VIDEO, PHOTO oraz ALBUM)
  */
 (() => {
     'use strict';
@@ -10,6 +10,15 @@
         return;
     }
     window.__SPOKULTURA_SCRIPT_LOADED__ = true;
+
+    // Pomocnicza funkcja do zamiany linku YT na Embed URL
+    function formatYouTubeEmbedUrl(url) {
+        if (!url) return '';
+        if (url.includes('youtube.com/embed/')) return url;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : url;
+    }
 
     // 2. Główna logika aplikacji
     const initApp = async () => {
@@ -216,7 +225,7 @@
                 );
             }
 
-            // Filtry
+            // Filtry (obsluga video, photo oraz album / photos+videos)
             if (currentFilter !== "all") {
                 items = items.filter(item => item.type === currentFilter);
             }
@@ -243,7 +252,12 @@
                 card.className = `media-card ${item.type}`;
 
                 const image = item.thumbnail || item.image || "assets/thumbnails/placeholder.jpg";
-                const typeLabel = item.type === "video" ? "VIDEO" : "PHOTO";
+                
+                // MAPOWANIE ETYKIETY KAFELKA DLA TYPÓW: video, photo, album
+                let typeLabel = "PHOTO";
+                if (item.type === "video") typeLabel = "VIDEO";
+                else if (item.type === "album" || item.type === "photos+videos") typeLabel = "ALBUM";
+
                 const rating = Number(item.rating || 0);
 
                 card.innerHTML = `
@@ -310,14 +324,79 @@
         async function openModal(item) {
             if (!mediaModal) return;
             activeMediaItem = item;
-            const image = item.image || item.thumbnail || "assets/thumbnails/placeholder.jpg";
 
-            if (modalImg) modalImg.src = image;
             if (modalTitle) modalTitle.textContent = item.title;
             if (modalSubtitle) modalSubtitle.textContent = item.subtitle || "";
             if (modalText) modalText.textContent = item.description || "Brak opisu.";
             
             if (commentError) commentError.style.display = "none";
+
+            // GEBEROWANIE LISTY MEDIÓW (GALERIA/ALBUM)
+            let itemsGallery = item.gallery;
+            if (!itemsGallery || !Array.isArray(itemsGallery) || itemsGallery.length === 0) {
+                itemsGallery = [];
+                if (item.videoUrl) {
+                    itemsGallery.push({ type: 'video', url: item.videoUrl });
+                }
+                const mainImg = item.image || item.thumbnail || "assets/thumbnails/placeholder.jpg";
+                itemsGallery.push({ type: 'image', url: mainImg });
+            }
+
+            // KONTENER MEDIÓW W MODALU
+            let mediaContainer = document.getElementById("modalMediaContainer");
+            if (!mediaContainer) {
+                mediaContainer = document.createElement("div");
+                mediaContainer.id = "modalMediaContainer";
+                mediaContainer.className = "modal-media-container";
+                if (modalImg && modalImg.parentNode) {
+                    modalImg.parentNode.replaceChild(mediaContainer, modalImg);
+                }
+            }
+
+            // Renderowanie pojedynczego obrazka lub odtwarzacza wideo
+            function displayMediaItem(media) {
+                const displayArea = mediaContainer.querySelector(".modal-main-display");
+                if (media.type === 'video') {
+                    const embedUrl = formatYouTubeEmbedUrl(media.url);
+                    displayArea.innerHTML = `
+                        <div class="video-responsive">
+                            <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>`;
+                } else {
+                    displayArea.innerHTML = `<img src="${media.url}" alt="${escapeHTML(item.title)}" class="modal-main-img">`;
+                }
+            }
+
+            mediaContainer.innerHTML = `
+                <div class="modal-main-display"></div>
+                ${itemsGallery.length > 1 ? '<div class="modal-gallery-thumbs"></div>' : ''}
+            `;
+
+            // Renderowanie miniaturek
+            const thumbsContainer = mediaContainer.querySelector(".modal-gallery-thumbs");
+            itemsGallery.forEach((media, index) => {
+                if (thumbsContainer) {
+                    const thumb = document.createElement("div");
+                    thumb.className = `gallery-thumb ${index === 0 ? 'active' : ''}`;
+                    
+                    if (media.type === 'video') {
+                        thumb.innerHTML = `<span class="thumb-icon">▶</span> Wideo`;
+                    } else {
+                        thumb.innerHTML = `<img src="${media.url}" alt="thumb">`;
+                    }
+
+                    thumb.addEventListener("click", () => {
+                        thumbsContainer.querySelectorAll(".gallery-thumb").forEach(t => t.classList.remove("active"));
+                        thumb.classList.add("active");
+                        displayMediaItem(media);
+                    });
+
+                    thumbsContainer.appendChild(thumb);
+                }
+            });
+
+            // Domślny podgląd pierwszego elementu z listy
+            displayMediaItem(itemsGallery[0]);
 
             // USTAWIANIE UNIKALNEGO HASH W URL DLA UDOSTĘPNIANIA
             history.replaceState(null, "", `#${item.id}`);
@@ -346,6 +425,13 @@
             if (!mediaModal) return;
             mediaModal.classList.remove("active");
             document.body.style.overflow = "auto";
+            
+            // Wyczyszczenie odtwarzacza wideo
+            const mediaContainer = document.getElementById("modalMediaContainer");
+            if (mediaContainer) {
+                mediaContainer.innerHTML = '';
+            }
+
             activeMediaItem = null;
             // Czyszczenie hash z URL
             history.replaceState(null, "", window.location.pathname + window.location.search);
