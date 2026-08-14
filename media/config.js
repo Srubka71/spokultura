@@ -53,29 +53,21 @@ const MEDIA_ITEMS = [
         { type: "image", url: "assets/images/rapair-02.jpg" },
         { type: "image", url: "assets/images/rapair-03.jpg" },
         { type: "image", url: "assets/images/rapair-04.jpg" }
-    ]
+    ],
  
-},
-
-
-    {
-        id: 2,
-
-        type: "photo",
-
-        title: "Graffiti Session",
-
-        subtitle: "Street Art • 2026",
-
-        description:
-            "Fotorelacja z malowania i spotkania artystów związanych ze sceną graffiti.",
-
-        date: "2026-03-05",
-
-        image:
-            "assets/thumbnails/media-02.jpg"
-
-    },
+    id: 1,
+    type: "PHOTO", // <-- Tutaj podajesz "album"
+    title: "Graffiti Jam by Spokultura Edycja I",
+    subtitle: "Osiedle Muchobór Wielki • 2025",
+    description: "Pierwszy grafiti jam organizowany pod patronatem Spokultury. Spotkaliśmy się aby stworzyć przestrzeń dla lokalnych artystów, to była jedna z czterech stref na Osiedlowym Festynie z okazji Dnia Dziecka organizowanym przez Osiedle Muchobór Wielki we Wrocławiu. Było gorąco! Chcemy więcej!",
+    date: "2026-05-31",
+    thumbnail: "assets/thumbnails/Graffiti.png",
+    gallery: [
+        { type: "image", url: "assets/images/Graffiti1.jpg" },
+        { type: "image", url: "assets/images/Graffiti2.jpg" },
+        { type: "image", url: "assets/images/Graffiti3.jpg" }
+     
+    ]},
 
 
     {
