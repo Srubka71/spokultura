@@ -70,7 +70,7 @@ const MEDIA_ITEMS = [
         description:
             "Fotorelacja z malowania i spotkania artystów związanych ze sceną graffiti.",
 
-        date: "2026-08-05",
+        date: "2026-03-05",
 
         image:
             "assets/thumbnails/media-02.jpg"
