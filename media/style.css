@@ -1107,3 +1107,99 @@ body {
     cursor: pointer;
 }
 
+/* =========================================================
+   ROZMIAR I UKŁAD KAFELKÓW (MAX 4 WIDOCZNE NA EKRANIE)
+   ========================================================= */
+
+/* Wymuszenie 2 kolumn dla siatki */
+#mediaGrid, 
+.media-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important; /* Sztywno 2 obok siebie */
+    gap: 20px !important;
+    max-width: 1200px !important; /* Szerokość dopasowana do nagłówka */
+    margin: 0 auto !important;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+/* Kompaktowy kafelek */
+.media-card {
+    display: flex;
+    flex-direction: column;
+    background: #141414;
+    border: 1px solid #222;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 100%;
+}
+
+/* Ograniczenie wysokości zdjęcia (dzięki temu 4 kafelki mieszczą się w pionie) */
+.media-card-image {
+    position: relative;
+    width: 100%;
+    height: 210px !important; /* Zmniejszona wysokość miniaturki */
+    overflow: hidden;
+    background-color: #000;
+}
+
+.media-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Zwięzły tekst wewnątrz kafelka */
+.media-card-content {
+    padding: 12px 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+}
+
+.media-card-content h2 {
+    font-size: 1.05rem;
+    margin: 0 0 4px 0;
+    line-height: 1.3;
+}
+
+.media-card-content h3 {
+    font-size: 0.8rem;
+    margin: 0 0 6px 0;
+    color: #ff5500;
+}
+
+/* Skrócenie opisu do maksymalnie 2 linijek */
+.media-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.82rem;
+    color: #aaa;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+}
+
+/* RATING / Oceny na dole kafelka */
+.rating-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+}
+
+/* NA TELEFONACH (PRZEŁĄCZENIE NA 1 KOLUMNĘ) */
+@media (max-width: 768px) {
+    #mediaGrid, 
+    .media-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .media-card-image {
+        height: 180px !important;
+    }
+}
