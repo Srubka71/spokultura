@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return FORBIDDEN_WORDS.some(word => normalizedText.includes(word));
     }
 
-    /* TOAST NOTIFICATION UTILITY */
+    /* TOAST NOTIFICATIONS */
     function showToast(message) {
         const container = document.getElementById("toastContainer");
         if (!container) return;
@@ -74,19 +74,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     let supabaseRatings = {};
     let commentCounts = {};
     let itemViews = {};
-    let userVotes = {};
     let activeMediaItem = null;
 
-    /* SHOW SKELETON LOADERS */
-    function renderSkeletons() {
-        mediaGrid.innerHTML = `
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-        `;
-    }
-
-    /* FETCH ALL STATS FROM SUPABASE */
+    /* FETCH STATS FROM SUPABASE */
     async function loadStatsFromSupabase() {
         if (!supabaseClient) return;
 
@@ -99,8 +89,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (ratingsData) {
                 ratingsData.forEach(row => {
                     supabaseRatings[row.media_id] = {
-                        rating: Number(row.average_rating),
-                        totalVotes: Number(row.total_votes)
+                        rating: Number(row.average_rating) || 0,
+                        totalVotes: Number(row.total_votes) || 0
                     };
                 });
             }
@@ -117,7 +107,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
 
-            // Wyświetlenia (jeśli tabela wywodzi się ze zdarzeń)
+            // Wyświetlenia
             const { data: viewsData } = await supabaseClient
                 .from("media_views")
                 .select("media_id");
@@ -126,18 +116,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 itemViews = {};
                 viewsData.forEach(row => {
                     itemViews[row.media_id] = (itemViews[row.media_id] || 0) + 1;
-                });
-            }
-
-            // Głos użytkownika
-            const { data: votesData } = await supabaseClient
-                .from("media_votes")
-                .select("media_id, score")
-                .eq("visitor_id", visitorId);
-
-            if (votesData) {
-                votesData.forEach(row => {
-                    userVotes[row.media_id] = row.score;
                 });
             }
         } catch (err) {
@@ -160,12 +138,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }, { onConflict: "media_id, visitor_id" });
 
             if (!error) {
-                showToast("Dziękujemy za oddanie głosu! ⭐");
+                showToast("Dziękujemy za głos! ⭐");
                 await loadStatsFromSupabase();
                 renderMedia();
                 if (activeMediaItem && activeMediaItem.id === mediaId) {
                     updateModalRatingUI(mediaId);
                 }
+            } else {
+                console.error("Błąd zapisu głosu:", error);
             }
         } catch (err) {
             console.error("Błąd oceniania:", err);
@@ -188,11 +168,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         return starsHTML;
     }
 
-    /* RENDER MEDIA CARDS WITH BADGES & TILT EFFECT */
+    /* RENDER MEDIA CARDS */
     function renderMedia() {
         const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
 
-        // Znajdź 2 najnowsze wpisy dla badge'a NOWOŚĆ
         const sortedByDate = [...rawItems].sort((a, b) => new Date(b.date) - new Date(a.date));
         const newestIds = sortedByDate.slice(0, 2).map(item => item.id);
 
@@ -200,7 +179,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const dbData = supabaseRatings[item.id];
             return {
                 ...item,
-                rating: dbData ? dbData.rating : (item.rating || 0),
+                rating: dbData ? dbData.rating : 0,
                 totalVotes: dbData ? dbData.totalVotes : 0,
                 commentsCount: commentCounts[item.id] || 0,
                 viewsCount: itemViews[item.id] || 0,
@@ -217,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
         }
 
-        // Filtrowanie kategorii
+        // Filtry
         if (currentFilter !== "all") {
             items = items.filter(item => item.type === currentFilter);
         }
@@ -273,25 +252,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             `;
 
-            // EFEKT 3D TILT
+            // Efekt 3D Tilt
             card.addEventListener("mousemove", (e) => {
                 const rect = card.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
                 const centerX = rect.width / 2;
                 const centerY = rect.height / 2;
-                const rotateX = ((y - centerY) / centerY) * -6;
-                const rotateY = ((x - centerX) / centerX) * 6;
+                const rotateX = ((y - centerY) / centerY) * -5;
+                const rotateY = ((x - centerX) / centerX) * 5;
 
-                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.01, 1.01, 1.01)`;
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
             });
 
             card.addEventListener("mouseleave", () => {
-                card.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
+                card.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg)";
             });
 
+            // Otwieranie modalu przy kliknięciu w dowolne miejsce kafelka
             card.addEventListener("click", () => openModal(item));
 
+            // Kliknięcie w gwiazdkę
             card.querySelectorAll(".star-clickable").forEach(starEl => {
                 starEl.addEventListener("click", (e) => {
                     e.stopPropagation();
@@ -312,16 +293,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         modalImg.src = image;
         modalTitle.textContent = item.title;
         modalSubtitle.textContent = item.subtitle || "";
-        modalText.textContent = item.description || "Brak dodatkowego opisu.";
+        modalText.textContent = item.description || "Brak opisu.";
         
         if (commentError) commentError.style.display = "none";
 
-        // Rejestrowanie wyświetlenia w Supabase
-        if (supabaseClient) {
-            supabaseClient.from("media_views").insert({ media_id: item.id }).then(() => {
-                itemViews[item.id] = (itemViews[item.id] || 0) + 1;
-                modalViewsCount.textContent = `👁️ ${itemViews[item.id]} wyświetleń`;
-            });
+        // OCHRONA PRZED NABIJAJĄCYMI SIĘ WYŚWIETLENIAMI (Zapis w sessionStorage)
+        const viewedSessionKey = `viewed_${item.id}`;
+        if (!sessionStorage.getItem(viewedSessionKey)) {
+            sessionStorage.setItem(viewedSessionKey, "true");
+            if (supabaseClient) {
+                supabaseClient.from("media_views").insert({ media_id: item.id }).then(() => {
+                    itemViews[item.id] = (itemViews[item.id] || 0) + 1;
+                    modalViewsCount.textContent = `👁️ ${itemViews[item.id]} wyświetleń`;
+                    renderMedia();
+                });
+            }
         }
 
         updateModalRatingUI(item.id);
@@ -344,15 +330,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     /* UDOSTĘPNIANIE LINKU */
     shareBtn.addEventListener("click", () => {
-        if (!activeMediaItem) return;
-        const shareUrl = window.location.href;
-        
         if (navigator.clipboard) {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                showToast("Skopiowano link do schowka! 🔗");
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showToast("Skopiowano link! 🔗");
             });
-        } else {
-            showToast("Brak dostępu do schowka.");
         }
     });
 
@@ -435,7 +416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]');
         if (!turnstileResponse || !turnstileResponse.value) {
-            commentError.textContent = "Proszę ukończyć weryfikację anty-botową Turnstile.";
+            commentError.textContent = "Proszę ukończyć weryfikację Turnstile.";
             commentError.style.display = "block";
             return;
         }
@@ -466,7 +447,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    /* FILTRY, SORTOWANIE I WYSZUKIWARKA NA ŻYWO */
+    /* SEARCH, FILTERS & SORTING */
     searchInput.addEventListener("input", (e) => {
         searchQuery = e.target.value;
         renderMedia();
@@ -494,8 +475,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .replace(/"/g, "&#039;");
     }
 
-    // START Z SKELETONAMI
-    renderSkeletons();
+    // START
     await loadStatsFromSupabase();
     renderMedia();
 });
