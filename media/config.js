@@ -53,8 +53,6 @@ const MEDIA_ITEMS = [
 
         date: "2026-08-10",
 
-        rating: 5.0,
-
         thumbnail:
             "assets/thumbnails/media-01.jpg",
 
@@ -78,8 +76,6 @@ const MEDIA_ITEMS = [
 
         date: "2026-08-05",
 
-        rating: 4.8,
-
         image:
             "assets/thumbnails/media-02.jpg"
 
@@ -99,8 +95,6 @@ const MEDIA_ITEMS = [
             "Najciekawsze momenty rywalizacji i pokazów breakdance.",
 
         date: "2026-07-25",
-
-        rating: 4.9,
 
         thumbnail:
             "assets/thumbnails/media-03.jpg",
@@ -124,8 +118,6 @@ const MEDIA_ITEMS = [
             "Zdjęcia z pierwszej edycji wydarzenia RAPair — rap, graffiti, breakdance i kultura uliczna.",
 
         date: "2026-07-25",
-
-        rating: 4.7,
 
         image:
             "assets/thumbnails/media-04.jpg"
