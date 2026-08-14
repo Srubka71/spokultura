@@ -427,7 +427,9 @@
                     // KLIKNIĘCIE W GŁÓWNY OBRAZ -> PEŁNY EKRAN (LIGHTBOX)
                     const imgEl = displayArea.querySelector(".modal-main-img");
                     if (imgEl) {
-                        imgEl.addEventListener("click", () => {
+                        imgEl.addEventListener("click", (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             openFullscreenImage(media.url, item.title);
                         });
                     }
