@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPOKULTURA | Portal Media & Blog</title>
     
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" href="/favicon.png">
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +31,12 @@
 
     <!-- HEADER -->
     <header class="site-header glassmorphism">
-        <a href="#" class="brand">SPOKULTURA</a>
+        <a href="https://spokultura.pl" class="brand">SPOKULTURA</a>
         <nav class="main-navigation">
             <a href="#" class="active">Główna</a>
             <a href="#">Artykuły</a>
-            <a href="#">O nas</a>
+            <a href="https://spokultura.pl/looper">Looper</a>
+            <a href="https://spokultura.pl/info">Więcej info</a>
         </nav>
     </header>
 
@@ -71,7 +75,7 @@
 
         <!-- MEDIA LIST GRID -->
         <div id="mediaGrid" class="media-list">
-            <!-- Skeletony ładowane dynamicznie podczas startu -->
+            <!-- Dynamiczne kafelki -->
         </div>
 
         <div id="emptyState" class="empty-state" hidden>
@@ -114,7 +118,7 @@
                         <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój podpis / Nick" required maxlength="30">
                         <textarea id="commentText" class="comment-textarea" rows="3" placeholder="Dodaj swój komentarz..." required maxlength="500"></textarea>
                         
-                        <div class="cf-turnstile" data-sitekey="0x4AAAAAAEP7TChncHbsIA0q" data-theme="dark"></div>
+                        <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="dark"></div>
                         
                         <p id="commentError" style="color: #ff4444; font-size: 0.8rem; display: none;"></p>
                         <button type="submit" class="comment-submit-btn">DODAJ KOMENTARZ</button>
