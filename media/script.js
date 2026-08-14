@@ -87,8 +87,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .select("media_id, average_rating, total_votes");
 
             if (ratingsData) {
+                supabaseRatings = {};
                 ratingsData.forEach(row => {
-                    supabaseRatings[row.media_id] = {
+                    supabaseRatings[String(row.media_id)] = {
                         rating: Number(row.average_rating) || 0,
                         totalVotes: Number(row.total_votes) || 0
                     };
@@ -103,7 +104,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (commentsData) {
                 commentCounts = {};
                 commentsData.forEach(row => {
-                    commentCounts[row.media_id] = (commentCounts[row.media_id] || 0) + 1;
+                    const key = String(row.media_id);
+                    commentCounts[key] = (commentCounts[key] || 0) + 1;
                 });
             }
 
@@ -115,7 +117,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (viewsData) {
                 itemViews = {};
                 viewsData.forEach(row => {
-                    itemViews[row.media_id] = (itemViews[row.media_id] || 0) + 1;
+                    const key = String(row.media_id);
+                    itemViews[key] = (itemViews[key] || 0) + 1;
                 });
             }
         } catch (err) {
@@ -131,9 +134,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { error } = await supabaseClient
                 .from("media_votes")
                 .upsert({
-                    media_id: mediaId,
+                    media_id: String(mediaId),
                     visitor_id: visitorId,
-                    score: score,
+                    score: Number(score),
                     updated_at: new Date().toISOString()
                 }, { onConflict: "media_id, visitor_id" });
 
@@ -141,30 +144,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 showToast("Dziękujemy za głos! ⭐");
                 await loadStatsFromSupabase();
                 renderMedia();
-                if (activeMediaItem && activeMediaItem.id === mediaId) {
+                if (activeMediaItem && String(activeMediaItem.id) === String(mediaId)) {
                     updateModalRatingUI(mediaId);
                 }
             } else {
-                console.error("Błąd zapisu głosu:", error);
+                console.error("Błąd zapisu głosu w bazie:", error);
+                showToast("Nie udało się zapisać głosu.");
             }
         } catch (err) {
             console.error("Błąd oceniania:", err);
         }
     }
-
-    /* GLOBAL DELEGATION FOR STAR CLICKS */
-    document.addEventListener("click", (e) => {
-        const starEl = e.target.closest(".star-clickable");
-        if (starEl) {
-            e.stopPropagation();
-            e.preventDefault();
-            const mediaId = starEl.dataset.mediaId;
-            const score = Number(starEl.dataset.star);
-            if (mediaId && score) {
-                submitRating(mediaId, score);
-            }
-        }
-    });
 
     /* GENERATE STARS HTML */
     function generateStarsHTML(rating, mediaId) {
@@ -187,17 +177,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
 
         const sortedByDate = [...rawItems].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const newestIds = sortedByDate.slice(0, 2).map(item => item.id);
+        const newestIds = sortedByDate.slice(0, 2).map(item => String(item.id));
 
         let items = rawItems.map(item => {
-            const dbData = supabaseRatings[item.id];
+            const strId = String(item.id);
+            const dbData = supabaseRatings[strId];
             return {
                 ...item,
                 rating: dbData ? dbData.rating : 0,
                 totalVotes: dbData ? dbData.totalVotes : 0,
-                commentsCount: commentCounts[item.id] || 0,
-                viewsCount: itemViews[item.id] || 0,
-                isNew: newestIds.includes(item.id)
+                commentsCount: commentCounts[strId] || 0,
+                viewsCount: itemViews[strId] || 0,
+                isNew: newestIds.includes(strId)
             };
         });
 
@@ -285,7 +276,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             // Kliknięcie w kafelek (otwieranie modalu)
             card.addEventListener("click", (e) => {
-                if (e.target.closest(".star-clickable")) return; // pomiń jeśli kliknięto w gwiazdkę
+                const starTarget = e.target.closest(".star-clickable");
+                if (starTarget) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const score = Number(starTarget.dataset.star);
+                    submitRating(item.id, score);
+                    return;
+                }
                 openModal(item);
             });
 
@@ -313,9 +311,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!sessionStorage.getItem(viewedSessionKey)) {
             sessionStorage.setItem(viewedSessionKey, "true");
             if (supabaseClient) {
-                supabaseClient.from("media_views").insert({ media_id: item.id }).then(() => {
-                    itemViews[item.id] = (itemViews[item.id] || 0) + 1;
-                    modalViewsCount.textContent = `👁️ ${itemViews[item.id]} wyświetleń`;
+                supabaseClient.from("media_views").insert({ media_id: String(item.id) }).then(() => {
+                    itemViews[String(item.id)] = (itemViews[String(item.id)] || 0) + 1;
+                    modalViewsCount.textContent = `👁️ ${itemViews[String(item.id)]} wyświetleń`;
                     renderMedia();
                 });
             }
@@ -355,16 +353,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     function updateModalRatingUI(mediaId) {
-        const dbData = supabaseRatings[mediaId];
+        const strId = String(mediaId);
+        const dbData = supabaseRatings[strId];
         const rating = dbData ? dbData.rating : 0;
         const totalVotes = dbData ? dbData.totalVotes : 0;
-        const cCount = commentCounts[mediaId] || 0;
-        const vCount = itemViews[mediaId] || 0;
+        const cCount = commentCounts[strId] || 0;
+        const vCount = itemViews[strId] || 0;
 
-        modalStars.innerHTML = generateStarsHTML(rating, mediaId);
+        modalStars.innerHTML = generateStarsHTML(rating, strId);
         modalRatingNum.textContent = `${rating.toFixed(1)} / 5`;
         modalVotesCount.textContent = `(${totalVotes} głosów | ${cCount} komentarzy)`;
         modalViewsCount.textContent = `👁️ ${vCount} wyświetleń`;
+
+        // Obsługa kliknięć w gwiazdki wewnątrz modalu
+        modalStars.querySelectorAll(".star-clickable").forEach(starEl => {
+            starEl.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const score = Number(starEl.dataset.star);
+                submitRating(mediaId, score);
+            });
+        });
     }
 
     /* LOAD & SUBMIT COMMENTS */
@@ -376,7 +385,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data, error } = await supabaseClient
                 .from("media_comments")
                 .select("*")
-                .eq("media_id", mediaId)
+                .eq("media_id", String(mediaId))
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
@@ -435,7 +444,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { error } = await supabaseClient
                 .from("media_comments")
                 .insert({
-                    media_id: activeMediaItem.id,
+                    media_id: String(activeMediaItem.id),
                     author_name: author,
                     comment_text: text
                 });
@@ -485,17 +494,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             .replace(/"/g, "&#039;");
     }
 
+    // SPRAWDZENIE LINKU Z HASH (Automatyczne otwarcie modalu po wejściu w udostępniony link)
+    function checkHashAndOpenModal() {
+        if (window.location.hash) {
+            const hashId = window.location.hash.substring(1);
+            const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
+            const targetItem = rawItems.find(item => String(item.id) === String(hashId));
+            if (targetItem) {
+                openModal(targetItem);
+            }
+        }
+    }
+
     // START
     await loadStatsFromSupabase();
     renderMedia();
+    checkHashAndOpenModal();
 
-    // SPRAWDZENIE LINKU Z HASH (Automatyczne otwarcie modalu po wejściu w udostępniony link)
-    if (window.location.hash) {
-        const hashId = window.location.hash.substring(1);
-        const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
-        const targetItem = rawItems.find(item => item.id === hashId);
-        if (targetItem) {
-            openModal(targetItem);
-        }
-    }
+    window.addEventListener("hashchange", checkHashAndOpenModal);
 });
