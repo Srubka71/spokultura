@@ -1,5 +1,6 @@
 /**
- * Spokultura - Bezkonfliktowy plik script.js (Obsługa VIDEO, PHOTO oraz ALBUM)
+ * Spokultura - Główny plik script.js
+ * Obsługa: Oceny, Komentarze, Wyświetlenia, Wyszukiwarka, Filtry, Albumy (Galeria) oraz Modal
  */
 (() => {
     'use strict';
@@ -11,7 +12,7 @@
     }
     window.__SPOKULTURA_SCRIPT_LOADED__ = true;
 
-    // Pomocnicza funkcja do zamiany linku YT na Embed URL
+    // Pomocnicza funkcja do zamiany linku YouTube na URL Embed dla iframe
     function formatYouTubeEmbedUrl(url) {
         if (!url) return '';
         if (url.includes('youtube.com/embed/')) return url;
@@ -32,7 +33,7 @@
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         }
 
-        /* FILTR SLOW OBRAŹLIWYCH */
+        /* FILTR SŁÓW OBRAŹLIWYCH */
         const FORBIDDEN_WORDS = ["kurw", "chuj", "pizd", "jeb", "skurw", "suka", "dziwka", "debil"];
 
         function containsProfanity(text) {
@@ -98,6 +99,10 @@
         let commentCounts = {};
         let itemViews = {};
         let activeMediaItem = null;
+
+        // Stan bieżącej galerii w otwartym modalu
+        let currentGalleryIndex = 0;
+        let currentGalleryItems = [];
 
         /* FETCH STATS FROM SUPABASE */
         async function loadStatsFromSupabase() {
@@ -225,7 +230,7 @@
                 );
             }
 
-            // Filtry (obsluga video, photo oraz album / photos+videos)
+            // Filtry
             if (currentFilter !== "all") {
                 items = items.filter(item => item.type === currentFilter);
             }
@@ -253,7 +258,7 @@
 
                 const image = item.thumbnail || item.image || "assets/thumbnails/placeholder.jpg";
                 
-                // MAPOWANIE ETYKIETY KAFELKA DLA TYPÓW: video, photo, album
+                // Mapowanie etykiety
                 let typeLabel = "PHOTO";
                 if (item.type === "video") typeLabel = "VIDEO";
                 else if (item.type === "album" || item.type === "photos+videos") typeLabel = "ALBUM";
@@ -286,7 +291,7 @@
                     </div>
                 `;
 
-                // Efekt 3D Tilt
+                // Efekt 3D Tilt na kafelku
                 card.addEventListener("mousemove", (e) => {
                     const rect = card.getBoundingClientRect();
                     const x = e.clientX - rect.left;
@@ -303,7 +308,7 @@
                     card.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg)";
                 });
 
-                // Kliknięcie w kafelek (otwieranie modalu)
+                // Kliknięcie w kafelek
                 card.addEventListener("click", (e) => {
                     const starTarget = e.target.closest(".star-clickable");
                     if (starTarget) {
@@ -320,7 +325,7 @@
             });
         }
 
-        /* MODAL AND COMMENTS LOGIC */
+        /* MODAL & GALLERY LOGIC */
         async function openModal(item) {
             if (!mediaModal) return;
             activeMediaItem = item;
@@ -328,21 +333,22 @@
             if (modalTitle) modalTitle.textContent = item.title;
             if (modalSubtitle) modalSubtitle.textContent = item.subtitle || "";
             if (modalText) modalText.textContent = item.description || "Brak opisu.";
-            
             if (commentError) commentError.style.display = "none";
 
-            // GEBEROWANIE LISTY MEDIÓW (GALERIA/ALBUM)
-            let itemsGallery = item.gallery;
-            if (!itemsGallery || !Array.isArray(itemsGallery) || itemsGallery.length === 0) {
-                itemsGallery = [];
+            // Budowanie listy mediów (galerii)
+            currentGalleryItems = item.gallery;
+            if (!currentGalleryItems || !Array.isArray(currentGalleryItems) || currentGalleryItems.length === 0) {
+                currentGalleryItems = [];
                 if (item.videoUrl) {
-                    itemsGallery.push({ type: 'video', url: item.videoUrl });
+                    currentGalleryItems.push({ type: 'video', url: item.videoUrl });
                 }
                 const mainImg = item.image || item.thumbnail || "assets/thumbnails/placeholder.jpg";
-                itemsGallery.push({ type: 'image', url: mainImg });
+                currentGalleryItems.push({ type: 'image', url: mainImg });
             }
 
-            // KONTENER MEDIÓW W MODALU
+            currentGalleryIndex = 0; // Start od pierwszego elementu
+
+            // Przygotowanie kontenera mediów w modalu
             let mediaContainer = document.getElementById("modalMediaContainer");
             if (!mediaContainer) {
                 mediaContainer = document.createElement("div");
@@ -353,9 +359,24 @@
                 }
             }
 
-            // Renderowanie pojedynczego obrazka lub odtwarzacza wideo
-            function displayMediaItem(media) {
-                const displayArea = mediaContainer.querySelector(".modal-main-display");
+            // Konstrukcja struktury galerii z przyciskami nawigacji i pakiem miniaturek
+            mediaContainer.innerHTML = `
+                <div class="modal-main-display"></div>
+                ${currentGalleryItems.length > 1 ? `
+                    <button class="modal-nav-arrow prev" title="Poprzednie (Klawisz ←)">&#10094;</button>
+                    <button class="modal-nav-arrow next" title="Następne (Klawisz →)">&#10095;</button>
+                    <div class="modal-gallery-thumbs"></div>
+                ` : ''}
+            `;
+
+            const displayArea = mediaContainer.querySelector(".modal-main-display");
+            const thumbsContainer = mediaContainer.querySelector(".modal-gallery-thumbs");
+
+            // Funkcja wyświetlająca wybrany plik z listy
+            function renderActiveMedia(index) {
+                currentGalleryIndex = index;
+                const media = currentGalleryItems[index];
+
                 if (media.type === 'video') {
                     const embedUrl = formatYouTubeEmbedUrl(media.url);
                     displayArea.innerHTML = `
@@ -365,17 +386,22 @@
                 } else {
                     displayArea.innerHTML = `<img src="${media.url}" alt="${escapeHTML(item.title)}" class="modal-main-img">`;
                 }
+
+                // Aktualizacja aktywnej miniaturki
+                if (thumbsContainer) {
+                    const thumbs = thumbsContainer.querySelectorAll(".gallery-thumb");
+                    thumbs.forEach((t, i) => {
+                        t.classList.toggle("active", i === index);
+                        if (i === index) {
+                            t.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                        }
+                    });
+                }
             }
 
-            mediaContainer.innerHTML = `
-                <div class="modal-main-display"></div>
-                ${itemsGallery.length > 1 ? '<div class="modal-gallery-thumbs"></div>' : ''}
-            `;
-
-            // Renderowanie miniaturek
-            const thumbsContainer = mediaContainer.querySelector(".modal-gallery-thumbs");
-            itemsGallery.forEach((media, index) => {
-                if (thumbsContainer) {
+            // Generowanie miniaturek na dole kafelka
+            if (thumbsContainer) {
+                currentGalleryItems.forEach((media, index) => {
                     const thumb = document.createElement("div");
                     thumb.className = `gallery-thumb ${index === 0 ? 'active' : ''}`;
                     
@@ -385,23 +411,38 @@
                         thumb.innerHTML = `<img src="${media.url}" alt="thumb">`;
                     }
 
-                    thumb.addEventListener("click", () => {
-                        thumbsContainer.querySelectorAll(".gallery-thumb").forEach(t => t.classList.remove("active"));
-                        thumb.classList.add("active");
-                        displayMediaItem(media);
-                    });
-
+                    thumb.addEventListener("click", () => renderActiveMedia(index));
                     thumbsContainer.appendChild(thumb);
-                }
-            });
+                });
+            }
 
-            // Domślny podgląd pierwszego elementu z listy
-            displayMediaItem(itemsGallery[0]);
+            // Obsługa kliknięć w strzałki ekranowe
+            const prevBtn = mediaContainer.querySelector(".modal-nav-arrow.prev");
+            const nextBtn = mediaContainer.querySelector(".modal-nav-arrow.next");
 
-            // USTAWIANIE UNIKALNEGO HASH W URL DLA UDOSTĘPNIANIA
+            if (prevBtn) {
+                prevBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const newIndex = (currentGalleryIndex - 1 + currentGalleryItems.length) % currentGalleryItems.length;
+                    renderActiveMedia(newIndex);
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const newIndex = (currentGalleryIndex + 1) % currentGalleryItems.length;
+                    renderActiveMedia(newIndex);
+                });
+            }
+
+            // Załadowanie pierwszego pliku na start
+            renderActiveMedia(0);
+
+            // Zapis pozycji w URL (Hash)
             history.replaceState(null, "", `#${item.id}`);
 
-            // Zapis w sessionStorage (1 wyświetlenie na sesję)
+            // Zliczanie wyświetleń (raz na sesję dla danego wpisu)
             const viewedSessionKey = `viewed_${item.id}`;
             if (!sessionStorage.getItem(viewedSessionKey)) {
                 sessionStorage.setItem(viewedSessionKey, "true");
@@ -426,14 +467,13 @@
             mediaModal.classList.remove("active");
             document.body.style.overflow = "auto";
             
-            // Wyczyszczenie odtwarzacza wideo
+            // Zatrzymanie odtwarzaczy wideo przy zamknięciu modalu
             const mediaContainer = document.getElementById("modalMediaContainer");
             if (mediaContainer) {
                 mediaContainer.innerHTML = '';
             }
 
             activeMediaItem = null;
-            // Czyszczenie hash z URL
             history.replaceState(null, "", window.location.pathname + window.location.search);
         }
 
@@ -444,7 +484,22 @@
             });
         }
 
-        /* UDOSTĘPNIANIE PRECYZYJNEGO LINKU DO DANEGO WPISU */
+        // NAWIGACJA KLAWIATURĄ (Esc, Strzałka w lewo, Strzałka w prawo)
+        document.addEventListener("keydown", (e) => {
+            if (!mediaModal || !mediaModal.classList.contains("active")) return;
+
+            if (e.key === "Escape") {
+                closeModal();
+            } else if (e.key === "ArrowLeft" && currentGalleryItems.length > 1) {
+                const prevBtn = document.querySelector(".modal-nav-arrow.prev");
+                if (prevBtn) prevBtn.click();
+            } else if (e.key === "ArrowRight" && currentGalleryItems.length > 1) {
+                const nextBtn = document.querySelector(".modal-nav-arrow.next");
+                if (nextBtn) nextBtn.click();
+            }
+        });
+
+        /* UDOSTĘPNIANIE LINKU DO WPISU */
         if (shareBtn) {
             shareBtn.addEventListener("click", () => {
                 if (!activeMediaItem) return;
@@ -472,7 +527,6 @@
             if (modalVotesCount) modalVotesCount.textContent = `(${totalVotes} głosów | ${cCount} komentarzy)`;
             if (modalViewsCount) modalViewsCount.textContent = `👁️ ${vCount} wyświetleń`;
 
-            // Obsługa kliknięć w gwiazdki wewnątrz modalu
             if (modalStars) {
                 modalStars.querySelectorAll(".star-clickable").forEach(starEl => {
                     starEl.addEventListener("click", (e) => {
@@ -485,7 +539,7 @@
             }
         }
 
-        /* LOAD & SUBMIT COMMENTS */
+        /* OBSŁUGA KOMENTARZY */
         async function loadComments(mediaId) {
             if (!commentsList) return;
             commentsList.innerHTML = "<p style='font-size:0.8rem; color:#888;'>Ładowanie komentarzy...</p>";
@@ -584,7 +638,7 @@
             });
         }
 
-        /* SEARCH, FILTERS & SORTING */
+        /* FILTRY, WYSZUKIWARKA & SORTOWANIE */
         if (searchInput) {
             searchInput.addEventListener("input", (e) => {
                 searchQuery = e.target.value;
@@ -616,7 +670,7 @@
                 .replace(/"/g, "&#039;");
         }
 
-        // SPRAWDZENIE LINKU Z HASH (Automatyczne otwarcie modalu po wejściu w udostępniony link)
+        // OTWARCIE MODALU Z LINKU (HASH URL)
         function checkHashAndOpenModal() {
             if (window.location.hash) {
                 const hashId = window.location.hash.substring(1);
@@ -636,7 +690,7 @@
         window.addEventListener("hashchange", checkHashAndOpenModal);
     };
 
-    // 3. Bezpieczne wywołanie inicjalizacji w zależności od stanu DOM
+    // INICJALIZACJA DOM
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initApp);
     } else {
