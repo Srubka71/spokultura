@@ -39,27 +39,23 @@
 
 const MEDIA_ITEMS = [
 
-    {
-        id: 1,
-
-        type: "video",
-
-        title: "Spokultura Jam Night",
-
-        subtitle: "Wrocław • 2026",
-
-        description:
-            "Relacja z wydarzenia Spokultury — muzyka, kultura uliczna i ludzie.",
-
-        date: "2026-08-10",
-
-        thumbnail:
-            "assets/thumbnails/media-01.jpg",
-
-        videoUrl:
-            "https://www.youtube.com/watch?v=TU_WKLEJ_FILM"
-
-    },
+{
+    id: 1,
+    type: "album", // <-- Tutaj podajesz "album"
+    title: "Pierwsza edycja RapAir w Oleśnicy",
+    subtitle: "Amfiteatr w Oleśnicy • 2026",
+    description: "Relacja z wydarzenia RapAir, Spokultura dodała coś od siebie — muzyka, kultura uliczna i ludzie.",
+    date: "2026-07-25",
+    thumbnail: "assets/thumbnails/media-01.jpg",
+    gallery: [
+        { type: "video", url: "assets/video/rapair-video1.mp4" },
+        { type: "image", url: "assets/images/rapair-01.jpg" },
+        { type: "image", url: "assets/images/rapair-02.jpg" },
+        { type: "image", url: "assets/images/rapair-03.jpg" },
+        { type: "image", url: "assets/images/rapair-04.jpg" }
+    ]
+ 
+},
 
 
     {
