@@ -1,0 +1,943 @@
+/* =====================================================
+   RESET
+===================================================== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+
+html {
+    scroll-behavior: smooth;
+}
+
+
+body {
+    min-height: 100vh;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    color: #ffffff;
+
+    background:
+        url("assets/background.jpg")
+        center center
+        / cover
+        fixed
+        no-repeat;
+
+    background-color: #050505;
+}
+
+
+/* =====================================================
+   OVERLAY
+===================================================== */
+
+.page-overlay {
+    position: fixed;
+
+    inset: 0;
+
+    background:
+        rgba(0, 0, 0, 0.68);
+
+    z-index: 0;
+
+    pointer-events: none;
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.site-header {
+
+    position: relative;
+
+    z-index: 10;
+
+    width: 100%;
+
+    max-width: 1400px;
+
+    margin: 0 auto;
+
+    padding:
+        28px 35px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    border-bottom:
+        1px solid
+        rgba(255, 255, 255, 0.15);
+
+}
+
+
+.brand {
+
+    color: #ffffff;
+
+    text-decoration: none;
+
+    font-size: 1.4rem;
+
+    font-weight: 900;
+
+    letter-spacing: 2px;
+
+}
+
+
+.main-navigation {
+
+    display: flex;
+
+    gap: 30px;
+
+}
+
+
+.main-navigation a {
+
+    color: #ffffff;
+
+    text-decoration: none;
+
+    font-size: 0.85rem;
+
+    font-weight: 700;
+
+    letter-spacing: 1.5px;
+
+    transition:
+        color 0.2s ease;
+
+}
+
+
+.main-navigation a:hover,
+.main-navigation a.active {
+
+    color: #ff6a00;
+
+}
+
+
+/* =====================================================
+   MAIN CONTAINER
+===================================================== */
+
+.media-container {
+
+    position: relative;
+
+    z-index: 2;
+
+    width: 100%;
+
+    max-width: 1100px;
+
+    margin: 0 auto;
+
+    padding:
+        55px 25px
+        100px;
+
+}
+
+
+/* =====================================================
+   PAGE TITLE
+===================================================== */
+
+.media-heading {
+
+    margin-bottom: 40px;
+
+}
+
+
+.media-title {
+
+    display: flex;
+
+    align-items: baseline;
+
+    gap: 15px;
+
+}
+
+
+.media-title span {
+
+    font-size:
+        clamp(3rem, 8vw, 6rem);
+
+    font-weight: 900;
+
+    line-height: 0.9;
+
+    letter-spacing: -3px;
+
+    color: #ff6a00;
+
+    text-shadow:
+        0 0 30px
+        rgba(255, 106, 0, 0.2);
+
+}
+
+
+.media-title small {
+
+    font-size: 0.9rem;
+
+    font-weight: 700;
+
+    letter-spacing: 2px;
+
+    color: rgba(255,255,255,0.75);
+
+}
+
+
+.media-introduction {
+
+    margin-top: 18px;
+
+    color:
+        rgba(255,255,255,0.65);
+
+    font-size: 1rem;
+
+}
+
+
+/* =====================================================
+   TOOLBAR
+===================================================== */
+
+.media-toolbar {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+
+    margin-bottom: 25px;
+
+    padding-bottom: 20px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,0.15);
+
+}
+
+
+.media-filters {
+
+    display: flex;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+
+}
+
+
+.filter-button {
+
+    border:
+        1px solid
+        rgba(255,255,255,0.25);
+
+    background:
+        rgba(0,0,0,0.55);
+
+    color: #ffffff;
+
+    padding:
+        10px 17px;
+
+    cursor: pointer;
+
+    font-size: 0.75rem;
+
+    font-weight: 800;
+
+    letter-spacing: 1px;
+
+    transition:
+        all 0.2s ease;
+
+}
+
+
+.filter-button:hover {
+
+    border-color: #ff6a00;
+
+}
+
+
+.filter-button.active {
+
+    background: #ff6a00;
+
+    border-color: #ff6a00;
+
+    color: #ffffff;
+
+}
+
+
+/* =====================================================
+   SORT
+===================================================== */
+
+.media-sort {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+}
+
+
+.media-sort label {
+
+    color:
+        rgba(255,255,255,0.55);
+
+    font-size: 0.7rem;
+
+    font-weight: 700;
+
+    letter-spacing: 1px;
+
+}
+
+
+.media-sort select {
+
+    appearance: none;
+
+    background:
+        rgba(0,0,0,0.75);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.25);
+
+    color: #ffffff;
+
+    padding:
+        10px 35px 10px 12px;
+
+    font-size: 0.75rem;
+
+    cursor: pointer;
+
+}
+
+
+/* =====================================================
+   MEDIA LIST
+===================================================== */
+
+.media-list {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+
+}
+
+
+/* =====================================================
+   MEDIA CARD
+===================================================== */
+
+.media-card {
+
+    display: grid;
+
+    grid-template-columns:
+        310px 1fr;
+
+    min-height: 190px;
+
+    background:
+        rgba(8, 8, 8, 0.88);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.16);
+
+    transition:
+        border-color 0.25s ease,
+        transform 0.25s ease,
+        background 0.25s ease;
+
+    overflow: hidden;
+
+}
+
+
+.media-card:hover {
+
+    border-color:
+        rgba(255,106,0,0.65);
+
+    transform:
+        translateY(-2px);
+
+    background:
+        rgba(12,12,12,0.96);
+
+}
+
+
+/* =====================================================
+   CARD IMAGE
+===================================================== */
+
+.media-card-image {
+
+    position: relative;
+
+    min-height: 190px;
+
+    overflow: hidden;
+
+}
+
+
+.media-card-image img {
+
+    width: 100%;
+
+    height: 100%;
+
+    object-fit: cover;
+
+    display: block;
+
+    transition:
+        transform 0.5s ease;
+
+}
+
+
+.media-card:hover
+.media-card-image img {
+
+    transform:
+        scale(1.04);
+
+}
+
+
+/* =====================================================
+   TYPE LABEL
+===================================================== */
+
+.media-type {
+
+    position: absolute;
+
+    left: 12px;
+
+    bottom: 12px;
+
+    padding:
+        6px 9px;
+
+    background:
+        rgba(0,0,0,0.85);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.25);
+
+    font-size: 0.65rem;
+
+    font-weight: 900;
+
+    letter-spacing: 1px;
+
+}
+
+
+/* =====================================================
+   VIDEO ICON
+===================================================== */
+
+.video-icon {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    width: 55px;
+
+    height: 55px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background:
+        rgba(0,0,0,0.72);
+
+    border:
+        2px solid
+        rgba(255,255,255,0.8);
+
+}
+
+
+.video-icon span {
+
+    width: 0;
+
+    height: 0;
+
+    border-top:
+        8px solid transparent;
+
+    border-bottom:
+        8px solid transparent;
+
+    border-left:
+        13px solid #ffffff;
+
+    margin-left: 4px;
+
+}
+
+
+/* =====================================================
+   CARD CONTENT
+===================================================== */
+
+.media-card-content {
+
+    padding:
+        25px 28px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: space-between;
+
+}
+
+
+.media-card-top {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+}
+
+
+.media-card h2 {
+
+    font-size: 1.25rem;
+
+    font-weight: 800;
+
+    line-height: 1.2;
+
+}
+
+
+.media-card h3 {
+
+    margin-top: 6px;
+
+    color: #ff6a00;
+
+    font-size: 0.8rem;
+
+    font-weight: 700;
+
+    letter-spacing: 0.5px;
+
+}
+
+
+.media-card time {
+
+    flex-shrink: 0;
+
+    color:
+        rgba(255,255,255,0.45);
+
+    font-size: 0.7rem;
+
+}
+
+
+.media-description {
+
+    margin-top: 20px;
+
+    max-width: 650px;
+
+    color:
+        rgba(255,255,255,0.62);
+
+    font-size: 0.88rem;
+
+    line-height: 1.55;
+
+}
+
+
+/* =====================================================
+   CARD BOTTOM
+===================================================== */
+
+.media-card-bottom {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+
+    margin-top: 20px;
+
+}
+
+
+/* =====================================================
+   RATING & INTERACTIVE STARS
+===================================================== */
+
+.rating {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+}
+
+
+.stars {
+
+    color: #ff6a00;
+
+    letter-spacing: 2px;
+
+    font-size: 0.9rem;
+
+    display: inline-flex;
+
+    user-select: none;
+
+}
+
+
+.star-clickable {
+
+    cursor: pointer;
+
+    transition: transform 0.15s ease, color 0.15s ease;
+
+}
+
+
+.star-clickable:hover {
+
+    transform: scale(1.3);
+
+    color: #ffffff;
+
+}
+
+
+.rating-number {
+
+    color:
+        rgba(255,255,255,0.55);
+
+    font-size: 0.75rem;
+
+    font-weight: 700;
+
+}
+
+
+/* =====================================================
+   OPEN BUTTON
+===================================================== */
+
+.open-media {
+
+    border:
+        1px solid
+        rgba(255,106,0,0.6);
+
+    background: transparent;
+
+    color: #ff6a00;
+
+    padding:
+        8px 12px;
+
+    font-size: 0.65rem;
+
+    font-weight: 800;
+
+    letter-spacing: 1px;
+
+    cursor: pointer;
+
+    transition:
+        all 0.2s ease;
+
+}
+
+
+.open-media:hover {
+
+    background: #ff6a00;
+
+    color: #ffffff;
+
+}
+
+
+/* =====================================================
+   EMPTY
+===================================================== */
+
+.empty-state {
+
+    padding:
+        60px 20px;
+
+    text-align: center;
+
+    color:
+        rgba(255,255,255,0.5);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+}
+
+
+/* =====================================================
+   FOOTER
+===================================================== */
+
+.site-footer {
+
+    position: relative;
+
+    z-index: 2;
+
+    max-width: 1100px;
+
+    margin: 0 auto;
+
+    padding:
+        25px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    border-top:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    color:
+        rgba(255,255,255,0.35);
+
+    font-size: 0.7rem;
+
+    letter-spacing: 1px;
+
+}
+
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media (max-width: 800px) {
+
+    .site-header {
+
+        padding:
+            22px 20px;
+
+    }
+
+
+    .main-navigation {
+
+        gap: 15px;
+
+    }
+
+
+    .media-container {
+
+        padding:
+            40px 15px
+            70px;
+
+    }
+
+
+    .media-toolbar {
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+    }
+
+
+    .media-sort {
+
+        justify-content: space-between;
+
+    }
+
+
+    .media-sort select {
+
+        flex: 1;
+
+    }
+
+
+    .media-card {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+
+    .media-card-image {
+
+        min-height: 220px;
+
+        height: 220px;
+
+    }
+
+
+    .media-card-content {
+
+        padding:
+            20px;
+
+    }
+
+
+    .media-card-top {
+
+        flex-direction: column;
+
+        gap: 10px;
+
+    }
+
+
+    .media-card-bottom {
+
+        align-items: flex-start;
+
+        flex-direction: column;
+
+    }
+
+}
+
+
+@media (max-width: 500px) {
+
+    .brand {
+
+        font-size: 1.1rem;
+
+    }
+
+
+    .main-navigation a {
+
+        font-size: 0.7rem;
+
+    }
+
+
+    .media-title {
+
+        flex-direction: column;
+
+        gap: 8px;
+
+    }
+
+
+    .media-title span {
+
+        font-size: 3.5rem;
+
+    }
+
+
+    .filter-button {
+
+        flex: 1;
+
+    }
+
+}

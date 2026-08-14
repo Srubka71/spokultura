@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="Spokultura Media — zdjęcia, filmy i materiały ze świata Spokultury."
+    >
+
+    <title>Media — Spokultura</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+    <div class="page-overlay"></div>
+
+    <!-- =========================
+         HEADER
+    ========================== -->
+
+    <header class="site-header">
+
+        <a href="../" class="brand">
+            SPOKULTURA
+        </a>
+
+        <nav class="main-navigation">
+            <a href="../">HOME</a>
+            <a href="./" class="active">MEDIA</a>
+        </nav>
+
+    </header>
+
+
+    <!-- =========================
+         MAIN
+    ========================== -->
+
+    <main class="media-container">
+
+        <section class="media-heading">
+
+            <div class="media-title">
+                <span>MEDIA</span>
+                <small>BY SPOKULTURA</small>
+            </div>
+
+            <p class="media-introduction">
+                Zdjęcia, filmy i materiały ze Spokultury.
+            </p>
+
+        </section>
+
+
+        <!-- =========================
+             FILTERS
+        ========================== -->
+
+        <section class="media-toolbar">
+
+            <div class="media-filters">
+
+                <button
+                    class="filter-button active"
+                    data-filter="all"
+                >
+                    WSZYSTKIE
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-filter="photo"
+                >
+                    PHOTO
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-filter="video"
+                >
+                    VIDEO
+                </button>
+
+            </div>
+
+
+            <div class="media-sort">
+
+                <label for="sortSelect">
+                    SORTUJ:
+                </label>
+
+                <select id="sortSelect">
+
+                    <option value="date-desc">
+                        Od najnowszego do najstarszego
+                    </option>
+
+                    <option value="date-asc">
+                        Od najstarszego do najnowszego
+                    </option>
+
+                    <option value="rating-desc">
+                        Od najwyżej ocenianego
+                    </option>
+
+                    <option value="rating-asc">
+                        Od najniżej ocenianego
+                    </option>
+
+                </select>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             MEDIA LIST
+        ========================== -->
+
+        <section
+            id="mediaGrid"
+            class="media-list"
+            aria-live="polite"
+        ></section>
+
+
+        <!-- Brak wyników -->
+
+        <div
+            id="emptyState"
+            class="empty-state"
+            hidden
+        >
+            Brak materiałów spełniających wybrane kryteria.
+        </div>
+
+    </main>
+
+
+    <!-- =========================
+         FOOTER
+    ========================== -->
+
+    <footer class="site-footer">
+
+        <span>© Spokultura</span>
+
+        <span>MEDIA</span>
+
+    </footer>
+
+
+    <!-- =========================
+         SCRIPTS
+    ========================== -->
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
