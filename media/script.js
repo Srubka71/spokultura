@@ -9,22 +9,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
-    /* FILTR SLOW OBRAŹLIWYCH (PROSTA LISTA BAD WORDS) */
-    const FORBIDDEN_WORDS = [
-        "kurw", "chuj", "pizd", "jeb", "skurw", "suka", "dziwka", "pedał", 
-        "debil", "idiota", "cipa", "kutas", "spierdalaj", "fuck", "shit"
-    ];
+    /* FILTR SLOW OBRAŹLIWYCH */
+    const FORBIDDEN_WORDS = ["kurw", "chuj", "pizd", "jeb", "skurw", "suka", "dziwka", "debil"];
 
     function containsProfanity(text) {
         if (!text) return false;
-        const normalizedText = text.toLowerCase()
-            .replace(/0/g, 'o')
-            .replace(/1/g, 'i')
-            .replace(/3/g, 'e')
-            .replace(/@/g, 'a')
-            .replace(/\$/g, 's');
-
+        const normalizedText = text.toLowerCase();
         return FORBIDDEN_WORDS.some(word => normalizedText.includes(word));
+    }
+
+    /* TOAST NOTIFICATION UTILITY */
+    function showToast(message) {
+        const container = document.getElementById("toastContainer");
+        if (!container) return;
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 
     /* VISITOR ID */
@@ -44,6 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const emptyState = document.getElementById("emptyState");
     const filterButtons = document.querySelectorAll(".filter-button");
     const sortSelect = document.getElementById("sortSelect");
+    const searchInput = document.getElementById("searchInput");
 
     // Modal elements
     const mediaModal = document.getElementById("mediaModal");
@@ -55,7 +58,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modalStars = document.getElementById("modalStars");
     const modalRatingNum = document.getElementById("modalRatingNum");
     const modalVotesCount = document.getElementById("modalVotesCount");
-    
+    const modalViewsCount = document.getElementById("modalViewsCount");
+    const shareBtn = document.getElementById("shareBtn");
+
     // Comment elements
     const commentForm = document.getElementById("commentForm");
     const commentAuthor = document.getElementById("commentAuthor");
@@ -65,12 +70,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let currentFilter = "all";
     let currentSort = "date-desc";
+    let searchQuery = "";
     let supabaseRatings = {};
     let commentCounts = {};
+    let itemViews = {};
     let userVotes = {};
     let activeMediaItem = null;
 
-    /* FETCH RATINGS & COMMENT COUNTS FROM SUPABASE */
+    /* SHOW SKELETON LOADERS */
+    function renderSkeletons() {
+        mediaGrid.innerHTML = `
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        `;
+    }
+
+    /* FETCH ALL STATS FROM SUPABASE */
     async function loadStatsFromSupabase() {
         if (!supabaseClient) return;
 
@@ -89,7 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
 
-            // Liczba komentarzy
+            // Komentarze
             const { data: commentsData } = await supabaseClient
                 .from("media_comments")
                 .select("media_id");
@@ -98,6 +114,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 commentCounts = {};
                 commentsData.forEach(row => {
                     commentCounts[row.media_id] = (commentCounts[row.media_id] || 0) + 1;
+                });
+            }
+
+            // Wyświetlenia (jeśli tabela wywodzi się ze zdarzeń)
+            const { data: viewsData } = await supabaseClient
+                .from("media_views")
+                .select("media_id");
+
+            if (viewsData) {
+                itemViews = {};
+                viewsData.forEach(row => {
+                    itemViews[row.media_id] = (itemViews[row.media_id] || 0) + 1;
                 });
             }
 
@@ -132,6 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }, { onConflict: "media_id, visitor_id" });
 
             if (!error) {
+                showToast("Dziękujemy za oddanie głosu! ⭐");
                 await loadStatsFromSupabase();
                 renderMedia();
                 if (activeMediaItem && activeMediaItem.id === mediaId) {
@@ -159,26 +188,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         return starsHTML;
     }
 
-    /* RENDER MEDIA CARDS */
+    /* RENDER MEDIA CARDS WITH BADGES & TILT EFFECT */
     function renderMedia() {
         const rawItems = (typeof MEDIA_ITEMS !== "undefined") ? MEDIA_ITEMS : [];
 
+        // Znajdź 2 najnowsze wpisy dla badge'a NOWOŚĆ
+        const sortedByDate = [...rawItems].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const newestIds = sortedByDate.slice(0, 2).map(item => item.id);
+
         let items = rawItems.map(item => {
             const dbData = supabaseRatings[item.id];
-            const cCount = commentCounts[item.id] || 0;
             return {
                 ...item,
                 rating: dbData ? dbData.rating : (item.rating || 0),
                 totalVotes: dbData ? dbData.totalVotes : 0,
-                commentsCount: cCount,
-                userScore: userVotes[item.id] || null
+                commentsCount: commentCounts[item.id] || 0,
+                viewsCount: itemViews[item.id] || 0,
+                isNew: newestIds.includes(item.id)
             };
         });
 
+        // Wyszukiwarka
+        if (searchQuery.trim() !== "") {
+            const query = searchQuery.toLowerCase();
+            items = items.filter(item => 
+                item.title.toLowerCase().includes(query) || 
+                (item.description && item.description.toLowerCase().includes(query))
+            );
+        }
+
+        // Filtrowanie kategorii
         if (currentFilter !== "all") {
             items = items.filter(item => item.type === currentFilter);
         }
 
+        // Sortowanie
         switch (currentSort) {
             case "date-desc": items.sort((a, b) => new Date(b.date) - new Date(a.date)); break;
             case "date-asc": items.sort((a, b) => new Date(a.date) - new Date(b.date)); break;
@@ -207,6 +251,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <div class="media-card-image">
                     <img src="${image}" alt="${escapeHTML(item.title)}" loading="lazy">
                     <span class="media-type">${typeLabel}</span>
+                    ${item.isNew ? '<span class="badge-new">NOWOŚĆ</span>' : ''}
                 </div>
 
                 <div class="media-card-content">
@@ -219,7 +264,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="rating-box">
                         <span class="stars">${generateStarsHTML(rating, item.id)}</span>
                         <span class="rating-number">${rating.toFixed(1)}</span>
-                        <span class="rating-info">(${item.totalVotes} głosów | ${item.commentsCount} komentarzy)</span>
+                        <span class="rating-info">(${item.totalVotes} głosów | ${item.commentsCount} kom.)</span>
                     </div>
                 </div>
 
@@ -227,6 +272,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                     &#10140;
                 </div>
             `;
+
+            // EFEKT 3D TILT
+            card.addEventListener("mousemove", (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = ((y - centerY) / centerY) * -6;
+                const rotateY = ((x - centerX) / centerX) * 6;
+
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.01, 1.01, 1.01)`;
+            });
+
+            card.addEventListener("mouseleave", () => {
+                card.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
+            });
 
             card.addEventListener("click", () => openModal(item));
 
@@ -254,6 +316,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         if (commentError) commentError.style.display = "none";
 
+        // Rejestrowanie wyświetlenia w Supabase
+        if (supabaseClient) {
+            supabaseClient.from("media_views").insert({ media_id: item.id }).then(() => {
+                itemViews[item.id] = (itemViews[item.id] || 0) + 1;
+                modalViewsCount.textContent = `👁️ ${itemViews[item.id]} wyświetleń`;
+            });
+        }
+
         updateModalRatingUI(item.id);
         await loadComments(item.id);
 
@@ -272,15 +342,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (e.target === mediaModal) closeModal();
     });
 
+    /* UDOSTĘPNIANIE LINKU */
+    shareBtn.addEventListener("click", () => {
+        if (!activeMediaItem) return;
+        const shareUrl = window.location.href;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast("Skopiowano link do schowka! 🔗");
+            });
+        } else {
+            showToast("Brak dostępu do schowka.");
+        }
+    });
+
     function updateModalRatingUI(mediaId) {
         const dbData = supabaseRatings[mediaId];
         const rating = dbData ? dbData.rating : 0;
         const totalVotes = dbData ? dbData.totalVotes : 0;
         const cCount = commentCounts[mediaId] || 0;
+        const vCount = itemViews[mediaId] || 0;
 
         modalStars.innerHTML = generateStarsHTML(rating, mediaId);
         modalRatingNum.textContent = `${rating.toFixed(1)} / 5`;
         modalVotesCount.textContent = `(${totalVotes} głosów | ${cCount} komentarzy)`;
+        modalViewsCount.textContent = `👁️ ${vCount} wyświetleń`;
 
         modalStars.querySelectorAll(".star-clickable").forEach(starEl => {
             starEl.addEventListener("click", () => {
@@ -341,14 +427,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const author = commentAuthor.value.trim() || "Anonim";
         const text = commentText.value.trim();
 
-        // 1. Walidacja słów obraźliwych
         if (containsProfanity(author) || containsProfanity(text)) {
             commentError.textContent = "Twój nick lub komentarz zawiera zabronione słowa.";
             commentError.style.display = "block";
             return;
         }
 
-        // 2. Walidacja Cloudflare Turnstile
         const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]');
         if (!turnstileResponse || !turnstileResponse.value) {
             commentError.textContent = "Proszę ukończyć weryfikację anty-botową Turnstile.";
@@ -368,6 +452,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!error) {
                 commentText.value = "";
                 if (window.turnstile) turnstile.reset();
+                showToast("Komentarz został opublikowany! 💬");
                 await loadStatsFromSupabase();
                 renderMedia();
                 updateModalRatingUI(activeMediaItem.id);
@@ -381,7 +466,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    /* FILTRY I SORTOWANIE */
+    /* FILTRY, SORTOWANIE I WYSZUKIWARKA NA ŻYWO */
+    searchInput.addEventListener("input", (e) => {
+        searchQuery = e.target.value;
+        renderMedia();
+    });
+
     filterButtons.forEach(button => {
         button.addEventListener("click", () => {
             filterButtons.forEach(btn => btn.classList.remove("active"));
@@ -404,7 +494,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             .replace(/"/g, "&#039;");
     }
 
-    // START
+    // START Z SKELETONAMI
+    renderSkeletons();
     await loadStatsFromSupabase();
     renderMedia();
 });
