@@ -649,16 +649,27 @@ body {
 
 
 /* =====================================================
-   RATING & INTERACTIVE STARS
+   RATING BOX & INTUITIVE DETAILS
 ===================================================== */
 
-.rating {
+.rating-box {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 4px;
+
+}
+
+
+.stars-row {
 
     display: flex;
 
     align-items: center;
 
-    gap: 8px;
+    gap: 10px;
 
 }
 
@@ -669,7 +680,7 @@ body {
 
     letter-spacing: 2px;
 
-    font-size: 0.9rem;
+    font-size: 1rem;
 
     display: inline-flex;
 
@@ -698,12 +709,49 @@ body {
 
 .rating-number {
 
-    color:
-        rgba(255,255,255,0.55);
+    color: #ffffff;
 
-    font-size: 0.75rem;
+    font-size: 0.85rem;
+
+    font-weight: 800;
+
+}
+
+
+.rating-info {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 0.72rem;
+
+    color: rgba(255, 255, 255, 0.55);
+
+}
+
+
+.bullet {
+
+    color: rgba(255, 255, 255, 0.3);
+
+}
+
+
+.user-score-highlight {
+
+    color: #ff6a00;
 
     font-weight: 700;
+
+}
+
+
+.user-score-none {
+
+    color: rgba(255, 255, 255, 0.4);
 
 }
 
