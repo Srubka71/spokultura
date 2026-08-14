@@ -57,9 +57,9 @@ const MEDIA_ITEMS = [
         date: "2026-05-31",
         thumbnail: "assets/thumbnails/Graffiti.png",
         gallery: [
-            { type: "image", url: "assets/images/Graffiti1.jpg" },
-            { type: "image", url: "assets/images/Graffiti2.jpg" },
-            { type: "image", url: "assets/images/Graffiti3.jpg" }
+            { type: "image", url: "assets/images/Graffiti1.JPG" },
+            { type: "image", url: "assets/images/Graffiti2.JPG" },
+            { type: "image", url: "assets/images/Graffiti3.JPG" }
         ]
     },
     {
