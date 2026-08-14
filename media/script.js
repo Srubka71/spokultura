@@ -39,43 +39,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     const mediaGrid = document.getElementById("mediaGrid");
     const emptyState = document.getElementById("emptyState");
 
-    const filterButtons =
-        document.querySelectorAll(".filter-button");
-
-    const sortSelect =
-        document.getElementById("sortSelect");
+    const filterButtons = document.querySelectorAll(".filter-button");
+    const sortSelect = document.getElementById("sortSelect");
 
     let currentFilter = "all";
     let currentSort = "date-desc";
 
-    // Mapa przechowująca dynamiczne oceny pobrane z Supabase
     let supabaseRatings = {};
+    let userVotes = {};
 
 
     /*
     =====================================================
-    FETCH RATINGS FROM SUPABASE
+    FETCH RATINGS & USER VOTES FROM SUPABASE
     =====================================================
     */
     async function loadRatingsFromSupabase() {
         if (!supabaseClient) return;
 
         try {
-            const { data, error } = await supabaseClient
+            // 1. Pobieranie średniej oraz liczby głosów
+            const { data: ratingsData, error: ratingsErr } = await supabaseClient
                 .from("media_ratings")
                 .select("media_id, average_rating, total_votes");
 
-            if (error) {
-                console.warn("Nie udało się pobrać ocen z Supabase, używam domyślnych z config.js:", error.message);
-                return;
+            if (!ratingsErr && ratingsData) {
+                ratingsData.forEach(row => {
+                    supabaseRatings[row.media_id] = {
+                        rating: Number(row.average_rating),
+                        totalVotes: Number(row.total_votes)
+                    };
+                });
             }
 
-            if (data) {
-                data.forEach(row => {
-                    supabaseRatings[row.media_id] = {
-                        rating: row.average_rating,
-                        totalVotes: row.total_votes
-                    };
+            // 2. Pobieranie głosu obecnego użytkownika
+            const { data: votesData, error: votesErr } = await supabaseClient
+                .from("media_votes")
+                .select("media_id, score")
+                .eq("visitor_id", visitorId);
+
+            if (!votesErr && votesData) {
+                votesData.forEach(row => {
+                    userVotes[row.media_id] = row.score;
                 });
             }
         } catch (err) {
@@ -129,7 +134,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const dbData = supabaseRatings[item.id];
             return {
                 ...item,
-                rating: dbData ? dbData.rating : item.rating
+                rating: dbData ? dbData.rating : item.rating,
+                totalVotes: dbData ? dbData.totalVotes : 0,
+                userScore: userVotes[item.id] || null
             };
         });
 
@@ -150,31 +157,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         switch (currentSort) {
 
             case "date-desc":
-                items.sort(
-                    (a, b) =>
-                        new Date(b.date) - new Date(a.date)
-                );
+                items.sort((a, b) => new Date(b.date) - new Date(a.date));
                 break;
 
             case "date-asc":
-                items.sort(
-                    (a, b) =>
-                        new Date(a.date) - new Date(b.date)
-                );
+                items.sort((a, b) => new Date(a.date) - new Date(b.date));
                 break;
 
             case "rating-desc":
-                items.sort(
-                    (a, b) =>
-                        Number(b.rating) - Number(a.rating)
-                );
+                items.sort((a, b) => Number(b.rating) - Number(a.rating));
                 break;
 
             case "rating-asc":
-                items.sort(
-                    (a, b) =>
-                        Number(a.rating) - Number(b.rating)
-                );
+                items.sort((a, b) => Number(a.rating) - Number(b.rating));
                 break;
 
         }
@@ -198,58 +193,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         */
         items.forEach(item => {
 
-            const card =
-                document.createElement("article");
-
-            card.className =
-                `media-card ${item.type}`;
-
+            const card = document.createElement("article");
+            card.className = `media-card ${item.type}`;
 
             /*
-            THUMBNAIL
+            THUMBNAIL & ICON
             */
-            const image =
-                item.thumbnail ||
-                item.image ||
-                "assets/thumbnails/placeholder.jpg";
-
+            const image = item.thumbnail || item.image || "assets/thumbnails/placeholder.jpg";
+            const videoIcon = item.type === "video" ? `<div class="video-icon"><span></span></div>` : "";
+            const typeLabel = item.type === "video" ? "VIDEO" : "PHOTO";
 
             /*
-            VIDEO ICON
+            RATING & STARS
             */
-            const videoIcon =
-                item.type === "video"
-                    ? `
-                        <div class="video-icon">
-                            <span></span>
-                        </div>
-                      `
-                    : "";
-
-
-            /*
-            TYPE LABEL
-            */
-            const typeLabel =
-                item.type === "video"
-                    ? "VIDEO"
-                    : "PHOTO";
-
-
-            /*
-            RATING
-            */
-            const rating =
-                Number(item.rating || 0);
-
-            const fullStars =
-                Math.floor(rating);
-
-            const hasHalf =
-                rating % 1 >= 0.5;
+            const rating = Number(item.rating || 0);
+            const fullStars = Math.floor(rating);
+            const hasHalf = rating % 1 >= 0.5;
 
             let starsHTML = "";
-
             for (let i = 1; i <= 5; i++) {
                 let starChar = "☆";
                 if (i <= fullStars || (i === fullStars + 1 && hasHalf)) {
@@ -258,13 +219,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 starsHTML += `<span class="star-clickable" data-star="${i}">${starChar}</span>`;
             }
 
+            const formattedDate = formatDate(item.date);
 
-            /*
-            DATE
-            */
-            const formattedDate =
-                formatDate(item.date);
-
+            const userScoreText = item.userScore 
+                ? `Twój głos: <strong class="user-score-highlight">${item.userScore} ★</strong>` 
+                : `Twój głos: <span class="user-score-none">brak</span>`;
 
             /*
             CARD HTML
@@ -272,91 +231,57 @@ document.addEventListener("DOMContentLoaded", async () => {
             card.innerHTML = `
 
                 <div class="media-card-image">
-
-                    <img
-                        src="${image}"
-                        alt="${escapeHTML(item.title)}"
-                        loading="lazy"
-                    >
-
+                    <img src="${image}" alt="${escapeHTML(item.title)}" loading="lazy">
                     ${videoIcon}
-
-                    <span class="media-type">
-                        ${typeLabel}
-                    </span>
-
+                    <span class="media-type">${typeLabel}</span>
                 </div>
-
 
                 <div class="media-card-content">
 
                     <div class="media-card-top">
-
                         <div>
-
-                            <h2>
-                                ${escapeHTML(item.title)}
-                            </h2>
-
-                            <h3>
-                                ${escapeHTML(item.subtitle || "")}
-                            </h3>
-
+                            <h2>${escapeHTML(item.title)}</h2>
+                            <h3>${escapeHTML(item.subtitle || "")}</h3>
                         </div>
-
-                        <time datetime="${item.date}">
-                            ${formattedDate}
-                        </time>
-
+                        <time datetime="${item.date}">${formattedDate}</time>
                     </div>
-
 
                     <p class="media-description">
                         ${escapeHTML(item.description || "")}
                     </p>
 
-
                     <div class="media-card-bottom">
 
-                        <div class="rating">
+                        <div class="rating-box">
+                            <div class="stars-row">
+                                <span class="stars" title="Kliknij gwiazdkę, aby oddać swój głos">
+                                    ${starsHTML}
+                                </span>
+                                <span class="rating-number" title="Średnia ocena">
+                                    ${rating.toFixed(1)} / 5
+                                </span>
+                            </div>
 
-                            <span class="stars" title="Kliknij gwiazdkę, aby ocenić">
-                                ${starsHTML}
-                            </span>
-
-                            <span class="rating-number">
-                                ${rating.toFixed(1)}
-                            </span>
-
+                            <div class="rating-info">
+                                <span class="votes-count">${item.totalVotes} ${item.totalVotes === 1 ? "głos" : "głosów"}</span>
+                                <span class="bullet">•</span>
+                                <span class="user-vote-status">${userScoreText}</span>
+                            </div>
                         </div>
 
-
-                        <button
-                            class="open-media"
-                            type="button"
-                        >
-                            ${item.type === "video"
-                                ? "OTWÓRZ FILM"
-                                : "POKAŻ ZDJĘCIE"}
+                        <button class="open-media" type="button">
+                            ${item.type === "video" ? "OTWÓRZ FILM" : "POKAŻ ZDJĘCIE"}
                         </button>
 
                     </div>
 
                 </div>
-
             `;
-
 
             /*
             CLICK - OPEN MEDIA
             */
-            card
-                .querySelector(".open-media")
-                .addEventListener(
-                    "click",
-                    () => openMedia(item)
-                );
-
+            card.querySelector(".open-media").addEventListener("click", () => openMedia(item));
 
             /*
             CLICK - RATE (STARS)
@@ -369,9 +294,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             });
 
-
             mediaGrid.appendChild(card);
-
         });
 
     }
@@ -383,25 +306,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     =====================================================
     */
     function openMedia(item) {
-
         if (item.type === "video") {
             if (!item.videoUrl) return;
-            window.open(
-                item.videoUrl,
-                "_blank",
-                "noopener,noreferrer"
-            );
+            window.open(item.videoUrl, "_blank", "noopener,noreferrer");
             return;
         }
 
         if (item.image) {
-            window.open(
-                item.image,
-                "_blank",
-                "noopener,noreferrer"
-            );
+            window.open(item.image, "_blank", "noopener,noreferrer");
         }
-
     }
 
 
@@ -411,25 +324,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     =====================================================
     */
     filterButtons.forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                filterButtons.forEach(btn =>
-                    btn.classList.remove("active")
-                );
-
-                button.classList.add("active");
-
-                currentFilter =
-                    button.dataset.filter;
-
-                renderMedia();
-
-            }
-        );
-
+        button.addEventListener("click", () => {
+            filterButtons.forEach(btn => btn.classList.remove("active"));
+            button.classList.add("active");
+            currentFilter = button.dataset.filter;
+            renderMedia();
+        });
     });
 
 
@@ -438,17 +338,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     SORT
     =====================================================
     */
-    sortSelect.addEventListener(
-        "change",
-        event => {
-
-            currentSort =
-                event.target.value;
-
-            renderMedia();
-
-        }
-    );
+    sortSelect.addEventListener("change", event => {
+        currentSort = event.target.value;
+        renderMedia();
+    });
 
 
     /*
@@ -457,24 +350,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     =====================================================
     */
     function formatDate(date) {
-
         if (!date) return "";
-
         const parsed = new Date(date);
-
-        if (Number.isNaN(parsed.getTime())) {
-            return date;
-        }
-
-        return new Intl.DateTimeFormat(
-            "pl-PL",
-            {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-            }
-        ).format(parsed);
-
+        if (Number.isNaN(parsed.getTime())) return date;
+        return new Intl.DateTimeFormat("pl-PL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+        }).format(parsed);
     }
 
 
@@ -484,14 +367,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     =====================================================
     */
     function escapeHTML(value) {
-
         return String(value)
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-
+            .replace(/"/g, "&#039;");
     }
 
 
