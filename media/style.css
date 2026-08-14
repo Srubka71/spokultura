@@ -1023,3 +1023,87 @@ body {
     }
 }
 
+/* =========================================================
+   MOBILE & CROSS-BROWSER FIX (iOS Safari/Brave, Android)
+   ========================================================= */
+
+/* Usunięcie szarego podświetlenia przy klikaniu w element na telefonach */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Poprawka siatki - zapobieganie rozciąganiu kafelków przez długi tekst w WebKit */
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Wymuszenie stałych proporcji obrazka (kompatybilność z iOS Safari i Android Brave) */
+.media-card-image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    overflow: hidden;
+    /* WebKit fallback dla starszych wersji iOS */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.media-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Poprawka wielowierszowego opisu (-webkit-line-clamp dla iOS / Safari / Brave) */
+.media-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word; /* Wymusza zawijanie długich słów na mobilkach */
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #ccc;
+}
+
+/* Poprawka nakładki pełnoekranowej (Lightbox) i modalu dla paska adresu iOS (100dvh / 100vh) */
+.fullscreen-lightbox,
+.modal {
+    height: 100vh; /* Fallback dla starszych przeglądarek */
+    height: 100dvh; /* Dynamiczne dopasowanie do paska adresu iOS Safari / Android Chrome */
+}
+
+/* Wersja mobilna: 1 kolumna na ekranach poniżej 650px */
+@media (max-width: 650px) {
+    .media-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 0 10px;
+    }
+
+    .media-card-content {
+        padding: 12px;
+    }
+}
+
+/* Poprawka reagowania na dotyk na urządzeniach mobilnych */
+.modal-main-img,
+.gallery-thumb,
+.media-card,
+.star-clickable,
+.lightbox-close {
+    touch-action: manipulation;
+    cursor: pointer;
+}
+
