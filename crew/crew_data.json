@@ -1,6 +1,7 @@
 {
   "djs": [
-          "id": "dj-srubecki",
+    {
+      "id": "dj-srubecki",
       "name": "DJ Srubecki",
       "role": "Manager / DJ / Producent",
       "image": "/crew/assets/images/dj_srubecki.jpg",
@@ -8,7 +9,7 @@
       "socials": {
         "instagram": "https://www.instagram.com/srubkaziom/"
       }
-    }
+    },
     {
       "id": "dj-fishfinger",
       "name": "DJ Fishfinger",
@@ -36,8 +37,7 @@
       "image": "/crew/assets/images/dj_michal_jabczyk.jpg",
       "bio": "DJ, Bboy, producent muzyczny, multiinstrumentalista i pasjonat dzwieku w kazdej formie. Absolwent Szkoly Muzyki Nowoczesnej we Wroclawiu, ktory przez lata zjadl zeby na kontrolerach i programach DAW. Za dekami czuje sie jak ryba w wodzie, a w studio – jak ryba z MPC pod pletwa. Michal to gosc, ktory jednego dnia beatboxuje, drugiego gra na saksofonie, a trzeciego… odpala handpan i drumle, zeby zahaczyc o inne wymiary muzycznej ekspresji. Swoje zamilowanie do dzwiekow rozszerzyl takze na ruch – przez kilka lat aktywnie trenowal taniec uliczny: breakdance i popping.",
       "socials": {}
-    },
-    {
+    }
   ],
   "bboys": [
     {
