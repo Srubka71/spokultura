@@ -37,7 +37,9 @@
       "role": "DJ / B-BOY / Producent",
       "image": "/crew/assets/images/dj_michal_jabczyk.jpg",
       "bio": "DJ, Bboy, producent muzyczny, multiinstrumentalista i pasjonat dzwieku w kazdej formie. Absolwent Szkoly Muzyki Nowoczesnej we Wroclawiu, ktory przez lata zjadl zeby na kontrolerach i programach DAW. Za dekami czuje sie jak ryba w wodzie, a w studio – jak ryba z MPC pod pletwa. Michal to gosc, ktory jednego dnia beatboxuje, drugiego gra na saksofonie, a trzeciego… odpala handpan i drumle, zeby zahaczyc o inne wymiary muzycznej ekspresji. Swoje zamilowanie do dzwiekow rozszerzyl takze na ruch – przez kilka lat aktywnie trenowal taniec uliczny: breakdance i popping.",
-      "socials": {}
+      "socials": {
+        "instagram": "https://www.instagram.com/michaljabczyk/"
+      }
     },
     {
       "id": "dj-fishfinger",
@@ -57,7 +59,9 @@
       "role": "B-BOY",
       "image": "/crew/assets/images/bboy_twister.png",
       "bio": "Twister to oldschoolowy wyjadacz, ktory pamieta poczatki breaka we Wroclawiu, bedac bboyem od 2001 roku. Czlonek ekip: TupTuPeRia Crew, Grupa taneczna 'MASKA' z Katow Wroclawskich oraz WZRT (3 miejsce na Rytmie Ulicy Pila 2008 w kategorii show). Wspolorganizator cyklicznej imprezy tanecznej 'SpalTenParkiet' w klubie Nietota we Wroclawiu. Wielokrotnie zaangazowany tanecznie w teledyskach i koncertach m.in.: Waldemar Kasta, DonGURALesko, O.S.T.R, Szad Akrobata, WWO & Soundkail, Antone.",
-      "socials": {}
+      "socials": {
+        "instagram": "https://www.instagram.com/twisteye_photo/"
+      }
     }
   ],
   "writers": [
@@ -67,7 +71,9 @@
       "role": "Graffiti Artist",
       "image": "/crew/assets/images/writer_shar.JPG",
       "bio": "SHAR to writer zwiazany z kultura graffiti od najmlodszych lat. Nieustannie rozwija swoj charakterystyczny styl, czerpiac inspiracje z klasycznego graffiti oraz estetyki zlotej ery hip-hopu. Szczegolne miejsce w jego tworczosci zajmuja oldschoolowe liternictwo oraz tribute'y dla artystow lat 90. Regularnie bierze udzial w legalnych jamach graffiti oraz projektach artystycznych. Poza klasycznymi wrzutami rozwija sie rowniez w rysunku realistycznym.",
-      "socials": {}
+      "socials": {
+        "instagram": "https://www.instagram.com/baggie_jean/"
+      }
     }
   ]
 }
