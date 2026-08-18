@@ -66,14 +66,14 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* HEADER / MENU (WYŻSZA WARSTWA Z-INDEX) */
+/* HEADER / MENU */
 .site-header {
     position: relative;
     z-index: 20;
     width: 100%;
     max-width: 1200px;
     margin: 20px auto 0;
-    padding: 20px 30px;
+    padding: 8px 25px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -81,14 +81,24 @@ body {
     border-radius: 8px;
 }
 
-.brand {
-    color: #ffffff;
+/* LOGO W HEADERZE */
+.brand-logo {
+    display: flex;
+    align-items: center;
     text-decoration: none;
-    font-size: 1.6rem;
-    font-weight: 900;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    text-shadow: 0 0 10px rgba(255, 106, 0, 0.5);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.brand-logo img {
+    height: 65px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+}
+
+.brand-logo:hover {
+    transform: scale(1.04);
+    opacity: 0.9;
 }
 
 .main-navigation {
@@ -121,7 +131,7 @@ body {
     padding: 40px 20px 100px;
 }
 
-/* NAGŁÓWEK SPOKULTURA CREW — WYSUWANIE SPOD BARA (SMOOTH ROLL) */
+/* NAGŁÓWEK SPOKULTURA CREW — WYSUWANIE SPOD BARA */
 .crew-heading {
     position: relative;
     z-index: 10;
@@ -307,10 +317,16 @@ body {
 @media (max-width: 768px) {
     .site-header {
         flex-direction: column;
-        gap: 15px;
+        gap: 12px;
+        padding: 12px 10px;
         margin: 10px auto 0;
         width: calc(100% - 20px);
     }
+    
+    .brand-logo img {
+        height: 50px;
+    }
+
     .main-navigation {
         flex-wrap: wrap;
         justify-content: center;
