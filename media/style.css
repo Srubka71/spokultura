@@ -1250,3 +1250,32 @@ html, body {
         white-space: nowrap; /* Zapobiega łamaniu wyrazów pojedynczych przycisków */
     }
 }
+
+/* =========================================================
+   ANIMACJA PŁYNNEGO WEJŚCIA (FADE-IN & SLIDE-DOWN)
+   ========================================================= */
+
+/* Definicja animacji: pojawianie się + lekkie zsunięcie z góry */
+@keyframes fadeInUpwards {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Klasa bazowa dla animowanych elementów */
+.animate-entry {
+    opacity: 0; /* Domyślnie ukryte przed uruchomieniem animacji */
+    animation: fadeInUpwards 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Kaskadowe opóźnienia (sekwencja pojawiania się od góry do dołu) */
+.delay-1 { animation-delay: 0.1s; } /* Menu / Nawigacja */
+.delay-2 { animation-delay: 0.3s; } /* Tytuł MEDIA & ARTICLES */
+.delay-3 { animation-delay: 0.5s; } /* Podtytuł */
+.delay-4 { animation-delay: 0.7s; } /* Wyszukiwarka i filtry */
+.delay-5 { animation-delay: 0.9s; } /* Siatka z kafelkami */
