@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPOKULTURA — Ekipa / O nas</title>
+    
+    <!-- Supabase JS Client (na przypadek dynamicznego pobierania składu) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- CSS (używamy wspólnego stylu z media oraz unikalnych reguł dla crew) -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="page-overlay"></div>
+
+    <!-- GŁÓWNY NAGŁÓWEK -->
+    <header class="site-header glassmorphism animate-entry delay-1">
+        <a href="/" class="brand">SPOKULTURA</a>
+        <nav class="main-navigation">
+            <a href="/">GŁÓWNA</a>
+            <a href="/media">ARTYKUŁY</a>
+            <a href="/looper">LOOPER</a>
+            <a href="/crew" class="active">EKIPA - O NAS</a>
+            <a href="https://spokultura.pl/info/">WIĘCEJ INFO</a>
+        </nav>
+    </header>
+
+    <!-- KONTENER GŁÓWNY SUBSTRONY -->
+    <div class="crew-container">
+
+        <!-- SEKCJA HERO / TYTUŁ -->
+        <section class="crew-heading">
+            <h1 class="crew-title animate-entry delay-2"><span>EKIPA & CREW</span></h1>
+            <p class="crew-introduction animate-entry delay-3">Poznaj ludzi stojących za projektem SPOKULTURA — pasjonatów, twórców i artystów.</p>
+        </section>
+
+        <!-- SIATKA Z CZŁONKAMI EKIPY -->
+        <main id="crewGrid" class="crew-grid animate-entry delay-4">
+            <!-- Kafelki zostaną wygenerowane automatycznie przez script.js -->
+        </main>
+
+    </div>
+
+    <!-- SKRYPTY KONFIGURACYJNE I GŁÓWNE -->
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
