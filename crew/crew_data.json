@@ -14,7 +14,7 @@
       "id": "dj-dymek",
       "name": "DJ Dymek",
       "role": "DJ",
-      "image": "/crew/assets/images/dj_dymek.jpg",
+      "image": "/crew/assets/images/dj_dymek.png",
       "bio": "DJ z pasją i świeżą energią na deckach. Balansuje między oldschoolowym hip-hopem a housem. Buduje własny styl grając w beach-barach i plenerach.",
       "socials": {
         "youtube": "https://www.youtube.com/watch?v=QxihsCBLrV0"
@@ -44,7 +44,7 @@
       "id": "bboy-twister",
       "name": "B-Boy Twister",
       "role": "Tancerz / Breakdance",
-      "image": "/crew/assets/images/bboy_twister.jpg",
+      "image": "/crew/assets/images/bboy_twister.png",
       "bio": "Oldschoolowy tancerz działający od 2001 roku (TupTuPeRia Crew, WZRT). Współorganizator cyklu 'SpalTenParkiet' we wrocławskim klubie Nietota.",
       "socials": {}
     }
@@ -54,7 +54,7 @@
       "id": "writer-shar",
       "name": "Writer SHAR",
       "role": "Graffiti Artist",
-      "image": "/crew/assets/images/writer_shar.jpg",
+      "image": "/crew/assets/images/writer_shar.JPG",
       "bio": "Writer związany z kulturą graffiti od najmłodszych lat. Inspirowany liternictwem lat 90. i estetyką złotej ery hip-hopu. Aktywny na legalnych jamach i w rysunku realistycznym.",
       "socials": {}
     }
