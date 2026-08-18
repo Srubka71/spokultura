@@ -21,14 +21,12 @@
       }
     },
     {
-      "id": "dj-dymek",
-      "name": "DJ Dymek",
-      "role": "DJ",
-      "image": "/crew/assets/images/dj_dymek.png",
-      "bio": "DJ z pasja, zajawka i ambicja, by wnosic swieza energie na decki. Dymek to DJ, ktory na gramofonach i ze sprzetem audio jako zajawkowicz dziala od kilku lat. Przez co z czasem skompletowal wlasny sprzet, jako samouk zaczal budowac swoj styl – balansujac miedzy oldschoolowym hip-hopem a housem. Pierwsze mixy szlifowal w domowym zaciszu, dzis coraz czesciej dzieli sie nimi na beach-barach i plenerach. Lubi eksperymentowac, laczyc brzmienia i tworzyc klimat.",
-      "socials": {
-        "youtube": "https://www.youtube.com/watch?v=QxihsCBLrV0"
-      }
+      "id": "dj-michal-jabczyk",
+      "name": "DJ i B-boy Michal Jabczyk",
+      "role": "DJ / B-boy / Producent",
+      "image": "/crew/assets/images/dj_michal_jabczyk.jpg",
+      "bio": "DJ, Bboy, producent muzyczny, multiinstrumentalista i pasjonat dzwieku w kazdej formie. Absolwent Szkoly Muzyki Nowoczesnej we Wroclawiu, ktory przez lata zjadl zeby na kontrolerach i programach DAW. Za dekami czuje sie jak ryba w wodzie, a w studio – jak ryba z MPC pod pletwa. Michal to gosc, ktory jednego dnia beatboxuje, drugiego gra na saksofonie, a trzeciego… odpala handpan i drumle, zeby zahaczyc o inne wymiary muzycznej ekspresji. Swoje zamilowanie do dzwiekow rozszerzyl takze na ruch – przez kilka lat aktywnie trenowal taniec uliczny: breakdance i popping.",
+      "socials": {}
     },
     {
       "id": "dj-fishfinger",
@@ -39,8 +37,8 @@
       "socials": {
         "instagram": "https://www.instagram.com/dj.fishfinger/"
       }
+    }
   ],
-  
   "bboys": [
     {
       "id": "bboy-twister",
