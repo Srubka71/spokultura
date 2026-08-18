@@ -16,10 +16,12 @@
 </head>
 <body>
 
-    <!-- GŁÓWNY NAGŁÓWEK (Pojawia się jako 1. w animacji) -->
-    <header class="header animate-entry delay-1">
-        <div class="logo">SPOKULTURA</div>
-        <nav class="nav-links">
+    <div class="page-overlay"></div>
+
+    <!-- GŁÓWNY NAGŁÓWEK -->
+    <header class="site-header glassmorphism animate-entry delay-1">
+        <a href="/" class="brand">SPOKULTURA</a>
+        <nav class="main-navigation">
             <a href="/">GŁÓWNA</a>
             <a href="/media" class="active">ARTYKUŁY</a>
             <a href="#">LOOPER</a>
@@ -27,88 +29,92 @@
         </nav>
     </header>
 
-    <!-- SEKCJA HERO / TYTUŁ (Pojawia się jako 2. i 3. w animacji) -->
-    <section class="hero-section">
-        <h1 class="animate-entry delay-2">MEDIA & ARTICLES</h1>
-        <p class="animate-entry delay-3">Najnowsze wpisy, fotorelacje oraz ekskluzywne materiały wideo.</p>
-    </section>
+    <!-- KONTENER GŁÓWNY SUBSTRONY -->
+    <div class="media-container">
 
-    <!-- PASEK WYSZUKIWANIA I FILTRÓW (Pojawia się jako 4. w animacji) -->
-    <div class="filter-container animate-entry delay-4">
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Szukaj artykułu...">
+        <!-- SEKCJA HERO / TYTUŁ -->
+        <section class="media-heading">
+            <h1 class="media-title animate-entry delay-2"><span>MEDIA & ARTICLES</span></h1>
+            <p class="media-introduction animate-entry delay-3">Najnowsze wpisy, fotorelacje oraz ekskluzywne materiały wideo.</p>
+        </section>
+
+        <!-- PASEK WYSZUKIWANIA I FILTRÓW -->
+        <div class="media-toolbar glassmorphism animate-entry delay-4">
+            <div class="media-search">
+                <input type="text" id="searchInput" placeholder="Szukaj artykułu...">
+            </div>
+
+            <div class="filter-buttons">
+                <button class="filter-button active" data-filter="all">WSZYSTKIE</button>
+                <button class="filter-button" data-filter="photo">ZDJĘCIA</button>
+                <button class="filter-button" data-filter="video">WIDEO</button>
+            </div>
+
+            <div class="media-sort">
+                <select id="sortSelect">
+                    <option value="date-desc">Najnowsze</option>
+                    <option value="date-asc">Najstarsze</option>
+                    <option value="rating-desc">Najwyżej oceniane</option>
+                    <option value="rating-asc">Najniżej oceniane</option>
+                </select>
+            </div>
         </div>
 
-        <div class="filter-buttons">
-            <button class="filter-button active" data-filter="all">WSZYSTKIE</button>
-            <button class="filter-button" data-filter="photo">ZDJĘCIA</button>
-            <button class="filter-button" data-filter="video">WIDEO</button>
+        <!-- PUSTY STAN (Gdy brak wyników wyszukiwania) -->
+        <div id="emptyState" class="empty-state" hidden>
+            <p>Brak materiałów spełniających kryteria wyszukiwania.</p>
         </div>
 
-        <div class="sort-box">
-            <label for="sortSelect">SORTUJ:</label>
-            <select id="sortSelect">
-                <option value="date-desc">Najnowsze</option>
-                <option value="date-asc">Najstarsze</option>
-                <option value="rating-desc">Najwyżej oceniane</option>
-                <option value="rating-asc">Najniżej oceniane</option>
-            </select>
-        </div>
+        <!-- SIATKA Z KAFELKAMI -->
+        <main id="mediaGrid" class="media-grid animate-entry delay-5">
+            <!-- Kafelki są generowane automatycznie przez script.js -->
+        </main>
+
     </div>
-
-    <!-- PUSTY STAN (Gdy brak wyników wyszukiwania) -->
-    <div id="emptyState" class="empty-state" hidden>
-        <p>Brak materiałów spełniających kryteria wyszukiwania.</p>
-    </div>
-
-    <!-- SIATKA Z KAFELKAMI (Pojawia się jako 5. w animacji) -->
-    <main id="mediaGrid" class="media-grid animate-entry delay-5">
-        <!-- Kafelki są generowane automatycznie przez script.js -->
-    </main>
 
     <!-- KONTENER NA POWIADOMIENIA TOAST -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- MODAL / OKNO WPISU -->
-    <div id="mediaModal" class="modal">
-        <div class="modal-content">
+    <div id="mediaModal" class="modal modal-overlay">
+        <div class="modal-content modal-container">
             <span id="modalClose" class="modal-close">&times;</span>
 
             <!-- Kontener na dynamicznie ładowane media/galerię -->
             <div id="modalMediaContainer" class="modal-media-container"></div>
 
-            <div class="modal-header-info">
-                <h2 id="modalTitle"></h2>
-                <h3 id="modalSubtitle"></h3>
-                <p id="modalText"></p>
-                <button id="shareBtn" class="share-button">🔗 Udostępnij</button>
-            </div>
+            <div class="modal-info-section modal-body">
+                <div class="modal-header-actions">
+                    <h2 id="modalTitle" class="modal-title"></h2>
+                    <button id="shareBtn" class="share-btn">🔗 Udostępnij</button>
+                </div>
+                <h3 id="modalSubtitle" class="modal-subtitle"></h3>
+                <p id="modalText" class="modal-text"></p>
 
-            <!-- SEKCJA OCEN -->
-            <div class="modal-rating-section">
-                <div id="modalStars" class="modal-stars"></div>
-                <span id="modalRatingNum" class="modal-rating-num">0.0 / 5</span>
-                <span id="modalVotesCount" class="modal-votes-count">(0 głosów)</span>
-                <span id="modalViewsCount" class="modal-views-count">👁️ 0 wyświetleń</span>
-            </div>
+                <!-- SEKCJA OCEN -->
+                <div class="rating-box">
+                    <div id="modalStars" class="stars"></div>
+                    <span id="modalRatingNum" class="rating-number">0.0 / 5</span>
+                    <span id="modalVotesCount" class="rating-info">(0 głosów)</span>
+                    <span id="modalViewsCount" class="views-info">👁️ 0 wyświetleń</span>
+                </div>
 
-            <hr>
+                <!-- SEKCJA KOMENTARZY -->
+                <div class="comments-section">
+                    <h3>Komentarze</h3>
+                    <div id="commentsList" class="comments-list"></div>
 
-            <!-- SEKCJA KOMENTARZY -->
-            <div class="modal-comments-section">
-                <h3>Komentarze</h3>
-                <div id="commentsList" class="comments-list"></div>
+                    <form id="commentForm" class="comment-form">
+                        <div id="commentError" class="comment-error" style="display: none;"></div>
+                        <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój nick (opcjonalnie)" maxlength="30">
+                        <textarea id="commentText" class="comment-textarea" placeholder="Napisz komentarz..." required maxlength="500"></textarea>
+                        
+                        <!-- Turnstile Widget -->
+                        <div class="cf-turnstile" data-sitekey="0x4AAAAAAEP7TChncHbsIA0q"></div>
 
-                <form id="commentForm" class="comment-form">
-                    <div id="commentError" class="comment-error" style="display: none;"></div>
-                    <input type="text" id="commentAuthor" placeholder="Twój nick (opcjonalnie)" maxlength="30">
-                    <textarea id="commentText" placeholder="Napisz komentarz..." required maxlength="500"></textarea>
-                    
-                    <!-- Turnstile Widget -->
-                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAEP7TChncHbsIA0q"></div>
-
-                    <button type="submit" class="submit-comment-btn">Dodaj komentarz</button>
-                </form>
+                        <button type="submit" class="comment-submit-btn">Dodaj komentarz</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
