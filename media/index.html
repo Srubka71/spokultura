@@ -3,138 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPOKULTURA | Portal Media & Blog</title>
-    
-    <!-- FAVICON -->
-    <link rel="icon" type="image/png" href="/favicon.png">
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- Base CSS -->
-    <link rel="stylesheet" href="style.css">
+    <title>SPOKULTURA — Media & Articles</title>
     
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- Cloudflare Turnstile SDK -->
+    
+    <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="page-overlay"></div>
-
-    <!-- TOAST NOTIFICATION CONTAINER -->
-    <div id="toastContainer" class="toast-container"></div>
-
-    <!-- HEADER -->
-    <header class="site-header glassmorphism">
-        <a href="https://spokultura.pl" class="brand">SPOKULTURA</a>
-        <nav class="main-navigation">
-            <a href="#" class="active">Główna</a>
-            <a href="#">Artykuły</a>
-            <a href="https://spokultura.pl/looper">Looper</a>
-            <a href="https://spokultura.pl/info">Więcej info</a>
+    <!-- GŁÓWNY NAGŁÓWEK (Pojawia się jako 1. w animacji) -->
+    <header class="header animate-entry delay-1">
+        <div class="logo">SPOKULTURA</div>
+        <nav class="nav-links">
+            <a href="/">GŁÓWNA</a>
+            <a href="/media" class="active">ARTYKUŁY</a>
+            <a href="#">LOOPER</a>
+            <a href="#">WIĘCEJ INFO</a>
         </nav>
     </header>
 
-    <!-- MAIN CONTAINER -->
-    <main class="media-container">
+    <!-- SEKCJA HERO / TYTUŁ (Pojawia się jako 2. i 3. w animacji) -->
+    <section class="hero-section">
+        <h1 class="animate-entry delay-2">MEDIA & ARTICLES</h1>
+        <p class="animate-entry delay-3">Najnowsze wpisy, fotorelacje oraz ekskluzywne materiały wideo.</p>
+    </section>
 
-        <header class="media-heading">
-            <h1 class="media-title">
-                <span>MEDIA & ARTICLES</span>
-            </h1>
-            <p class="media-introduction">Najnowsze wpisy, fotorelacje oraz ekskluzywne materiały wideo.</p>
-        </header>
-
-        <!-- TOOLBAR -->
-        <section class="media-toolbar glassmorphism">
-            <div class="media-search">
-                <input type="text" id="searchInput" placeholder="Szukaj artykułu..." autocomplete="off">
-            </div>
-
-            <div class="media-filters">
-                <button class="filter-button active" data-filter="all">WSZYSTKIE</button>
-                <button class="filter-button" data-filter="photo">ZDJĘCIA</button>
-                <button class="filter-button" data-filter="video">WIDEO</button>
-            </div>
-
-            <div class="media-sort">
-                <label for="sortSelect">SORTUJ:</label>
-                <select id="sortSelect">
-                    <option value="date-desc">Najnowsze</option>
-                    <option value="date-asc">Najstarsze</option>
-                    <option value="rating-desc">Najwyżej oceniane</option>
-                    <option value="rating-asc">Najniżej oceniane</option>
-                </select>
-            </div>
-        </section>
-
-        <!-- MEDIA LIST GRID -->
-        <div id="mediaGrid" class="media-list">
-            <!-- Dynamiczne kafelki -->
+    <!-- PASEK WYSZUKIWANIA I FILTRÓW (Pojawia się jako 4. w animacji) -->
+    <div class="filter-container animate-entry delay-4">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Szukaj artykułu...">
         </div>
 
-        <div id="emptyState" class="empty-state" hidden>
-            <p>Brak materiałów w wybranej kategorii lub wyszukiwaniu.</p>
+        <div class="filter-buttons">
+            <button class="filter-button active" data-filter="all">WSZYSTKIE</button>
+            <button class="filter-button" data-filter="photo">ZDJĘCIA</button>
+            <button class="filter-button" data-filter="video">WIDEO</button>
         </div>
 
+        <div class="sort-box">
+            <label for="sortSelect">SORTUJ:</label>
+            <select id="sortSelect">
+                <option value="date-desc">Najnowsze</option>
+                <option value="date-asc">Najstarsze</option>
+                <option value="rating-desc">Najwyżej oceniane</option>
+                <option value="rating-asc">Najniżej oceniane</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- PUSTY STAN (Gdy brak wyników wyszukiwania) -->
+    <div id="emptyState" class="empty-state" hidden>
+        <p>Brak materiałów spełniających kryteria wyszukiwania.</p>
+    </div>
+
+    <!-- SIATKA Z KAFELKAMI (Pojawia się jako 5. w animacji) -->
+    <main id="mediaGrid" class="media-grid animate-entry delay-5">
+        <!-- Kafelki są generowane automatycznie przez script.js -->
     </main>
 
-    <!-- MODAL / ARTYKUŁ POP-UP -->
-    <div id="mediaModal" class="modal-overlay">
-        <div class="modal-container">
-            <button id="modalClose" class="modal-close" type="button">&times;</button>
-            
-            <img id="modalImg" class="modal-hero-img" src="" alt="Cover">
-            
-            <div class="modal-body">
-                <div class="modal-header-actions">
-                    <h2 id="modalTitle" class="modal-title"></h2>
-                    <button id="shareBtn" class="share-btn" title="Udostępnij">
-                        🔗 UDOSTĘPNIJ
-                    </button>
-                </div>
+    <!-- KONTENER NA POWIADOMIENIA TOAST -->
+    <div id="toastContainer" class="toast-container"></div>
 
-                <h3 id="modalSubtitle" class="modal-subtitle"></h3>
-                
-                <div class="rating-box" style="margin-bottom: 20px;">
-                    <span id="modalStars" class="stars"></span>
-                    <span id="modalRatingNum" class="rating-number"></span>
-                    <span id="modalVotesCount" class="rating-info"></span>
-                    <span id="modalViewsCount" class="views-info">👁️ 0 wyświetleń</span>
-                </div>
+    <!-- MODAL / OKNO WPISU -->
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <span id="modalClose" class="modal-close">&times;</span>
 
-                <p id="modalText" class="modal-text"></p>
+            <!-- Kontener na dynamicznie ładowane media/galerię -->
+            <div id="modalMediaContainer" class="modal-media-container"></div>
 
-                <!-- SEKCJA KOMENTARZY -->
-                <section class="comments-section">
-                    <h3>Komentarze</h3>
+            <div class="modal-header-info">
+                <h2 id="modalTitle"></h2>
+                <h3 id="modalSubtitle"></h3>
+                <p id="modalText"></p>
+                <button id="shareBtn" class="share-button">🔗 Udostępnij</button>
+            </div>
+
+            <!-- SEKCJA OCEN -->
+            <div class="modal-rating-section">
+                <div id="modalStars" class="modal-stars"></div>
+                <span id="modalRatingNum" class="modal-rating-num">0.0 / 5</span>
+                <span id="modalVotesCount" class="modal-votes-count">(0 głosów)</span>
+                <span id="modalViewsCount" class="modal-views-count">👁️ 0 wyświetleń</span>
+            </div>
+
+            <hr>
+
+            <!-- SEKCJA KOMENTARZY -->
+            <div class="modal-comments-section">
+                <h3>Komentarze</h3>
+                <div id="commentsList" class="comments-list"></div>
+
+                <form id="commentForm" class="comment-form">
+                    <div id="commentError" class="comment-error" style="display: none;"></div>
+                    <input type="text" id="commentAuthor" placeholder="Twój nick (opcjonalnie)" maxlength="30">
+                    <textarea id="commentText" placeholder="Napisz komentarz..." required maxlength="500"></textarea>
                     
-                    <form id="commentForm" class="comment-form">
-                        <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój podpis / Nick" required maxlength="30">
-                        <textarea id="commentText" class="comment-textarea" rows="3" placeholder="Dodaj swój komentarz..." required maxlength="500"></textarea>
-                        
-                        <div class="cf-turnstile" data-sitekey="0x4AAAAAAEP7TChncHbsIA0q" data-theme="dark"></div>
-                        
-                        <p id="commentError" style="color: #ff4444; font-size: 0.8rem; display: none;"></p>
-                        <button type="submit" class="comment-submit-btn">DODAJ KOMENTARZ</button>
-                    </form>
+                    <!-- Turnstile Widget -->
+                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAEP7TChncHbsIA0q"></div>
 
-                    <div id="commentsList" class="comments-list">
-                        <!-- Komentarze ładowane dynamicznie -->
-                    </div>
-                </section>
+                    <button type="submit" class="submit-comment-btn">Dodaj komentarz</button>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT DATA & APP LOGIC -->
+    <!-- SKRYPTY KONFIGURACYJNE I GŁÓWNE -->
     <script src="config.js"></script>
     <script src="script.js"></script>
-
 </body>
 </html>
