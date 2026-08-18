@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spokultura — Media & Archiwum</title>
-    
+
+    <!-- FAVICON (z głównego katalogu) -->
+    <link rel="icon" type="image/png" href="./favicon.png">
+    <link rel="shortcut icon" type="image/png" href="./favicon.png">
+
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+
     <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    
+
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -109,7 +113,7 @@
                         <div id="commentError" class="comment-error" style="display: none;"></div>
                         <input type="text" id="commentAuthor" class="comment-input" placeholder="Twój nick (opcjonalnie)" maxlength="30">
                         <textarea id="commentText" class="comment-textarea" placeholder="Napisz komentarz..." required maxlength="500"></textarea>
-                        
+
                         <!-- Turnstile Widget -->
                         <div class="cf-turnstile" data-sitekey="0x4AAAAAAEP7TChncHbsIA0q"></div>
 
