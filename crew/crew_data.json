@@ -2,8 +2,8 @@
   "djs": [
     {
       "id": "dj-srubecki",
-      "name": "DJ Srubecki",
-      "role": "Manager / DJ / Producent",
+      "name": "Srubecki",
+      "role": "Manager / DJ",
       "image": "/crew/assets/images/dj_srubecki.jpg",
       "bio": "Srubecki to manager oraz pasjonat muzyki, ktory od lat rozwija sie w swiecie hip-hopu. Zajmuje sie koordynacja artystow i wydawnictw muzycznych, wspolpraca z dystrybutorami oraz analiza rynku, jednoczesnie aktywnie rozwijajac swoje umiejetnosci w produkcji muzycznej, turntablizmie i realizacji projektow kreatywnych. Byly sportowiec (SMS PZPS Spala, Gwardia Wroclaw). Poza muzyka zajmuje sie rowniez fotografia, grafika oraz montazem wideo. Dziala z misja wspierania niezaleznych artystow i rozwijania kultury hip-hopowej poprzez Spokulture.",
       "socials": {
@@ -12,7 +12,7 @@
     },
     {
       "id": "dj-dymek",
-      "name": "DJ Dymek",
+      "name": "Dymek",
       "role": "DJ",
       "image": "/crew/assets/images/dj_dymek.png",
       "bio": "DJ z pasja, zajawka i ambicja, by wnosic swieza energie na decki. Dymek to DJ, ktory na gramofonach i ze sprzetem audio jako zajawkowicz dziala od kilku lat. Przez co z czasem skompletowal wlasny sprzet, jako samouk zaczal budowac swoj styl – balansujac miedzy oldschoolowym hip-hopem a housem. Pierwsze mixy szlifowal w domowym zaciszu, dzis coraz czesciej dzieli sie nimi na beach-barach i plenerach. Lubi eksperymentowac, laczyc brzmienia i tworzyc klimat.",
@@ -22,8 +22,8 @@
     },
     {
       "id": "dj-resetovski",
-      "name": "DJ Resetovski",
-      "role": "DJ / Turntablista",
+      "name": "Resetovski",
+      "role": "DJ / Turntablista / Producent",
       "image": "/crew/assets/images/dj_resetovski.jpg",
       "bio": "Resetovski to DJ i Turntablista, ktorego sety mozna bylo uslyszec miedzy innymi na Rap Stacji, Wroclaw Hip-Hop Festiwalu, One Love Festiwalu czy Gastro miasto. W sezonie letnim regularnie gra imprezy Silent Disco organizowane przez SilentX. Finalista DMC Poland 2024 w kategorii Classic. Reprezentant szkolki DJ'ow DJ'a Skipless'a. Ulubione gatunki to Hip-Hop, R&B, Soul, Funk oraz muzyka elektroniczna.",
       "socials": {
@@ -33,15 +33,15 @@
     },
     {
       "id": "dj-michal-jabczyk",
-      "name": "DJ i B-boy Michal Jabczyk",
-      "role": "DJ / B-boy / Producent",
+      "name": "Michal Jabczyk",
+      "role": "DJ / B-BOY / Producent",
       "image": "/crew/assets/images/dj_michal_jabczyk.jpg",
       "bio": "DJ, Bboy, producent muzyczny, multiinstrumentalista i pasjonat dzwieku w kazdej formie. Absolwent Szkoly Muzyki Nowoczesnej we Wroclawiu, ktory przez lata zjadl zeby na kontrolerach i programach DAW. Za dekami czuje sie jak ryba w wodzie, a w studio – jak ryba z MPC pod pletwa. Michal to gosc, ktory jednego dnia beatboxuje, drugiego gra na saksofonie, a trzeciego… odpala handpan i drumle, zeby zahaczyc o inne wymiary muzycznej ekspresji. Swoje zamilowanie do dzwiekow rozszerzyl takze na ruch – przez kilka lat aktywnie trenowal taniec uliczny: breakdance i popping.",
       "socials": {}
     },
     {
       "id": "dj-fishfinger",
-      "name": "DJ Fishfinger",
+      "name": "Fishfinger",
       "role": "DJ / Turntablist",
       "image": "/crew/assets/images/dj_fishfinger.jpg",
       "bio": "W swojej 8-letniej juz przygodzie za deckami zdazyl zaliczyc liczne festiwale - mozecie go sprawdzac regularnie od kliku lat na Rap Stacja Festiwal, Hip-Hop Festiwal we Wroclawiu. Gra klimaty idace w strone muzyki jego czasow, a wiec glebokiego Oldschool'u - Stany, Polska, Francja. Jest umieszczany w zestawieniach topowych scratcher'ow (#skreczowisko) w tym kraju, uslyszycie go na licznych produkcjach i zobaczycie w klipach znanych i niebawem znanych raperow. Od 5 lat zwiazany z ekipa Cohortes, z ktorymi zagrali na festiwalu Rap Stacja na glownej scenie.",
@@ -53,8 +53,8 @@
   "bboys": [
     {
       "id": "bboy-twister",
-      "name": "B-Boy Twister",
-      "role": "Tancerz / Breakdance",
+      "name": "Twister",
+      "role": "B-BOY",
       "image": "/crew/assets/images/bboy_twister.png",
       "bio": "Twister to oldschoolowy wyjadacz, ktory pamieta poczatki breaka we Wroclawiu, bedac bboyem od 2001 roku. Czlonek ekip: TupTuPeRia Crew, Grupa taneczna 'MASKA' z Katow Wroclawskich oraz WZRT (3 miejsce na Rytmie Ulicy Pila 2008 w kategorii show). Wspolorganizator cyklicznej imprezy tanecznej 'SpalTenParkiet' w klubie Nietota we Wroclawiu. Wielokrotnie zaangazowany tanecznie w teledyskach i koncertach m.in.: Waldemar Kasta, DonGURALesko, O.S.T.R, Szad Akrobata, WWO & Soundkail, Antone.",
       "socials": {}
@@ -63,7 +63,7 @@
   "writers": [
     {
       "id": "writer-shar",
-      "name": "Writer SHAR",
+      "name": "SHAR",
       "role": "Graffiti Artist",
       "image": "/crew/assets/images/writer_shar.JPG",
       "bio": "SHAR to writer zwiazany z kultura graffiti od najmlodszych lat. Nieustannie rozwija swoj charakterystyczny styl, czerpiac inspiracje z klasycznego graffiti oraz estetyki zlotej ery hip-hopu. Szczegolne miejsce w jego tworczosci zajmuja oldschoolowe liternictwo oraz tribute'y dla artystow lat 90. Regularnie bierze udzial w legalnych jamach graffiti oraz projektach artystycznych. Poza klasycznymi wrzutami rozwija sie rowniez w rysunku realistycznym.",
