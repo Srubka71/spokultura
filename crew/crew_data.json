@@ -11,13 +11,13 @@
       }
     },
     {
-      "id": "dj-fishfinger",
-      "name": "DJ Fishfinger",
-      "role": "DJ / Turntablist",
-      "image": "/crew/assets/images/dj_fishfinger.jpg",
-      "bio": "W swojej 8-letniej juz przygodzie za deckami zdazyl zaliczyc liczne festiwale - mozecie go sprawdzac regularnie od kliku lat na Rap Stacja Festiwal, Hip-Hop Festiwal we Wroclawiu. Gra klimaty idace w strone muzyki jego czasow, a wiec glebokiego Oldschool'u - Stany, Polska, Francja. Jest umieszczany w zestawieniach topowych scratcher'ow (#skreczowisko) w tym kraju, uslyszycie go na licznych produkcjach i zobaczycie w klipach znanych i niebawem znanych raperow. Od 5 lat zwiazany z ekipa Cohortes, z ktorymi zagrali na festiwalu Rap Stacja na glownej scenie.",
+      "id": "dj-dymek",
+      "name": "DJ Dymek",
+      "role": "DJ",
+      "image": "/crew/assets/images/dj_dymek.png",
+      "bio": "DJ z pasja, zajawka i ambicja, by wnosic swieza energie na decki. Dymek to DJ, ktory na gramofonach i ze sprzetem audio jako zajawkowicz dziala od kilku lat. Przez co z czasem skompletowal wlasny sprzet, jako samouk zaczal budowac swoj styl – balansujac miedzy oldschoolowym hip-hopem a housem. Pierwsze mixy szlifowal w domowym zaciszu, dzis coraz czesciej dzieli sie nimi na beach-barach i plenerach. Lubi eksperymentowac, laczyc brzmienia i tworzyc klimat.",
       "socials": {
-        "instagram": "https://www.instagram.com/dj.fishfinger/"
+        "youtube": "https://www.youtube.com/watch?v=QxihsCBLrV0"
       }
     },
     {
@@ -31,13 +31,14 @@
       }
     },
     {
-      "id": "dj-michal-jabczyk",
-      "name": "DJ i B-boy Michal Jabczyk",
-      "role": "DJ / B-boy / Producent",
-      "image": "/crew/assets/images/dj_michal_jabczyk.jpg",
-      "bio": "DJ, Bboy, producent muzyczny, multiinstrumentalista i pasjonat dzwieku w kazdej formie. Absolwent Szkoly Muzyki Nowoczesnej we Wroclawiu, ktory przez lata zjadl zeby na kontrolerach i programach DAW. Za dekami czuje sie jak ryba w wodzie, a w studio – jak ryba z MPC pod pletwa. Michal to gosc, ktory jednego dnia beatboxuje, drugiego gra na saksofonie, a trzeciego… odpala handpan i drumle, zeby zahaczyc o inne wymiary muzycznej ekspresji. Swoje zamilowanie do dzwiekow rozszerzyl takze na ruch – przez kilka lat aktywnie trenowal taniec uliczny: breakdance i popping.",
-      "socials": {}
-    }
+      "id": "dj-fishfinger",
+      "name": "DJ Fishfinger",
+      "role": "DJ / Turntablist",
+      "image": "/crew/assets/images/dj_fishfinger.jpg",
+      "bio": "W swojej 8-letniej juz przygodzie za deckami zdazyl zaliczyc liczne festiwale - mozecie go sprawdzac regularnie od kliku lat na Rap Stacja Festiwal, Hip-Hop Festiwal we Wroclawiu. Gra klimaty idace w strone muzyki jego czasow, a wiec glebokiego Oldschool'u - Stany, Polska, Francja. Jest umieszczany w zestawieniach topowych scratcher'ow (#skreczowisko) w tym kraju, uslyszycie go na licznych produkcjach i zobaczycie w klipach znanych i niebawem znanych raperow. Od 5 lat zwiazany z ekipa Cohortes, z ktorymi zagrali na festiwalu Rap Stacja na glownej scenie.",
+      "socials": {
+        "instagram": "https://www.instagram.com/dj.fishfinger/"
+      }
   ],
   "bboys": [
     {
