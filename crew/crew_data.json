@@ -21,6 +21,17 @@
       }
     },
     {
+      "id": "dj-resetovski",
+      "name": "DJ Resetovski",
+      "role": "DJ / Turntablista",
+      "image": "/crew/assets/images/dj_resetovski.jpg",
+      "bio": "Resetovski to DJ i Turntablista, ktorego sety mozna bylo uslyszec miedzy innymi na Rap Stacji, Wroclaw Hip-Hop Festiwalu, One Love Festiwalu czy Gastro miasto. W sezonie letnim regularnie gra imprezy Silent Disco organizowane przez SilentX. Finalista DMC Poland 2024 w kategorii Classic. Reprezentant szkolki DJ'ow DJ'a Skipless'a. Ulubione gatunki to Hip-Hop, R&B, Soul, Funk oraz muzyka elektroniczna.",
+      "socials": {
+        "facebook": "https://www.facebook.com/resetovski",
+        "instagram": "https://www.instagram.com/resetovski/"
+      }
+    },
+    {
       "id": "dj-michal-jabczyk",
       "name": "DJ i B-boy Michal Jabczyk",
       "role": "DJ / B-boy / Producent",
