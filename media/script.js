@@ -75,7 +75,6 @@
         // Modal elements
         const mediaModal = document.getElementById("mediaModal");
         const modalClose = document.getElementById("modalClose");
-        const modalImg = document.getElementById("modalImg");
         const modalTitle = document.getElementById("modalTitle");
         const modalSubtitle = document.getElementById("modalSubtitle");
         const modalText = document.getElementById("modalText");
@@ -100,7 +99,6 @@
         let itemViews = {};
         let activeMediaItem = null;
 
-        // Stan bieżącej galerii w otwartym modalu
         let currentGalleryIndex = 0;
         let currentGalleryItems = [];
 
@@ -120,7 +118,6 @@
                 `;
                 document.body.appendChild(lightbox);
 
-                // Zamknięcie po kliknięciu tła lub X
                 lightbox.addEventListener("click", (e) => {
                     if (e.target === lightbox || e.target.classList.contains("lightbox-content-wrapper") || e.target.id === "lightboxClose") {
                         closeFullscreenImage();
@@ -147,7 +144,6 @@
             if (!supabaseClient) return;
 
             try {
-                // Oceny
                 const { data: ratingsData } = await supabaseClient
                     .from("media_ratings")
                     .select("media_id, average_rating, total_votes");
@@ -162,7 +158,6 @@
                     });
                 }
 
-                // Komentarze
                 const { data: commentsData } = await supabaseClient
                     .from("media_comments")
                     .select("media_id");
@@ -175,7 +170,6 @@
                     });
                 }
 
-                // Wyświetlenia
                 const { data: viewsData } = await supabaseClient
                     .from("media_views")
                     .select("media_id");
@@ -259,7 +253,6 @@
                 };
             });
 
-            // Wyszukiwarka
             if (searchQuery.trim() !== "") {
                 const query = searchQuery.toLowerCase();
                 items = items.filter(item => 
@@ -268,12 +261,10 @@
                 );
             }
 
-            // Filtry
             if (currentFilter !== "all") {
                 items = items.filter(item => item.type === currentFilter);
             }
 
-            // Sortowanie
             switch (currentSort) {
                 case "date-desc": items.sort((a, b) => new Date(b.date) - new Date(a.date)); break;
                 case "date-asc": items.sort((a, b) => new Date(a.date) - new Date(b.date)); break;
@@ -296,7 +287,6 @@
 
                 const image = item.thumbnail || item.image || "assets/thumbnails/placeholder.jpg";
                 
-                // Mapowanie etykiety
                 let typeLabel = "PHOTO";
                 if (item.type === "video") typeLabel = "VIDEO";
                 else if (item.type === "album" || item.type === "photos+videos") typeLabel = "ALBUM";
@@ -329,7 +319,6 @@
                     </div>
                 `;
 
-                // Efekt 3D Tilt na kafelku
                 card.addEventListener("mousemove", (e) => {
                     const rect = card.getBoundingClientRect();
                     const x = e.clientX - rect.left;
@@ -346,7 +335,6 @@
                     card.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg)";
                 });
 
-                // Kliknięcie w kafelek
                 card.addEventListener("click", (e) => {
                     const starTarget = e.target.closest(".star-clickable");
                     if (starTarget) {
@@ -363,6 +351,19 @@
             });
         }
 
+        /* DELEGACJA ZDARZEŃ DLA GWIAZDEK W MODALU (NAPRAWIONY KONFLIKT) */
+        if (modalStars) {
+            modalStars.addEventListener("click", (e) => {
+                const starEl = e.target.closest(".star-clickable");
+                if (starEl && activeMediaItem) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const score = Number(starEl.dataset.star);
+                    submitRating(activeMediaItem.id, score);
+                }
+            });
+        }
+
         /* MODAL & GALLERY LOGIC */
         async function openModal(item) {
             if (!mediaModal) return;
@@ -373,7 +374,6 @@
             if (modalText) modalText.textContent = item.description || "Brak opisu.";
             if (commentError) commentError.style.display = "none";
 
-            // Budowanie listy mediów (galerii)
             currentGalleryItems = item.gallery;
             if (!currentGalleryItems || !Array.isArray(currentGalleryItems) || currentGalleryItems.length === 0) {
                 currentGalleryItems = [];
@@ -384,9 +384,8 @@
                 currentGalleryItems.push({ type: 'image', url: mainImg });
             }
 
-            currentGalleryIndex = 0; // Start od pierwszego elementu
+            currentGalleryIndex = 0;
 
-            // Przygotowanie kontenera mediów w modalu
             let mediaContainer = document.getElementById("modalMediaContainer");
             if (!mediaContainer) {
                 mediaContainer = document.createElement("div");
@@ -397,7 +396,6 @@
                 }
             }
 
-            // Konstrukcja struktury galerii
             mediaContainer.innerHTML = `
                 <div class="modal-main-display"></div>
                 ${currentGalleryItems.length > 1 ? `
@@ -410,7 +408,6 @@
             const displayArea = mediaContainer.querySelector(".modal-main-display");
             const thumbsContainer = mediaContainer.querySelector(".modal-gallery-thumbs");
 
-            // Funkcja wyświetlająca wybrany plik
             function renderActiveMedia(index) {
                 currentGalleryIndex = index;
                 const media = currentGalleryItems[index];
@@ -424,7 +421,6 @@
                 } else {
                     displayArea.innerHTML = `<img src="${media.url}" alt="${escapeHTML(item.title)}" class="modal-main-img" title="Kliknij, aby powiększyć na pełny ekran">`;
                     
-                    // KLIKNIĘCIE W GŁÓWNY OBRAZ -> PEŁNY EKRAN (LIGHTBOX)
                     const imgEl = displayArea.querySelector(".modal-main-img");
                     if (imgEl) {
                         imgEl.addEventListener("click", (e) => {
@@ -435,7 +431,6 @@
                     }
                 }
 
-                // Aktualizacja aktywnej miniaturki
                 if (thumbsContainer) {
                     const thumbs = thumbsContainer.querySelectorAll(".gallery-thumb");
                     thumbs.forEach((t, i) => {
@@ -447,7 +442,6 @@
                 }
             }
 
-            // Generowanie miniaturek
             if (thumbsContainer) {
                 currentGalleryItems.forEach((media, index) => {
                     const thumb = document.createElement("div");
@@ -464,7 +458,6 @@
                 });
             }
 
-            // Obsługa kliknięć w strzałki
             const prevBtn = mediaContainer.querySelector(".modal-nav-arrow.prev");
             const nextBtn = mediaContainer.querySelector(".modal-nav-arrow.next");
 
@@ -484,13 +477,9 @@
                 });
             }
 
-            // Załadowanie pierwszego pliku
             renderActiveMedia(0);
-
-            // Hash URL
             history.replaceState(null, "", `#${item.id}`);
 
-            // Zliczanie wyświetleń
             const viewedSessionKey = `viewed_${item.id}`;
             if (!sessionStorage.getItem(viewedSessionKey)) {
                 sessionStorage.setItem(viewedSessionKey, "true");
@@ -513,7 +502,6 @@
         function closeModal() {
             if (!mediaModal) return;
             
-            // Jeśli jest otwarty tryb pełnoekranowy zdjęcia, zamykamy go najpierw
             closeFullscreenImage();
 
             mediaModal.classList.remove("active");
@@ -535,11 +523,9 @@
             });
         }
 
-        // NAWIGACJA KLAWIATURĄ (Esc, Strzałka w lewo, Strzałka w prawo)
         document.addEventListener("keydown", (e) => {
             const lightbox = document.getElementById("fullscreenLightbox");
 
-            // Klawisz ESC zamyka w pierwszej kolejności widok pełnoekranowy zdjęcia
             if (e.key === "Escape") {
                 if (lightbox && lightbox.classList.contains("active")) {
                     closeFullscreenImage();
@@ -562,7 +548,6 @@
             }
         });
 
-        /* UDOSTĘPNIANIE LINKU DO WPISU */
         if (shareBtn) {
             shareBtn.addEventListener("click", () => {
                 if (!activeMediaItem) return;
@@ -589,20 +574,8 @@
             if (modalRatingNum) modalRatingNum.textContent = `${rating.toFixed(1)} / 5`;
             if (modalVotesCount) modalVotesCount.textContent = `(${totalVotes} głosów | ${cCount} komentarzy)`;
             if (modalViewsCount) modalViewsCount.textContent = `👁️ ${vCount} wyświetleń`;
-
-            if (modalStars) {
-                modalStars.querySelectorAll(".star-clickable").forEach(starEl => {
-                    starEl.addEventListener("click", (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const score = Number(starEl.dataset.star);
-                        submitRating(mediaId, score);
-                    });
-                });
-            }
         }
 
-        /* OBSŁUGA KOMENTARZY */
         async function loadComments(mediaId) {
             if (!commentsList) return;
             commentsList.innerHTML = "<p style='font-size:0.8rem; color:#888;'>Ładowanie komentarzy...</p>";
@@ -701,7 +674,6 @@
             });
         }
 
-        /* FILTRY, WYSZUKIWARKA & SORTOWANIE */
         if (searchInput) {
             searchInput.addEventListener("input", (e) => {
                 searchQuery = e.target.value;
@@ -733,7 +705,6 @@
                 .replace(/"/g, "&#039;");
         }
 
-        // OTWARCIE MODALU Z LINKU (HASH URL)
         function checkHashAndOpenModal() {
             if (window.location.hash) {
                 const hashId = window.location.hash.substring(1);
@@ -745,7 +716,6 @@
             }
         }
 
-        // START
         await loadStatsFromSupabase();
         renderMedia();
         checkHashAndOpenModal();
@@ -753,7 +723,6 @@
         window.addEventListener("hashchange", checkHashAndOpenModal);
     };
 
-    // INICJALIZACJA DOM
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initApp);
     } else {
