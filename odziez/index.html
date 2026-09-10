@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spokultura — Odzież & Merch (Zapytaj o dostępność)</title>
+
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" href="/favicon.png?v=2">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png?v=2">
+
+    <!-- GOOGLE FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="clothing-page">
+
+    <div class="page-overlay"></div>
+
+    <!-- STICKY HEADER -->
+    <header class="site-header glassmorphism animate-entry delay-1" id="top">
+        <a href="https://spokultura.pl" class="brand-logo" title="SPOKULTURA — Strona Główna">
+            <img src="assets/logo.png" alt="Spokultura Logo">
+        </a>
+        <nav class="main-navigation">
+            <a href="https://spokultura.pl/">START</a>
+            <a href="/media">ARTYKUŁY</a>
+            <a href="/odziez" class="active">ODZIEŻ & MERCH</a>
+            <a href="/looper">LOOPER</a>
+            <a href="/crew">EKIPA - O NAS</a>
+            <a href="#faq">JAK TO DZIAŁA / FAQ</a>
+            <a href="https://facebook.com" target="_blank" rel="noopener">FB</a>
+            <a href="https://instagram.com" target="_blank" rel="noopener">IG</a>
+        </nav>
+        <button class="cart-trigger-btn" id="openCartBtn" aria-label="Otwórz listę zapytań">
+            <span>LISTA ZAPYTAŃ</span>
+            <span class="cart-count-badge" id="cartCount">0</span>
+        </button>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="clothing-container">
+
+        <!-- HERO SECTION -->
+        <section class="hero-section glassmorphism animate-entry delay-2">
+            <div class="hero-content">
+                <span class="hero-tag">SPOKULTURA STREETWEAR</span>
+                <h1 class="hero-title">WEAR THE <span>CULTURE</span></h1>
+                <p class="hero-description">
+                    Ubrania i gadżety stworzone dla ludzi związanych ze sceną Hip-Hop, DJingiem, Graffiti i B-Boyingiem. Checkuj dostępność krojów, rozmiarów oraz wariantów.
+                </p>
+                <div class="hero-actions">
+                    <a href="#products" class="btn btn-primary">ZOBACZ MERCH</a>
+                    <button class="btn btn-secondary" id="heroCartBtn">TWOJA LISTA ZAPYTAŃ (<span class="hero-cart-count">0</span>)</button>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <img src="assets/main.jpg" class="hero-main-image">
+            </div>
+        </section>
+
+        <!-- SECIJA PRODUKTÓW -->
+        <section class="products-section" id="products">
+            <div class="section-heading animate-entry delay-3">
+                <h2 class="section-title">ODZIEŻ I <span>MERCH</span></h2>
+                <p class="section-subtitle">Wybierz interesujący Cię produkt, określ rozmiar, kolor lub wariant i prześlij zapytanie o dostępność.</p>
+            </div>
+
+            <!-- KONTENER RENDEROWANY DYNAMICZNIE PRZEZ APP.JS -->
+            <div id="productsGrid" class="products-grid animate-entry delay-4"></div>
+        </section>
+
+        <!-- SECIJA FAQ / INFORMACYJNA -->
+        <section class="faq-section glassmorphism" id="faq">
+            <div class="section-heading">
+                <h2 class="section-title">JAK TO <span>DZIAŁA?</span></h2>
+                <p class="section-subtitle">Ważne informacje na temat zapytań o dystrybucję odzieży Spokultura.</p>
+            </div>
+            <div class="faq-grid">
+                <div class="faq-item">
+                    <h3>Czy strona Spokultura.pl prowadzi bezpośrednią sprzedaż?</h3>
+                    <p>
+                        <strong>Nie.</strong> Stowarzyszenie Spokultura nie prowadzi bezpośredniej sprzedaży internetowej ani działalności gospodarczej w tym zakresie. Niniejsza strona służy wyłącznie do prezentacji wzorów i zbierania zapytań o dostępność.
+                    </p>
+                </div>
+                <div class="faq-item">
+                    <h3>Kto realizuje dalsze formalności i przekazanie odzieży?</h3>
+                    <p>
+                        Wszystkie zapytania wysłane przez formularz trafiają bezpośrednio do wyznaczonej osoby/partnera prywatnego, która zajmuje się dystrybucją i indywidualnym ustaleniem szczegółów przekazania lub zakupu.
+                    </p>
+                </div>
+                <div class="faq-item">
+                    <h3>Jak wygląda proces zapytania?</h3>
+                    <p>
+                        Dodaj wybrane przedmioty i rozmiary do "Listy Zapytań", wypełnij swoje dane kontaktowe w formularzu, a wyznaczony opiekun skontaktuje się z Tobą w celu potwierdzenia stanów magazynowych oraz szczegółów.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- DOLNY PASEK CTA -->
+    <div class="sticky-bottom-bar glassmorphism" id="stickyCtaBar">
+        <div class="cta-bar-content">
+            <span class="cta-bar-text">WEAR THE CULTURE — SPOKULTURA MERCH</span>
+            <div class="cta-bar-buttons">
+                <a href="#products" class="btn btn-small btn-secondary">PRODUKTY</a>
+                <button class="btn btn-small btn-primary" id="barCartBtn">LISTA ZAPYTAŃ (<span class="bar-cart-count">0</span>)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: SZCZEGÓŁY PRODUKTU -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal-container glassmorphism">
+            <button class="modal-close" id="closeProductModal" aria-label="Zamknij">&times;</button>
+            <div class="product-modal-body" id="productModalContent">
+                <!-- Content wstawiany dynamicznie przez app.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: LISTA ZAPYTAŃ / KOSZYK -->
+    <div class="modal-overlay" id="cartModal">
+        <div class="modal-container glassmorphism cart-modal-container">
+            <button class="modal-close" id="closeCartModal" aria-label="Zamknij">&times;</button>
+            <div class="cart-modal-header">
+                <h2>TWOJA LISTA <span>ZAPYTAŃ</span></h2>
+                <p>Sprawdź wybrane przedmioty przed przesłaniem zapytania o dostępność.</p>
+            </div>
+            <div class="cart-modal-body">
+                <div id="cartItemsList" class="cart-items-list">
+                    <!-- Lista przedmiotów z aplikacji -->
+                </div>
+                <div class="cart-summary-box">
+                    <div class="summary-row">
+                        <span>Liczba pozycji:</span>
+                        <span id="cartTotalQuantity">0 szt.</span>
+                    </div>
+                    <div class="summary-row total-row">
+                        <span>Szacunkowa wartość:</span>
+                        <span id="cartTotalPrice">0 PLN</span>
+                    </div>
+                </div>
+            </div>
+            <div class="cart-modal-footer">
+                <button class="btn btn-secondary" id="continueShoppingBtn">DODAJ WIĘCEJ</button>
+                <button class="btn btn-primary" id="proceedToInquiryBtn">PRZEJDŹ DO ZAPYTANIA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: FORMULARZ ZAPYTANIA O DOSTĘPNOŚĆ (FORMSPREE) -->
+    <div class="modal-overlay" id="inquiryModal">
+        <div class="modal-container glassmorphism inquiry-modal-container">
+            <button class="modal-close" id="closeInquiryModal" aria-label="Zamknij">&times;</button>
+            <div class="inquiry-modal-header">
+                <h2>WYŚLIJ ZAPYTANIE O <span>DOSTĘPNOŚĆ</span></h2>
+                <p>Wypełnij formularz. Informacje trafią do wyznaczonej osoby odpowiedzialnej za realizację.</p>
+            </div>
+            
+            <form id="inquiryForm" action="https://formspree.io/f/TWOJ_FORM_ID" method="POST" class="inquiry-form">
+                <!-- Ukryte pole na zsumowaną listę produktów z koszyka -->
+                <input type="hidden" name="Lista_Zapytania" id="formCartDataHidden">
+                <input type="hidden" name="Szacowana_Wartosc" id="formTotalHidden">
+
+                <div class="form-group">
+                    <label for="userName">Imię i Nazwisko *</label>
+                    <input type="text" id="userName" name="Imie_i_Nazwisko" placeholder="np. Jan Kowalski" required>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="userEmail">Adres E-mail *</label>
+                        <input type="email" id="userEmail" name="Email" placeholder="np. jan@spokultura.pl" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userPhone">Numer telefonu *</label>
+                        <input type="tel" id="userPhone" name="Telefon" placeholder="np. +48 123 456 789" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="userNotes">Uwagi do zapytania / Preferencje dostawy</label>
+                    <textarea id="userNotes" name="Uwagi" rows="3" placeholder="Wpisz ewentualne pytania o rozmiary, kolory lub preferowaną formę odbioru..."></textarea>
+                </div>
+
+                <div class="inquiry-summary-preview">
+                    <h4>Podsumowanie zestawienia:</h4>
+                    <div id="inquiryItemsSummary" class="inquiry-items-summary"></div>
+                </div>
+
+                <div class="disclaimer-box">
+                    <p>
+                        <strong>Informacja:</strong> Wysyłając formularz, składasz jedynie zapytanie o dostępność wskazanych produktów. Wysyłka formularza nie stanowi zawarcia umowy sprzedaży ze Stowarzyszeniem Spokultura. Dalsze ustalenia zostaną przeprowadzone bezpośrednio z osobą prywatną prowadzącą obsługę.
+                    </p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="backToCartBtn">WRÓĆ DO LISTY</button>
+                    <button type="submit" class="btn btn-primary" id="submitInquiryBtn">WYŚLIJ ZAPYTANIE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="site-footer" id="footer">
+        <div class="footer-content glassmorphism">
+            <div class="footer-brand">
+                <h3>SPOKULTURA <span>MERCH</span></h3>
+                <p>Ubrania i gadżety wspierające ruch i kulturę hip-hopową.</p>
+            </div>
+            <div class="footer-info">
+                <h4>INFORMACJE</h4>
+                <p>Projekt niekomercyjny — reprezentacja marki i kultury Spokultura.</p>
+                <p>Obsługa zapytań: wyznaczony opiekun dystrybucji.</p>
+            </div>
+            <div class="footer-contact">
+                <h4>KONTAKT</h4>
+                <p>E-mail: kontakt@spokultura.pl</p>
+                <p>WWW: <a href="https://spokultura.pl" target="_blank">spokultura.pl</a></p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Spokultura. Wszystkie prawa zastrzeżone.</p>
+        </div>
+    </footer>
+
+    <!-- SKRYPTY (ETAP 3 i 4) -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
