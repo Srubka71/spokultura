@@ -1,0 +1,208 @@
+/* ==========================================================================
+   WSPÓLNY HEADER I NAWIGACJA DLA CAŁEJ STRONY
+   ========================================================================== */
+#site-header-container {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    pointer-events: none;
+}
+
+.site-header {
+    position: relative;
+    pointer-events: auto;
+    z-index: 1000;
+    width: calc(100% - 30px);
+    max-width: 1400px;
+    margin: 12px auto 0;
+    padding: 6px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #ff6a00 !important;
+    border-radius: 8px;
+    transform: translateZ(0);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.brand-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    flex-shrink: 0;
+}
+
+.brand-logo img {
+    height: 46px;
+    max-height: 46px;
+    width: auto;
+    max-width: 100%;
+    display: block;
+    object-fit: contain;
+    background: transparent;
+    mix-blend-mode: screen;
+}
+
+.brand-logo:hover {
+    transform: scale(1.04);
+    opacity: 0.9;
+}
+
+.main-navigation {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.main-navigation a {
+    color: #d0d0d0;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+    touch-action: manipulation;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Stan najechania myszą */
+.main-navigation a:hover {
+    color: #ff6a00;
+}
+
+/* Stan aktywnej zakładki */
+.main-navigation a.active {
+    color: #ff6a00;
+    background: rgba(255, 106, 0, 0.08);
+    border: 1px solid rgba(255, 106, 0, 0.3);
+}
+
+.cart-trigger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ff6a00;
+    color: #000000 !important;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-weight: 900;
+    font-size: 0.75rem;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    transition: background 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.cart-trigger-btn:hover {
+    background: #e05d00;
+    transform: translateY(-1px);
+}
+
+.cart-count-badge {
+    background: #000000;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 20px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 26px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1002;
+}
+
+.mobile-menu-toggle span {
+    width: 100%;
+    height: 2px;
+    background-color: #ff6a00;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-toggle.active span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+.mobile-menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.mobile-menu-toggle.active span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
+.nav-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.nav-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+@media (max-width: 992px) {
+    .mobile-menu-toggle { display: flex; }
+    .main-navigation {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 280px;
+        height: 100vh;
+        height: 100dvh;
+        background: rgba(14, 14, 16, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 25px;
+        z-index: 1001;
+        transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        border-left: 1px solid rgba(255, 106, 0, 0.3);
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.8);
+    }
+    .main-navigation.active { right: 0; }
+}
+
+@media (max-width: 768px) {
+    .site-header {
+        padding: 8px 12px;
+        margin: 8px auto 0;
+        width: calc(100% - 16px);
+    }
+    .brand-logo img {
+        height: 38px;
+        max-height: 38px;
+    }
+    .cart-trigger-btn {
+        padding: 5px 9px;
+        font-size: 0.68rem;
+    }
+}
