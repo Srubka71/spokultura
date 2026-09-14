@@ -61,67 +61,9 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* HEADER */
-.site-header {
-    position: relative;
-    z-index: 20;
-    width: calc(100% - 20px);
-    max-width: 1200px;
-    margin: 15px auto 0;
-    padding: 8px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #ff6a00 !important;
-    border-radius: 8px;
-    transform: translateZ(0);
-}
-
-/* LOGO W HEADERZE */
-.brand-logo {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    transition: transform 0.25s ease, opacity 0.25s ease;
-    flex-shrink: 0;
-}
-
-.brand-logo img {
-    height: 55px;
-    max-height: 55px;
-    width: auto;
-    max-width: 100%;
-    display: block;
-    object-fit: contain;
-}
-
-.brand-logo:hover {
-    transform: scale(1.04);
-    opacity: 0.9;
-}
-
-.main-navigation {
-    display: flex;
-    gap: 20px;
-}
-
-.main-navigation a {
-    color: #d0d0d0;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    transition: color 0.2s ease;
-    touch-action: manipulation;
-}
-
-.main-navigation a:hover,
-.main-navigation a.active {
-    color: #ff6a00;
-}
-
-/* MAIN CONTAINER */
+/* ==========================================================================
+   KONTENER GŁÓWNY I TREŚĆ STRONY /MEDIA
+   ========================================================================== */
 .media-container {
     position: relative;
     z-index: 2;
@@ -138,6 +80,7 @@ body {
 }
 
 .media-title span {
+    font-family: 'Montserrat', Arial, sans-serif;
     font-size: clamp(2.5rem, 8vw, 5.5rem);
     font-weight: 900;
     line-height: 0.95;
@@ -169,6 +112,7 @@ body {
 }
 
 .media-search input {
+    font-family: 'Montserrat', Arial, sans-serif;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
@@ -185,6 +129,7 @@ body {
 }
 
 .filter-button {
+    font-family: 'Montserrat', Arial, sans-serif;
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(15, 15, 15, 0.8);
     color: #ffffff;
@@ -207,6 +152,7 @@ body {
 }
 
 .media-sort select {
+    font-family: 'Montserrat', Arial, sans-serif;
     background: #111111;
     border: 1px solid rgba(255,255,255,0.2);
     color: #ffffff;
@@ -344,6 +290,20 @@ body {
     line-height: 1.35;
 }
 
+/* STRZAŁKA W KAFELKU */
+.media-card-arrow {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    font-size: 1.1rem;
+    color: #ff6a00;
+    transition: transform 0.2s ease;
+}
+
+.media-card:hover .media-card-arrow {
+    transform: translateX(4px);
+}
+
 /* RATING & STARS */
 .rating-box {
     margin-top: 8px;
@@ -366,6 +326,10 @@ body {
     cursor: pointer;
     touch-action: manipulation;
     transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.star-clickable:hover {
+    transform: scale(1.2);
 }
 
 .rating-number {
@@ -536,6 +500,11 @@ body {
     transition: opacity 0.2s ease;
     flex-shrink: 0;
     background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #fff;
     touch-action: manipulation;
 }
 
@@ -555,6 +524,7 @@ body {
 }
 
 .share-btn {
+    font-family: 'Montserrat', Arial, sans-serif;
     background: transparent;
     border: 1px solid #ff6a00;
     color: #ff6a00;
@@ -610,11 +580,11 @@ body {
 }
 
 .comment-input, .comment-textarea {
+    font-family: 'Montserrat', Arial, sans-serif;
     background: #181818;
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #ffffff;
     padding: 10px 12px;
-    font-family: inherit;
     font-size: 0.85rem;
 }
 
@@ -624,6 +594,7 @@ body {
 }
 
 .comment-submit-btn {
+    font-family: 'Montserrat', Arial, sans-serif;
     align-self: flex-start;
     background: #ff6a00;
     color: #000000;
@@ -729,6 +700,7 @@ body {
 }
 
 .toast {
+    font-family: 'Montserrat', Arial, sans-serif;
     background: #111;
     color: #fff;
     border: 1px solid #ff6a00;
@@ -762,32 +734,10 @@ body {
 .delay-3 { animation-delay: 0.3s; }
 .delay-4 { animation-delay: 0.4s; }
 
-/* MEDIA QUERIES (RESPONSYWNOŚĆ MOBILNA) */
+/* ==========================================================================
+   MEDIA QUERIES (RESPONSYWNOŚĆ MOBILNA)
+   ========================================================================== */
 @media (max-width: 768px) {
-    .site-header {
-        flex-direction: column;
-        gap: 12px;
-        padding: 10px 12px;
-        margin: 10px auto 0;
-        width: calc(100% - 16px);
-    }
-
-    .brand-logo img {
-        height: 42px;
-        max-height: 42px;
-    }
-
-    .main-navigation {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 8px 14px;
-    }
-
-    .main-navigation a {
-        font-size: 0.78rem;
-        letter-spacing: 1px;
-    }
-
     .media-container {
         padding: 20px 10px 60px;
     }
