@@ -1135,3 +1135,258 @@ body.clothing-page::before {
         width: 100%;
     }
 }
+
+/* === PROFESJONALNY STYL CHECKBOXA W MOTYWIE SPOKULTURA === */
+.inquiry-form .custom-checkbox-container .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 8px;   /* Precyzyjne dosunięcie w poziomie */
+    top: 3px;    /* Precyzyjne dosunięcie w pionie */
+    width: 6px;
+    height: 11px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.inquiry-form .custom-checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.inquiry-form .checkmark {
+    position: relative;
+    flex-shrink: 0;
+    height: 22px;
+    width: 22px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 106, 0, 0.5);
+    border-radius: 6px;
+    margin-top: 2px;
+    transition: all 0.2s ease;
+}
+
+.inquiry-form .custom-checkbox-container:hover .checkmark {
+    border-color: #ff6a00;
+    background-color: rgba(255, 106, 0, 0.1);
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark {
+    background-color: #ff6a00;
+    border-color: #ff6a00;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.4);
+}
+
+.inquiry-form .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.inquiry-form .custom-checkbox-container .checkmark:after {
+    left: 7px;
+    top: 3px;
+    width: 5px;
+    height: 10px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.inquiry-form .checkbox-label-text {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #cccccc;
+    line-height: 1.5;
+}
+
+/* Wymuszenie pomarańczowego koloru linku w motywie strony */
+.inquiry-form .checkbox-label-text a {
+    color: #ff6a00 !important;
+    font-weight: 700;
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.inquiry-form .checkbox-label-text a:hover {
+    color: #ff8533 !important;
+}
+
+/* === PROFESJONALNY STYL CHECKBOXA W MOTYWIE SPOKULTURA === */
+.inquiry-form .custom-checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    margin: 20px 0;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.inquiry-form .custom-checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.inquiry-form .checkmark {
+    position: relative;
+    flex-shrink: 0;
+    height: 22px;
+    width: 22px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 106, 0, 0.5);
+    border-radius: 6px;
+    margin-top: 2px;
+    transition: all 0.2s ease;
+}
+
+.inquiry-form .custom-checkbox-container:hover .checkmark {
+    border-color: #ff6a00;
+    background-color: rgba(255, 106, 0, 0.1);
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark {
+    background-color: #ff6a00;
+    border-color: #ff6a00;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.4);
+}
+
+.inquiry-form .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.inquiry-form .custom-checkbox-container .checkmark:after {
+    left: 7px;
+    top: 3px;
+    width: 5px;
+    height: 10px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.inquiry-form .checkbox-label-text {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #cccccc;
+    line-height: 1.5;
+}
+
+/* Wymuszenie pomarańczowego koloru linku w motywie strony */
+.inquiry-form .checkbox-label-text a {
+    color: #ff6a00 !important;
+    font-weight: 700;
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.inquiry-form .checkbox-label-text a:hover {
+    color: #ff8533 !important;
+}
+
+/* === STYL CHECKBOXA W MOTYWIE SPOKULTURA === */
+.inquiry-form .custom-checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    margin: 20px 0;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.inquiry-form .custom-checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.inquiry-form .checkmark {
+    position: relative;
+    flex-shrink: 0;
+    height: 22px;
+    width: 22px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 106, 0, 0.5);
+    border-radius: 6px;
+    margin-top: 2px;
+    transition: all 0.2s ease;
+}
+
+.inquiry-form .custom-checkbox-container:hover .checkmark {
+    border-color: #ff6a00;
+    background-color: rgba(255, 106, 0, 0.1);
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark {
+    background-color: #ff6a00;
+    border-color: #ff6a00;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.4);
+}
+
+.inquiry-form .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    top: 44%;
+    left: 50%;
+    width: 5px;
+    height: 10px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.inquiry-form .checkbox-label-text {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #cccccc;
+    line-height: 1.5;
+}
+
+.inquiry-form .checkbox-label-text a:hover {
+    color: #ff8533 !important;
+}
+
+/* === POPRAWIONE ŚRODKOWANIE FAJKI W CHECKBOXIE === */
+.inquiry-form .custom-checkbox-container .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    top: 42%;
+    left: 50%;
+    width: 5px;
+    height: 10px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.inquiry-form .custom-checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
