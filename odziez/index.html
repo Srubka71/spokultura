@@ -16,31 +16,14 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/header.css">
 </head>
 <body class="clothing-page">
 
     <div class="page-overlay"></div>
 
-    <!-- STICKY HEADER -->
-    <header class="site-header glassmorphism animate-entry delay-1" id="top">
-        <a href="https://spokultura.pl" class="brand-logo" title="SPOKULTURA — Strona Główna">
-            <img src="assets/logo.png" alt="Spokultura Logo">
-        </a>
-        <nav class="main-navigation">
-            <a href="https://spokultura.pl/">START</a>
-            <a href="/media">ARTYKUŁY</a>
-            <a href="/odziez" class="active">ODZIEŻ & MERCH</a>
-            <a href="/looper">LOOPER</a>
-            <a href="/crew">EKIPA - O NAS</a>
-            <a href="#faq">JAK TO DZIAŁA / FAQ</a>
-            <a href="https://facebook.com" target="_blank" rel="noopener">FB</a>
-            <a href="https://instagram.com" target="_blank" rel="noopener">IG</a>
-        </nav>
-        <button class="cart-trigger-btn" id="openCartBtn" aria-label="Otwórz listę zapytań">
-            <span>LISTA ZAPYTAŃ</span>
-            <span class="cart-count-badge" id="cartCount">0</span>
-        </button>
-    </header>
+    <!-- DYNAMICZNY STICKY HEADER WSTRZYKIWANY Z HEADER.JS -->
+    <div id="site-header-container"></div>
 
     <!-- MAIN CONTAINER -->
     <main class="clothing-container">
@@ -59,11 +42,11 @@
                 </div>
             </div>
             <div class="hero-visual">
-                <img src="assets/main.jpg" class="hero-main-image">
+                <img src="assets/main.jpg" class="hero-main-image" alt="Spokultura Merch">
             </div>
         </section>
 
-        <!-- SECIJA PRODUKTÓW -->
+        <!-- SEKCJA PRODUKTÓW -->
         <section class="products-section" id="products">
             <div class="section-heading animate-entry delay-3">
                 <h2 class="section-title">ODZIEŻ I <span>MERCH</span></h2>
@@ -74,7 +57,7 @@
             <div id="productsGrid" class="products-grid animate-entry delay-4"></div>
         </section>
 
-        <!-- SECIJA FAQ / INFORMACYJNA -->
+        <!-- SEKCJA FAQ / INFORMACYJNA -->
         <section class="faq-section glassmorphism" id="faq">
             <div class="section-heading">
                 <h2 class="section-title">JAK TO <span>DZIAŁA?</span></h2>
@@ -195,6 +178,15 @@
                     <div id="inquiryItemsSummary" class="inquiry-items-summary"></div>
                 </div>
 
+                <!-- CHECKBOX ZASAD DYSTRYBUCJI Z WYMAGANYM ATRYBUTEM REQUIRED -->
+                <label class="custom-checkbox-container">
+                    <input type="checkbox" id="statuteAgreement" required>
+                    <span class="checkmark"></span>
+                    <span class="checkbox-label-text">
+                        Zapoznałem/am się z <a href="#" id="openRulesModal">Zasadami Dystrybucji</a> i przyjmuję do wiadomości, że przekazywana kwota stanowi wsparcie działań statutowych Stowarzyszenia Spokultura.
+                    </span>
+                </label>
+
                 <div class="disclaimer-box">
                     <p>
                         <strong>Informacja:</strong> Wysyłając formularz, składasz jedynie zapytanie o dostępność wskazanych produktów. Wysyłka formularza nie stanowi zawarcia umowy sprzedaży ze Stowarzyszeniem Spokultura. Dalsze ustalenia zostaną przeprowadzone bezpośrednio z osobą prywatną prowadzącą obsługę.
@@ -206,6 +198,22 @@
                     <button type="submit" class="btn btn-primary" id="submitInquiryBtn">WYŚLIJ ZAPYTANIE</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: ZASADY DYSTRYBUCJI -->
+    <div class="modal-overlay" id="rulesModal">
+        <div class="modal-container glassmorphism rules-modal-container">
+            <button class="modal-close" id="closeRulesModal" aria-label="Zamknij">&times;</button>
+            <div class="rules-modal-header" style="margin-bottom: 20px;">
+                <h2 style="color: #fff; font-size: 1.5rem;">ZASADY <span>DYSTRYBUCJI</span></h2>
+                <p style="color: #aaa; font-size: 0.9rem;">Informacje o charakterze materiałów statutowych</p>
+            </div>
+            <div class="rules-modal-body modal-text rules-content" style="color: #ccc; font-size: 0.95rem; line-height: 1.6;">
+                <p style="margin-bottom: 15px;"><strong>1. Charakter niekomercyjny:</strong> Dystrybucja materiałów promocyjnych i odzieży nie stanowi działalności gospodarczej ani sklepu internetowego. Jest formą partycypacji w projektach Stowarzyszenia Zwykłego Spokultura.</p>
+                <p style="margin-bottom: 15px;"><strong>2. Przeznaczenie środków:</strong> Wpłacana kwota pokrywa bezpośrednie koszty produkcji oraz logistyki, a ewentualna nadwyżka przeznaczana jest w całości na realizację celów statutowych (zakup sprzętu, organizacja wydarzeń).</p>
+                <p style="margin-bottom: 15px;"><strong>3. Rozliczenie:</strong> Rozliczenie realizowane jest przez wyznaczoną osobę prywatną będącą członkiem Stowarzyszenia, odpowiedzialną za pokrycie kosztów wytworzenia materiałów.</p>
+            </div>
         </div>
     </div>
 
@@ -227,13 +235,46 @@
                 <p>WWW: <a href="https://spokultura.pl" target="_blank">spokultura.pl</a></p>
             </div>
         </div>
-        <div class="footer-bottom">
-            <p>&copy; 2026 Spokultura. Wszystkie prawa zastrzeżone.</p>
+        <div class="footer-bottom" style="text-align: center; padding: 20px; border-top: 1px solid rgba(255,255,255,0.08);">
+            <p style="color: #888888; font-size: 0.8rem; max-width: 900px; margin: 0 auto 10px; line-height: 1.5;">Stowarzyszenie Zwykłe Spokultura nie prowadzi bezpośredniej sprzedaży internetowej ani działalności gospodarczej. Strona służy wyłącznie do prezentacji wzorów materiałów statutowych i przyjmowania zapytań o ich dostępność.</p>
+            <p style="color: #666; font-size: 0.75rem;">&copy; 2026 Spokultura. Wszystkie prawa zastrzeżone.</p>
         </div>
     </footer>
 
-    <!-- SKRYPTY (ETAP 3 i 4) -->
+    <!-- SKRYPTY -->
+    <script src="/header.js"></script>
     <script src="config.js"></script>
     <script src="app.js"></script>
+
+    <!-- SKRYPT OBSŁUGI MODALU ZASAD DYSTRYBUCJI -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const openRulesBtn = document.getElementById("openRulesModal");
+            const rulesModal = document.getElementById("rulesModal");
+            const closeRulesModal = document.getElementById("closeRulesModal");
+
+            if (openRulesBtn && rulesModal) {
+                openRulesBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    rulesModal.classList.add("active");
+                    document.body.style.overflow = "hidden";
+                });
+            }
+            if (closeRulesModal && rulesModal) {
+                closeRulesModal.addEventListener("click", function () {
+                    rulesModal.classList.remove("active");
+                    document.body.style.overflow = "";
+                });
+            }
+            if (rulesModal) {
+                rulesModal.addEventListener("click", function (e) {
+                    if (e.target === rulesModal) {
+                        rulesModal.classList.remove("active");
+                        document.body.style.overflow = "";
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
