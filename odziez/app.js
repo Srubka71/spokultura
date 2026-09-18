@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentSelectedProduct = null;
     let selectedSize = null;
     let selectedColor = null;
+    let currentInquiryID = null;
 
     const productModal = document.getElementById("productModal");
     const closeProductModal = document.getElementById("closeProductModal");
@@ -32,6 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const formCartDataHidden = document.getElementById("formCartDataHidden");
     const formTotalHidden = document.getElementById("formTotalHidden");
     const submitInquiryBtn = document.getElementById("submitInquiryBtn");
+    const statuteAgreement = document.getElementById("statuteAgreement");
 
     const cartCountBadge = document.getElementById("cartCount");
     const heroCartCount = document.querySelector(".hero-cart-count");
@@ -39,6 +41,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (typeof CONFIG !== 'undefined' && CONFIG.formspreeId && inquiryForm) {
         inquiryForm.action = `https://formspree.io/f/${CONFIG.formspreeId}`;
+    }
+
+    /* ==========================================================================
+       POMOCNIK: GENEROWANIE NUMERU ZGŁOSZENIA (ZAP-YYMMDD-XX)
+       Numer nie zwiększa się przy odświeżaniu – licznik podbija się dopiero po wysłaniu
+       ========================================================================== */
+    function getInquiryID() {
+        if (!currentInquiryID) {
+            const now = new Date();
+            const dateStr = now.getFullYear().toString().slice(-2) + 
+                            String(now.getMonth() + 1).padStart(2, '0') + 
+                            String(now.getDate()).padStart(2, '0');
+            let lastNum = parseInt(localStorage.getItem("spokultura_last_num") || "0", 10) + 1;
+            currentInquiryID = `ZAP-${dateStr}-${String(lastNum).padStart(2, '0')}`;
+        }
+        return currentInquiryID;
     }
 
     /* ==========================================================================
@@ -99,7 +117,6 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         }).join("");
 
-        // Obsługa kliknięcia "Sprawdź / Zapytaj"
         document.querySelectorAll(".open-product-btn").forEach(el => {
             el.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -108,17 +125,14 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Obsługa kliknięcia w cały kafelek (otwieranie modalu)
         document.querySelectorAll(".product-card").forEach(card => {
             card.addEventListener("click", (e) => {
-                // Zapobieganie otwarciu modalu przy klikaniu w strzałki slidera
                 if (e.target.classList.contains("slider-arrow")) return;
                 const id = card.getAttribute("data-id");
                 if (id) openProductModalHandler(id);
             });
         });
 
-        // Obsługa automatycznych sliderów i przełączania zdjęć na kafelkach
         document.querySelectorAll(".product-image-box").forEach(box => {
             const images = box.querySelectorAll(".card-slider-img");
             const prevBtn = box.querySelector(".prev-arrow");
@@ -250,7 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
         `;
 
-        // Podgląd miniatur w modalu
         const mainImg = document.getElementById("mainModalImage");
         const thumbs = productModalContent.querySelectorAll(".modal-thumb");
         thumbs.forEach(thumb => {
@@ -261,7 +274,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Powiększanie pełnoekranowe (Lightbox)
         mainImg.addEventListener("click", () => {
             openLightbox(mainImg.src);
         });
@@ -479,10 +491,12 @@ document.addEventListener("DOMContentLoaded", () => {
     function prepareInquiryForm() {
         if (cart.length === 0) return;
 
+        const inquiryID = getInquiryID();
+
         let totalQty = 0;
         let totalPrice = 0;
         let summaryTextArr = [];
-        let htmlSummary = "<ul>";
+        let htmlSummary = `<div style="margin-bottom: 8px; color: #ff6a00; font-weight: 700;">Numer zgłoszenia: ${inquiryID}</div><ul>`;
 
         cart.forEach(item => {
             totalQty += item.quantity;
@@ -497,14 +511,37 @@ document.addEventListener("DOMContentLoaded", () => {
         htmlSummary += "</ul>";
 
         if (inquiryItemsSummary) inquiryItemsSummary.innerHTML = htmlSummary;
-        if (formCartDataHidden) formCartDataHidden.value = summaryTextArr.join("\n");
-        if (formTotalHidden) formTotalHidden.value = `Łącznie sztuk: ${totalQty}, Szacowana wartość: ~${totalPrice} PLN`;
+        
+        if (formCartDataHidden) {
+            formCartDataHidden.value = `Numer zgłoszenia: ${inquiryID}\n\nProdukty:\n` + summaryTextArr.join("\n");
+        }
+        if (formTotalHidden) {
+            formTotalHidden.value = `ID: ${inquiryID} | Łącznie sztuk: ${totalQty}, Szacowana wartość: ~${totalPrice} PLN`;
+        }
     }
 
     if (inquiryForm) {
         inquiryForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             if (cart.length === 0) return;
+
+            // Czyszczenie ew. wcześniejszych błędów walidacji customowej
+            if (statuteAgreement) {
+                statuteAgreement.setCustomValidity("");
+            }
+
+            // Wymuszenie walidacji checkboxa
+            if (statuteAgreement && !statuteAgreement.checked) {
+                statuteAgreement.setCustomValidity("Wypełnij to pole, aby kontynuować.");
+                statuteAgreement.reportValidity();
+                return;
+            }
+
+            // Sprawdzenie poprawności pozostałych pól
+            if (!inquiryForm.checkValidity()) {
+                inquiryForm.reportValidity();
+                return;
+            }
 
             submitInquiryBtn.disabled = true;
             submitInquiryBtn.textContent = "WYSYŁANIE...";
@@ -517,22 +554,37 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
 
                 if (response.ok) {
-                    alert("Dziękujemy! Zapytanie zostało wysłane.");
+                    alert(`Dziękujemy! Zapytanie (${currentInquiryID}) zostało wysłane pomyślnie.`);
+                    
+                    // Zwiększenie licznika w localStorage DOPIERO po udanej wysyłce
+                    let lastNum = parseInt(localStorage.getItem("spokultura_last_num") || "0", 10);
+                    localStorage.setItem("spokultura_last_num", (lastNum + 1).toString());
+
                     cart = [];
                     saveCart();
                     updateCartUI();
                     inquiryForm.reset();
+                    currentInquiryID = null; // Reset ID dla kolejnego zapytania
                     closeModal(inquiryModal);
                 } else {
-                    alert("Wystąpił problem z wysyłką.");
+                    alert("Wystąpił problem z wysyłką zapytania.");
                 }
             } catch (error) {
-                alert("Błąd połączenia.");
+                alert("Błąd połączenia z serwerem.");
             } finally {
                 submitInquiryBtn.disabled = false;
                 submitInquiryBtn.textContent = "WYŚLIJ ZAPYTANIE";
             }
         });
+
+        // Usuwanie komunikatu błędu podczas kliknięcia w checkbox
+        if (statuteAgreement) {
+            statuteAgreement.addEventListener("change", () => {
+                if (statuteAgreement.checked) {
+                    statuteAgreement.setCustomValidity("");
+                }
+            });
+        }
     }
 
     function openModal(modal) {
